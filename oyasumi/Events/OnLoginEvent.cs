@@ -27,14 +27,13 @@ namespace oyasumi.Events
     }
     public class Login
     {
-        public static async Task<Player> Handle(MemoryStream body, SerializationWriter writer)
+        public static Player Handle(MemoryStream body, SerializationWriter writer)
         {
-            Console.WriteLine(StreamHelper.ReadBodyFromStream(body));
-            body.Position = 0;
             var LoginData = ProcessLoginData(body);
 
             var UserId = UserHelper.GetId(LoginData.Username);
-            var DbPassword = Global.DBContext.DBUsers.Where(x => x.Id == UserId).Select(x => x.Password).FirstOrDefault();
+
+            var DbPassword = Global.Factory.Get().DBUsers.Where(x => x.Id == UserId).Select(x => x.Password).FirstOrDefault();
 
             /*if (UserId == 0 || !UserHelper.ValidatePassword(LoginData.Password, DbPassword)) // wrong password or account doesn't exist.
             {

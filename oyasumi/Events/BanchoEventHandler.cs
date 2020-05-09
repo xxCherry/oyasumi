@@ -17,10 +17,10 @@ namespace oyasumi.Events
 
             var PacketEvent = Interfaces.FirstOrDefault(x => x.GetType().Name == packet.Type.ToString());
 
-            Console.WriteLine("Packet Type: " + packet.Type.ToString() + " Value: " + BitConverter.ToString(packet.Data));
 
             if (PacketEvent != default)
             {
+                Console.WriteLine("Packet Type: " + packet.Type.ToString() + " Value: " + BitConverter.ToString(packet.Data));
                 PacketEvent.Handle(packet, player);
             }
         } 

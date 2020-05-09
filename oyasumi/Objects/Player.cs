@@ -12,6 +12,7 @@ using HOPEless.Bancho.Objects;
 using HOPEless.osu;
 using osu.Shared;
 using osu.Shared.Serialization;
+using oyasumi.Database;
 
 namespace oyasumi.Objects
 {
@@ -37,7 +38,7 @@ namespace oyasumi.Objects
         public Player(int userId, int timeZone)
         {
             Id = userId;
-            Username = Global.DBContext.DBUsers.Where(x => x.Id == Id).Select(x => x.Username).FirstOrDefault();
+            Username = Global.Factory.Get().DBUsers.Where(x => x.Id == Id).Select(x => x.Username).FirstOrDefault();
             Timezone = timeZone;
             Performance = GetPerformance();
             Token = Guid.NewGuid().ToString();
@@ -68,10 +69,10 @@ namespace oyasumi.Objects
             // TODO: Make it more cleaner if possible
             var performance = Status.PlayMode switch
             {
-                GameMode.Standard => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceOsu).FirstOrDefault(),
-                GameMode.Taiko => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceTaiko).FirstOrDefault(),
-                GameMode.CatchTheBeat => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceCtb).FirstOrDefault(),
-                GameMode.Mania => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceMania).FirstOrDefault(),
+                GameMode.Standard => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceOsu).FirstOrDefault(),
+                GameMode.Taiko => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceTaiko).FirstOrDefault(),
+                GameMode.CatchTheBeat => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceCtb).FirstOrDefault(),
+                GameMode.Mania => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PerformanceMania).FirstOrDefault(),
                 _ => 0
             };
 
@@ -86,10 +87,10 @@ namespace oyasumi.Objects
             // TODO: Make it more cleaner if possible
             return Status.PlayMode switch
             {
-                GameMode.Standard => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreOsu).FirstOrDefault(),
-                GameMode.Taiko => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreTaiko).FirstOrDefault(),
-                GameMode.CatchTheBeat => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreCtb).FirstOrDefault(),
-                GameMode.Mania => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreMania).FirstOrDefault(),
+                GameMode.Standard => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreOsu).FirstOrDefault(),
+                GameMode.Taiko => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreTaiko).FirstOrDefault(),
+                GameMode.CatchTheBeat => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreCtb).FirstOrDefault(),
+                GameMode.Mania => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.TotalScoreMania).FirstOrDefault(),
                 _ => 0
             };
         }
@@ -99,10 +100,10 @@ namespace oyasumi.Objects
             // TODO: Make it more cleaner if possible
             return Status.PlayMode switch
             {
-                GameMode.Standard => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyOsu).FirstOrDefault(),
-                GameMode.Taiko => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyTaiko).FirstOrDefault(),
-                GameMode.CatchTheBeat => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyCtb).FirstOrDefault(),
-                GameMode.Mania => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyMania).FirstOrDefault(),
+                GameMode.Standard => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyOsu).FirstOrDefault(),
+                GameMode.Taiko => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyTaiko).FirstOrDefault(),
+                GameMode.CatchTheBeat => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyCtb).FirstOrDefault(),
+                GameMode.Mania => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.AccuracyMania).FirstOrDefault(),
                 _ => 0
             };
         }
@@ -112,10 +113,10 @@ namespace oyasumi.Objects
             // TODO: Make it more cleaner if possible
             return Status.PlayMode switch
             {
-                GameMode.Standard => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreOsu).FirstOrDefault(),
-                GameMode.Taiko => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreTaiko).FirstOrDefault(),
-                GameMode.CatchTheBeat => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreCtb).FirstOrDefault(),
-                GameMode.Mania => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreMania).FirstOrDefault(),
+                GameMode.Standard => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreOsu).FirstOrDefault(),
+                GameMode.Taiko => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreTaiko).FirstOrDefault(),
+                GameMode.CatchTheBeat => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreCtb).FirstOrDefault(),
+                GameMode.Mania => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.RankedScoreMania).FirstOrDefault(),
                 _ => 0
             };
         }
@@ -125,10 +126,10 @@ namespace oyasumi.Objects
             // TODO: Make it more cleaner if possible
             return Status.PlayMode switch
             {
-                GameMode.Standard => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountOsu).FirstOrDefault(),
-                GameMode.Taiko => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountTaiko).FirstOrDefault(),
-                GameMode.CatchTheBeat => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountCtb).FirstOrDefault(),
-                GameMode.Mania => Global.DBContext.DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountMania).FirstOrDefault(),
+                GameMode.Standard => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountOsu).FirstOrDefault(),
+                GameMode.Taiko => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountTaiko).FirstOrDefault(),
+                GameMode.CatchTheBeat => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountCtb).FirstOrDefault(),
+                GameMode.Mania => Global.Factory.Get().DBUserStats.Where(x => x.Id == Id).Select(x => x.PlaycountMania).FirstOrDefault(),
                 _ => 0
             };
         }

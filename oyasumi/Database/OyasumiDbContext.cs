@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.Threading.Tasks;
+
 
 namespace oyasumi.Database
 {
@@ -16,7 +18,7 @@ namespace oyasumi.Database
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseMySql($"server=localhost;database={Config.Get().Database};user={Config.Get().Username};password={Config.Get().Password}");
-        } 
+        }
 
         public DbSet<Users> DBUsers { get; set; }
         [Table("Users")]

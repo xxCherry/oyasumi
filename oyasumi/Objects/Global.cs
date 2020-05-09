@@ -9,6 +9,6 @@ namespace oyasumi.Objects
 {
     public static class Global
     {
-        public static OyasumiDbContext DBContext;
+        public static OyasumiDbContextFactory Factory;
     }
 }

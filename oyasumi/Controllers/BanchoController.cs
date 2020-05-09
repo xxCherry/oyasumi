@@ -17,6 +17,17 @@ namespace oyasumi.Controllers
     [Route("/")]
     public class BanchoController : Controller
     {
+        private async Task<ActionResult> FileAsync(Stream s)
+        {
+            s.Position = 0;
+
+            var ms = new MemoryStream();
+            await s.CopyToAsync(ms);
+            ms.Position = 0;
+
+            return File(ms, "application/octet-stream");
+        }
+
         [HttpPost]
         public async Task<IActionResult> Index()
         {
@@ -33,7 +44,6 @@ namespace oyasumi.Controllers
             Global.DBContext.DBUserStats.Add(user1); 
 
             await Global.DBContext.SaveChangesAsync(); */
-            Global.DBContext = new OyasumiDbContext();
             var body = new MemoryStream();
             await Request.Body.CopyToAsync(body);
             body.Position = 0;
@@ -47,12 +57,15 @@ namespace oyasumi.Controllers
             Response.Headers["Connection"] = "keep-alive";
 
             Response.StatusCode = 200;
-
             if (string.IsNullOrEmpty(Request.Headers["osu-token"]))
             {
-                var player = await Login.Handle(body, sw);
+                var player = Login.Handle(body, sw);
                 Response.Headers["cho-token"] = player.Token;
+
                 body.Position = 0;
+                ms.Position = 0;
+
+                return await FileAsync(ms);
             }
             else
             {
@@ -64,7 +77,8 @@ namespace oyasumi.Controllers
 
                     foreach (var packet in packets)
                     {
-                        BanchoEventHandler.Handle(packet, player);
+                        if (packet.Type != PacketType.ClientPong)
+                            BanchoEventHandler.Handle(packet, player);
                     }
                     player.WritePackets(sw);
                 }
@@ -73,10 +87,10 @@ namespace oyasumi.Controllers
                     Console.WriteLine("Invalid token.");
                     new BanchoPacket(PacketType.ServerRestart, new BanchoInt(0)).WriteToStream(sw);
                 }
-            }
-            ms.Position = 0;
-            return File(ms, "application/octet-stream");
 
+                ms.Position = 0;
+                return await FileAsync(ms);
+            }
         }
     }
 }

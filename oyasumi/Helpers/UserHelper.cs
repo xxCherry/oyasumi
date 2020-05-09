@@ -8,7 +8,7 @@ namespace oyasumi.Helpers
         public static int GetId(string username)
         {
             var UsernameSafe = username.ToLower().Replace(' ', '_');
-            var Id = Global.DBContext.DBUsers.Where(u => u.UsernameSafe == UsernameSafe).Select(x => x.Id).FirstOrDefault();
+            var Id = Global.Factory.Get().DBUsers.Where(u => u.UsernameSafe == UsernameSafe).Select(x => x.Id).FirstOrDefault();
             if (Id == default)
                 return 0;
             return Id;
