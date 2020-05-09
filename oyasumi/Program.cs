@@ -14,8 +14,6 @@ namespace oyasumi
 
             Global.Factory = new OyasumiDbContextFactory();
             CreateHostBuilder(args).Build().Run();
-
-
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>

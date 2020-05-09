@@ -58,7 +58,7 @@ namespace oyasumi.Objects
 
         public void WritePackets(SerializationWriter sw)
         {
-            foreach (var p in PacketsQueue)
+            while (PacketsQueue.TryDequeue(out var p))
             {
                 p.WriteToStream(sw);
             }
