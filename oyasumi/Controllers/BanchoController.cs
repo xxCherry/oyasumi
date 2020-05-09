@@ -65,8 +65,6 @@ namespace oyasumi.Controllers
                 body.Position = 0;
                 ms.Position = 0;
 
-                Console.WriteLine("A\n\n\n\n\n\n\nOOOOOO.");
-
                 return await FileAsync(ms);
             }
             else
