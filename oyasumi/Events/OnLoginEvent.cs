@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using HOPEless.Bancho;
 using HOPEless.Bancho.Objects;
 using osu.Shared.Serialization;
+using oyasumi.Database;
 using oyasumi.Helpers;
 using oyasumi.Objects;
 
@@ -26,10 +27,11 @@ namespace oyasumi.Events
     }
     public class Login
     {
-        public static async Task Handle(MemoryStream body)
+        public static async Task<Player> Handle(MemoryStream body, SerializationWriter writer)
         {
+            Console.WriteLine(StreamHelper.ReadBodyFromStream(body));
+            body.Position = 0;
             var LoginData = ProcessLoginData(body);
-            SerializationWriter sw = new SerializationWriter(Global.Response.OutputStream);
 
             var UserId = UserHelper.GetId(LoginData.Username);
             var DbPassword = Global.DBContext.DBUsers.Where(x => x.Id == UserId).Select(x => x.Password).FirstOrDefault();
@@ -45,29 +47,29 @@ namespace oyasumi.Events
 
             var player = new Player(UserId, LoginData.Timezone);
 
-            Global.Response.AddHeader("cho-token", player.Token);
-
-            player.PacketEnqueue(new BanchoPacket(PacketType.ServerLoginReply, new BanchoInt(player.Id)));
-            player.PacketEnqueue(new BanchoPacket(PacketType.ServerLockClient, new BanchoInt(0)));
             player.PacketEnqueue(new BanchoPacket(PacketType.ServerBanchoVersion, new BanchoInt(19)));
-            player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserPermissions, new BanchoInt((int)player.Permissions)));
-            player.PacketEnqueue(new BanchoPacket(PacketType.ServerFriendsList, new BanchoIntList(new List<int> { player.Id })));
+            player.PacketEnqueue(new BanchoPacket(PacketType.ServerLoginReply, new BanchoInt(player.Id)));
+            //player.PacketEnqueue(new BanchoPacket(PacketType.ServerLockClient, new BanchoInt(0)));
+
+            player.PacketEnqueue(new BanchoPacket(PacketType.ServerNotification, new BanchoString("Hello, " + player.Username + "\nWelcome to oyasumi!.")));
             player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserPresence, player.ToUserPresence()));
             player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserData, player.ToUserData()));
+
+            player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserPermissions, new BanchoInt((int)player.Permissions)));
+            player.PacketEnqueue(new BanchoPacket(PacketType.ServerFriendsList, new BanchoIntList(new List<int> { player.Id, 999 })));
+
+            player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserPresenceSingle, new BanchoInt(player.Id)));
 
             player.PacketEnqueue(new BanchoPacket(PacketType.ServerChatChannelListingComplete, new BanchoInt(0)));
             player.PacketEnqueue(new BanchoPacket(PacketType.ServerChatChannelJoinSuccess, new BanchoString("#osu")));
             player.PacketEnqueue(new BanchoPacket(PacketType.ServerChatChannelAvailable, new BanchoChatChannel("#osu", "Basic Channel", 1)));
 
-            player.PacketEnqueue(new BanchoPacket(PacketType.ServerNotification, new BanchoString("Hello, " + player.Username + "\nIt's oyasumi! Testing server.")));
-            player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserPresenceSingle, new BanchoInt(player.Id)));
-            player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserPresenceBundle, new BanchoIntList(Players.PlayerList.Select(x => x.Id))));
-
             foreach (var p in Players.PlayerList)
                 player.PacketEnqueue(new BanchoPacket(PacketType.ServerUserPresence, p.ToUserPresence()));
 
-            await player.SendPackets();
+            player.WritePackets(writer);
 
+            return player;
         }
 
         public static LoginData ProcessLoginData(MemoryStream body)

@@ -39,15 +39,6 @@ namespace oyasumi.Objects
             Id = userId;
             Username = Global.DBContext.DBUsers.Where(x => x.Id == Id).Select(x => x.Username).FirstOrDefault();
             Timezone = timeZone;
-            Status = new BanchoUserStatus
-            {
-                Action = BanchoAction.Unknown,
-                ActionText = "",
-                BeatmapChecksum = "",
-                BeatmapId = 0,
-                CurrentMods = Mods.None,
-                PlayMode = GameMode.Standard
-            };
             Performance = GetPerformance();
             Token = Guid.NewGuid().ToString();
             loginTime = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
@@ -64,27 +55,12 @@ namespace oyasumi.Objects
             Players.PlayerList.Remove(this);
         }
 
-        public async Task SendPackets()
+        public void WritePackets(SerializationWriter sw)
         {
-            using MemoryStream ms = new MemoryStream();
-
-            while (ms.Length < (8192 - 2048) && PacketsQueue.TryDequeue(out var r))
+            foreach (var p in PacketsQueue)
             {
-                r.WriteToStream(sw);
-                ms.Write(((MemoryStream)sw.BaseStream).GetBuffer(), 0, ((MemoryStream)sw.BaseStream).GetBuffer().Length);
+                p.WriteToStream(sw);
             }
-
-            await ms.CopyToAsync(Global.Response.OutputStream);
-
-            Global.Response.AddHeader("Vary", "Accept-Encoding");
-            Global.Response.AddHeader("Content-Encoding", "gzip");
-
-            using (var gzip = new GZipStream(Global.Response.OutputStream, CompressionMode.Compress, true))
-            {
-                ms.WriteTo(gzip);
-            }
-
-            await Global.Response.OutputStream.DisposeAsync();
         }
 
         public short GetPerformance()

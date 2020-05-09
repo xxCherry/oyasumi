@@ -16,7 +16,7 @@ namespace oyasumi.Database
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseMySql($"server=localhost;database={Config.Get().Database};user={Config.Get().Username};password={Config.Get().Password}");
-        }
+        } 
 
         public DbSet<Users> DBUsers { get; set; }
         [Table("Users")]

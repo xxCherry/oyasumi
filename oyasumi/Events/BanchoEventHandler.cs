@@ -11,19 +11,19 @@ namespace oyasumi.Events
         public static void Handle(BanchoPacket packet, Player player)
         {
             var Interfaces = from t in Assembly.GetExecutingAssembly().GetTypes()
-                        where t.GetInterfaces().Contains(typeof(IPacket))
-                                 && t.GetConstructor(Type.EmptyTypes) != null // check if type has parameterless constructor
-                        select Activator.CreateInstance(t) as IPacket;
+                             where t.GetInterfaces().Contains(typeof(IPacket))
+                                      && t.GetConstructor(Type.EmptyTypes) != null // check if type has parameterless constructor
+                             select Activator.CreateInstance(t) as IPacket;
 
             var PacketEvent = Interfaces.FirstOrDefault(x => x.GetType().Name == packet.Type.ToString());
 
-
-            if (packet.Type != PacketType.ClientPong)
-                Console.WriteLine("Packet Type: " + packet.Type.ToString() + " Value: " + BitConverter.ToString(packet.Data));
+            Console.WriteLine("Packet Type: " + packet.Type.ToString() + " Value: " + BitConverter.ToString(packet.Data));
 
             if (PacketEvent != default)
+            {
                 PacketEvent.Handle(packet, player);
-        }
+            }
+        } 
     }
 }
 

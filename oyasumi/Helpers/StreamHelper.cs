@@ -9,7 +9,7 @@ namespace oyasumi.Helpers
     {
         public static string ReadBodyFromStream(Stream stream)
         {
-            using var reader = new StreamReader(stream);
+            using var reader = new StreamReader(stream, leaveOpen: true);
             var response = reader.ReadToEnd();
             return response;
         }
