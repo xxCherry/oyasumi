@@ -1,97 +1,160 @@
 ﻿using System;
-using System.Text;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using HOPEless.Bancho;
+using Microsoft.Extensions.Logging;
 using oyasumi.Database;
+using oyasumi.Database.Models;
+using oyasumi.Enums;
+using oyasumi.Extensions;
+using oyasumi.IO;
+using oyasumi.Layouts;
+using oyasumi.Managers;
 using oyasumi.Objects;
-using oyasumi.Events;
-using osu.Shared.Serialization;
-using HOPEless.Bancho.Objects;
-using System.IO;
+using oyasumi.Utilities;
 
 namespace oyasumi.Controllers
 {
+	[Route("/")]
+	public class BanchoController : Controller
+	{
+		private readonly ILogger<BanchoController> _logger;
 
-    [Route("/")]
-    public class BanchoController : Controller
-    {
-        private async Task<ActionResult> FileAsync(Stream s)
-        {
-            s.Position = 0;
+		public BanchoController(ILogger<BanchoController> logger)
+		{
+			_logger = logger;
+		}
 
-            var ms = new MemoryStream();
-            await s.CopyToAsync(ms);
-            ms.Position = 0;
+		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
+		{
+			if (Request.Method == "GET")
+				return Ok("oyasumi - the osu server.");
 
-            return File(ms, "application/octet-stream");
-        }
+			var dbContext = new OyasumiDbContext();
+			
+			if (string.IsNullOrEmpty(token))
+			{
+				var (username, password) = await Request.Body.ParseLoginDataAsync();
 
-        [HttpPost]
-        public async Task<IActionResult> Index()
-        {
-            /*var user = new Users
-            {
-                Username = "kireu",
-                UsernameSafe = "kireu",
-                Country = "RU",
-                Password = UserHelper.GenerateHash("5f4dcc3b5aa765d61d8327deb882cf99")
-            };
-            var user1 = new UserStats { };  
+				var user = dbContext.Users.FirstOrDefault(x => x.UsernameSafe == username.ToSafe());
 
-            Global.DBContext.DBUsers.Add(user);
-            Global.DBContext.DBUserStats.Add(user1); 
+				if (user is null)
+				{
+					Response.Headers["cho-token"] = "no-token";
+					return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
+						"application/octet-stream");
+				}
 
-            await Global.DBContext.SaveChangesAsync(); */
-            var body = new MemoryStream();
-            await Request.Body.CopyToAsync(body);
-            body.Position = 0;
+				if (!Base.PasswordCache.TryGetValue(password, out _))
+				{
+					if (!Crypto.VerifyPassword(password, user.Password))
+					{
+						Response.Headers["cho-token"] = "no-token";
+						return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
+							"application/octet-stream");
+					}
+					Base.PasswordCache.TryAdd(password, user.Password);
+				}
 
-            var ms = new MemoryStream();
-            SerializationWriter sw = new SerializationWriter(ms);
+				var presence = new Presence(user.Id, username);
+				PresenceManager.Add(presence);
 
-            Response.Headers["cho-protocol"] = "19";
-            Response.Headers["Keep-Alive"] = "timeout=60, max=100";
-            Response.Headers["Content-Type"] = "text/html; charset=UTF-8";
-            Response.Headers["Connection"] = "keep-alive";
+				presence.ProtocolVersion(19);
+				presence.LoginReply(presence.Id);
 
-            Response.StatusCode = 200;
-            if (string.IsNullOrEmpty(Request.Headers["osu-token"]))
-            {
-                var player = Login.Handle(body, sw);
-                Response.Headers["cho-token"] = player.Token;
+				presence.Notification("Welcome to oyasumi.");
 
-                body.Position = 0;
-                ms.Position = 0;
+				presence.UserPresence(); 
+				presence.UserStats();
+				presence.UserPermissions(BanchoPermissions.Peppy);
 
-                return await FileAsync(ms);
-            }
-            else
-            {
-                var player = Players.GetPlayerByToken(Request.Headers["osu-token"]);
+				presence.FriendList(new List<int> { presence.Id });
 
-                if (!(player is null))
-                {
-                    var packets = BanchoSerializer.DeserializePackets(body).ToList();
+				presence.UserPresenceSingle(presence.Id);
 
-                    foreach (var packet in packets)
-                    {
-                        if (packet.Type != PacketType.ClientPong)
-                            BanchoEventHandler.Handle(packet, player);
-                    }
-                    player.WritePackets(sw);
-                }
-                else
-                {
-                    Console.WriteLine("Invalid token.");
-                    new BanchoPacket(PacketType.ServerRestart, new BanchoInt(0)).WriteToStream(sw);
-                }
+				presence.ChatChannelListingComplete(0);
+				presence.ChatChannelJoinSuccess("#osu");
+				presence.ChatChannelAvailable("#osu", "Default osu! channel", 1);
 
-                ms.Position = 0;
-                return await FileAsync(ms);
-            }
-        }
-    }
+				foreach (var pr in PresenceManager.Presences.Values) // go for each presence
+				{
+					pr.UserPresence(presence); // send us to users
+					presence.UserPresence(pr); // send users to us
+				}
+
+				var bytes = await presence.WritePackets();
+
+				Response.Headers["cho-token"] = presence.Token;
+				Response.Headers["cho-protocol"] = "19";
+				
+				return File(bytes, "application/octet-stream");
+			}
+			else
+			{
+				var presence = PresenceManager.GetPresenceByToken(Request.Headers["osu-token"]);
+
+				if (presence is null)
+				{
+					Response.Headers["cho-token"] = "no-token";
+					return File(await BanchoPacketLayouts.BanchoRestart(0), "application/octet-stream");
+				}
+
+				await using var ms = new MemoryStream();
+				await Request.Body.CopyToAsync(ms);            
+				ms.Position = 0;
+
+				var packets = PacketReader.Parse(ms);
+
+				foreach (var p in packets)
+				{
+					var meths = Base.Types.SelectMany(type => type.GetMethods());
+					MethodInfo meth = null;
+					if (!Base.MethodCache.TryGetValue(p.Type, out var packetImpl))
+					{
+						foreach (var m in meths)
+						{
+							if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != p.Type)
+								continue;
+
+							meth = m;
+								
+							if (meth is not null)
+								Base.MethodCache.TryAdd(p.Type, meth);
+								
+							break;
+						}
+					}
+					else
+					{
+						meth = packetImpl;
+					}
+
+					if (meth is null)
+					{
+						// not handled
+						Console.WriteLine(p.Type.ToString());
+						return Ok();
+					}
+
+					var packetParam = Expression.Parameter(typeof(Packet), "p");
+					var presenceParam = Expression.Parameter(typeof(Presence), "pr");
+					var call = Expression.Call(null, meth, packetParam, presenceParam);
+					var lambda = Expression.Lambda<Action<Packet, Presence>>(call, packetParam, presenceParam);
+					var handle = lambda.Compile();
+					
+					handle(p, presence);
+				}
+
+				var bytes = await presence.WritePackets();
+
+				return File(bytes, "application/octet-stream");
+			}
+		}
+	}
 }
-

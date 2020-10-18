@@ -1,32 +1,34 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
+using Newtonsoft.Json;
 
 namespace oyasumi.Objects
 {
     public class ConfigScheme
     {
-        public string Database;
-        public string Username;
-        public string Password;
+        public string Database { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public string BeatmapMirror { get; set; }
     }
+
     public class Config
     {
-        public static ConfigScheme Get()
+        public static ConfigScheme Properties
         {
-            if (!File.Exists("config.json"))
+            get
             {
-                File.WriteAllText("config.json", JsonConvert.SerializeObject(new ConfigScheme
+                /*if (!File.Exists("config.json"))
                 {
-                    Database = "oyasumi",
-                    Username = "root",
-                    Password = ""
-                }));
+                    File.WriteAllText("config.json", JsonConvert.SerializeObject(new ConfigScheme
+                    {
+                        Database = "oyasumi",
+                        Username = "root",
+                        Password = ""
+                    }));
+                } */
+
+                return JsonConvert.DeserializeObject<ConfigScheme>(File.ReadAllText(@"config.json"));
             }
-            return JsonConvert.DeserializeObject<ConfigScheme>(File.ReadAllText("config.json"));
         }
     }
 }
