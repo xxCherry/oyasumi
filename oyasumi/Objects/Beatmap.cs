@@ -75,7 +75,7 @@ namespace oyasumi.Objects
             [APIRankedStatus.Loved] = RankedStatus.Loved
         };
 
-        public string MD5;
+        public string FileChecksum;
         public int BeatmapId;
         public int BeatmapSetId;
         public RankedStatus Status;
@@ -92,7 +92,7 @@ namespace oyasumi.Objects
         public Beatmap(string md5, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
             bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard, OyasumiDbContext context)
         {
-            MD5 = md5;
+            FileChecksum = md5;
             BeatmapId = id;
             BeatmapSetId = setId;
             Metadata = metadata;

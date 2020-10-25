@@ -40,35 +40,6 @@ namespace oyasumi.Objects
         public int OsuVersion { get; set; }
         public int Rank { get; set; }
 
-        public DbScore ToDb()
-        {
-            return new DbScore
-            {
-                Count50 = Count50,
-                Count100 = Count100,
-                Count300 = Count300,
-                CountGeki = CountGeki,
-                CountKatu = CountKatu,
-                CountMiss = CountMiss,
-                FileChecksum = FileChecksum,
-                PerformancePoints = PerformancePoints,
-                Accuracy = Accuracy,
-                MaxCombo = MaxCombo,
-                Passed = Passed,
-                Relaxing = Relaxing,
-                AutoPiloting = Autopiloting,
-                Mods = Mods,
-                PlayMode = PlayMode,
-                UserId = Presence.Id,
-                Date = Date,
-                ReplayChecksum = ReplayChecksum,
-                TotalScore = TotalScore,
-                Flags = Flags,
-                OsuVersion = OsuVersion
-            };
-        }
-
-
         public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5)
         {
             var leaderboardData = new List<Score>();
@@ -79,7 +50,7 @@ namespace oyasumi.Objects
                 .ToArrayAsync();
 
             Array.Sort(scores, new Comparison<DbScore>(
-                  (i1, i2) => i2.TotalScore.CompareTo(i1.TotalScore)));
+                  (s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore)));
 
             foreach (var score in scores)
                 leaderboardData.Add(await FromDb(context, score.Id));
@@ -141,6 +112,35 @@ namespace oyasumi.Objects
 
             return score;
         }
+
+        public DbScore ToDb()
+        {
+            return new DbScore
+            {
+                Count50 = Count50,
+                Count100 = Count100,
+                Count300 = Count300,
+                CountGeki = CountGeki,
+                CountKatu = CountKatu,
+                CountMiss = CountMiss,
+                FileChecksum = FileChecksum,
+                PerformancePoints = PerformancePoints,
+                Accuracy = Accuracy,
+                MaxCombo = MaxCombo,
+                Passed = Passed,
+                Relaxing = Relaxing,
+                AutoPiloting = Autopiloting,
+                Mods = Mods,
+                PlayMode = PlayMode,
+                UserId = Presence.Id,
+                Date = Date,
+                ReplayChecksum = ReplayChecksum,
+                TotalScore = TotalScore,
+                Flags = Flags,
+                OsuVersion = OsuVersion
+            };
+        }
+
 
         public override string ToString() =>
              $"{ScoreId}|{Presence.Username}|{TotalScore}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
