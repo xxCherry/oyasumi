@@ -100,6 +100,8 @@ namespace oyasumi.Controllers
                     foreach (var otherPresence in PresenceManager.Presences.Values)
                         score.Presence.UserStats(otherPresence);
 
+                    score.Beatmap.Leaderboard = await Score.GetFormattedScores(_context, beatmap.FileChecksum);
+
                     return Ok($"beatmapId:{beatmap.BeatmapId}|beatmapSetId:{beatmap.BeatmapSetId}|beatmapPlaycount:0|beatmapPasscount:0|approvedDate:\n\n" +
                               bmChart
                               + "\n"
@@ -133,17 +135,13 @@ namespace oyasumi.Controllers
             [FromQuery(Name = "ha")] string password
         )
         {
-            if (scoreboardVersion != "4") // old client
+            if (scoreboardVersion != "4") // check on old client
                 return Ok("error: pass");
 
             if (!(username, password).CheckLogin())
                 return Ok("error: pass");
 
-            //var artist = fileName.
-            var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, new BeatmapTitle
-            {
-                Artist = fileName
-            }, true, _context);
+            var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, true, _context);
 
             // TODO: add NeedUpdate
             return status switch

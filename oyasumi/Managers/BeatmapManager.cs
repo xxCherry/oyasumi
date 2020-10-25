@@ -26,7 +26,7 @@ namespace oyasumi.Managers
         /// </summary>
         /// <param name="checksum">MD5 checksum of beatmap</param>
         /// <param name="title">Beatmap title object</param>
-        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, BeatmapTitle title, bool leaderboard, OyasumiDbContext context)
+        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, bool leaderboard, OyasumiDbContext context)
         {
             var beatmap = Beatmaps[checksum]; // try get beatmap from local cache
 
@@ -46,7 +46,7 @@ namespace oyasumi.Managers
             {
                 beatmap = dbBeatmap.FromDb(leaderboard, context);
                 
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
+                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
@@ -55,16 +55,15 @@ namespace oyasumi.Managers
             if (beatmap.BeatmapId == -1)
             {
                 //var dbBeatmap = context.Beatmaps.FirstOrDefault(x => x.); 
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
+                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.NotSubmitted, beatmap); // beatmap doesn't exist
             }
 
             // if beatmap exists in api we'll add it to local cache and db
-            Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
+            Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
             await context.Beatmaps.AddAsync(beatmap.ToDb());
             
             return (RankedStatus.Approved, beatmap);
-
         }
 
         public static Beatmap FromDb(this DbBeatmap b, bool leaderboard, OyasumiDbContext context)
@@ -100,7 +99,7 @@ namespace oyasumi.Managers
                 HPDrainRate = b.Metadata.HPDrainRate,
                 BPM = b.Metadata.BPM,
                 Stars = b.Metadata.Stars,
-                BeatmapMd5 = b.MD5,
+                BeatmapMd5 = b.FileChecksum,
                 BeatmapId = b.BeatmapId,
                 BeatmapSetId = b.BeatmapSetId,
                 Status = b.Status,
