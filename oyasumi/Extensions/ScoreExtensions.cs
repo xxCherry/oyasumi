@@ -1,4 +1,5 @@
-﻿using oyasumi.Enums;
+﻿using oyasumi.Database;
+using oyasumi.Enums;
 using oyasumi.Managers;
 using oyasumi.Objects;
 using oyasumi.Utilities;
@@ -16,7 +17,7 @@ namespace oyasumi.Extensions
     {
         private const string SUBMISSION_KEY = "osu!-scoreburgr---------{0}";
 
-        public static async Task<Score> ToScore(this (string encScore, string iv, string osuVersion) self)
+        public static async Task<Score> ToScore(this (string encScore, string iv, string osuVersion) self, OyasumiDbContext context)
         {
             var scoreDecrypted = Crypto.DecryptString(
                 self.encScore,
@@ -30,7 +31,7 @@ namespace oyasumi.Extensions
             var isRelax = (mods & Mods.Relax) > 0;
             var isAutopilot = (mods & Mods.Relax2) > 0;
 
-            var beatmap = await BeatmapManager.Get(split[0], new BeatmapTitle(), false);
+            var beatmap = await BeatmapManager.Get(split[0], new BeatmapTitle(), false, context);
 
             var osuVersionUnformatted = split[17];
             var osuVersion = osuVersionUnformatted.Trim();

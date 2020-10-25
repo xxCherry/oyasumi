@@ -17,8 +17,6 @@ namespace oyasumi.Objects
 		public readonly string Username;
 
 		public readonly User User;
-		public readonly UserStats UserStats;
-		public readonly OyasumiDbContext DbContext;
 
 		public readonly int Id;
 		public readonly int LoginTime = Time.CurrentUnixTimestamp;
@@ -60,22 +58,11 @@ namespace oyasumi.Objects
 				CurrentPlayMode = PlayMode.Osu
 			};
 			User = Base.UserCache[username];
-
-			// TODO: remake this? why? because it gets any free context 
-			// and then it will probably used at least one time in 
-			// multiple presences. Only thoughts.
-			DbContext = OyasumiDbContextFactory.Get(); 
-
-			UserStats = DbContext.UsersStats.FirstOrDefault(x => x.Id == Id);
-
-			UpdateUserStats();
-			this.UserStats();
 		}
 
-		public async void UpdateUserStats()
+		public async Task UpdateUserStats(OyasumiDbContext context)
 		{
-			var context = OyasumiDbContextFactory.Get();
-			var stats = await context.UsersStats.FirstOrDefaultAsync(x => x.Id == Id);
+			var stats = await context.UsersStats.FirstOrDefaultAsync(x => x.Id == User.Id);
 
 			var performance = Status.CurrentPlayMode switch
 			{
@@ -132,9 +119,8 @@ namespace oyasumi.Objects
 			Performance = (short)performance;
 		}
 
-		public async void AddScore(long score, bool ranked, PlayMode mode)
+		public async Task AddScore(OyasumiDbContext context, long score, bool ranked, PlayMode mode)
 		{
-			var context = OyasumiDbContextFactory.Get();
 			var stats = await context.UsersStats.FirstOrDefaultAsync(x => x.Id == Id);
 			switch (mode)
 			{
@@ -170,12 +156,10 @@ namespace oyasumi.Objects
 
 					break;
 			}
-			await context.SaveChangesAsync();
 		}
 
-		public async void AddPlaycount(PlayMode mode)
+		public async Task AddPlaycount(OyasumiDbContext context, PlayMode mode)
 		{
-			var context = OyasumiDbContextFactory.Get();
 			var stats = await context.UsersStats.FirstOrDefaultAsync(x => x.Id == Id);
 			switch (mode)
 			{
@@ -195,14 +179,12 @@ namespace oyasumi.Objects
 					stats.PlaycountMania++;
 					break;
 			}
-			await context.SaveChangesAsync();
 		}
 
 
 		// taken from Sora https://github.com/Chimu-moe/Sora/blob/7bba59c8000b440f7f81d2a487a5109590e37068/src/Sora/Database/Models/DBLeaderboard.cs#L200
-		public async Task<double> UpdateAccuracy(PlayMode mode)
+		public async Task<double> UpdateAccuracy(OyasumiDbContext context, PlayMode mode)
 		{
-			var context = OyasumiDbContextFactory.Get();
 			var totalAcc = 0d;
 			var divideTotal = 0d;
 			var i = 0;
@@ -231,6 +213,11 @@ namespace oyasumi.Objects
 
 			return acc;
 		}
+
+		public async Task Apply(OyasumiDbContext context)
+        {
+			await context.SaveChangesAsync();
+        }
 
 		public void PacketEnqueue(Packet p)
 		{

@@ -7,23 +7,11 @@ namespace oyasumi.Database
 {
     public class OyasumiDbContext : DbContext
     {
-        public OyasumiDbContext()
-        {
-           // Database.EnsureCreated();
-        }
+        public OyasumiDbContext(DbContextOptions<OyasumiDbContext> options) : base(options) { } 
 
-        public OyasumiDbContext(DbContextOptionsBuilder optionsBuilder)
-        {
-        }
         public void Migrate()
         {
             Database.Migrate();
-        }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) 
-        {
-            optionsBuilder.UseMySql(
-                $"server=localhost;database={Config.Properties.Database};user={Config.Properties.Username};password={Config.Properties.Password}");
         }
 
         public DbSet<DbScore> Scores { get; set; }

@@ -90,7 +90,7 @@ namespace oyasumi.Objects
         public BeatmapMetadata Metadata;
         public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
         public Beatmap(string md5, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
-            bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard)
+            bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard, OyasumiDbContext context)
         {
             MD5 = md5;
             BeatmapId = id;
@@ -104,10 +104,10 @@ namespace oyasumi.Objects
             MapRating = mapRating;
 
             if (leaderboard)
-                Leaderboard = Score.GetFormattedScores(md5).Result;
+                Leaderboard = Score.GetFormattedScores(context, md5).Result;
 
         }
-        public static async Task<Beatmap> GetBeatmap(string md5, bool leaderboard)
+        public static async Task<Beatmap> GetBeatmap(string md5, bool leaderboard, OyasumiDbContext context)
         {
             using var client = new HttpClient();
 
@@ -115,7 +115,7 @@ namespace oyasumi.Objects
 
             if (!resp.IsSuccessStatusCode) // if map not found or mirror is down then set status to NotSubmitted
                 return new Beatmap(md5, -1, -1, new BeatmapMetadata(),
-                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard);
+                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, context);
 
             var beatmap = JsonConvert.DeserializeObject<JsonBeatmap>(await resp.Content.ReadAsStringAsync());
 
@@ -137,7 +137,7 @@ namespace oyasumi.Objects
             var status = ApiToOsuRankedStatus[(APIRankedStatus)beatmap.RankedStatus];
 
             return new Beatmap(md5, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
-                status, false, 0, 0, 0, 0, leaderboard);
+                status, false, 0, 0, 0, 0, leaderboard, context);
         }
 
         public override string ToString()

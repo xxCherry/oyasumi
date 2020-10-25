@@ -25,10 +25,11 @@ namespace oyasumi.Controllers
 	public class BanchoController : Controller
 	{
 		private readonly ILogger<BanchoController> _logger;
-			
-		public BanchoController(ILogger<BanchoController> logger)
+		private readonly OyasumiDbContext _context;
+
+		public BanchoController(ILogger<BanchoController> logger, OyasumiDbContext context)
 		{
-			_logger = logger;
+			_context = context;
 		}
 
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
@@ -49,8 +50,7 @@ namespace oyasumi.Controllers
 					dbUser = user;
 				else
 				{
-					var dbContext = OyasumiDbContextFactory.Get();
-					dbUser = dbContext.Users.AsQueryable().Where(x => x.UsernameSafe == username.ToSafe()).Take(1).FirstOrDefault();
+					dbUser = _context.Users.AsQueryable().Where(x => x.UsernameSafe == username.ToSafe()).Take(1).FirstOrDefault();
 				}
 
 				if (dbUser is null)
@@ -74,6 +74,8 @@ namespace oyasumi.Controllers
 				var presence = new Presence(dbUser.Id, username);
 
 				PresenceManager.Add(presence);
+
+				presence.UpdateUserStats(_context);
 
 				if (user is null)
 					Base.UserCache.TryAdd(username, dbUser);

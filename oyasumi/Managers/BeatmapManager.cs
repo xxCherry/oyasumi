@@ -26,7 +26,7 @@ namespace oyasumi.Managers
         /// </summary>
         /// <param name="checksum">MD5 checksum of beatmap</param>
         /// <param name="title">Beatmap title object</param>
-        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, BeatmapTitle title, bool leaderboard)
+        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, BeatmapTitle title, bool leaderboard, OyasumiDbContext context)
         {
             var beatmap = Beatmaps[checksum]; // try get beatmap from local cache
 
@@ -39,20 +39,18 @@ namespace oyasumi.Managers
                                                                               // just for handling them after calling Get()
             }
 
-            var context = new OyasumiDbContext();
-
             var dbBeatmap = context.Beatmaps.FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db
 
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
             {
-                beatmap = dbBeatmap.FromDb(leaderboard);
+                beatmap = dbBeatmap.FromDb(leaderboard, context);
                 
                 Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
-            beatmap = await Beatmap.GetBeatmap(checksum, leaderboard); // try get beatmap from osu!api
+            beatmap = await Beatmap.GetBeatmap(checksum, leaderboard, context); // try get beatmap from osu!api
 
             if (beatmap.BeatmapId == -1)
             {
@@ -69,7 +67,7 @@ namespace oyasumi.Managers
 
         }
 
-        public static Beatmap FromDb(this DbBeatmap b, bool leaderboard)
+        public static Beatmap FromDb(this DbBeatmap b, bool leaderboard, OyasumiDbContext context)
         {
             var metadata = new BeatmapMetadata
             {
@@ -85,7 +83,7 @@ namespace oyasumi.Managers
                 Stars = b.Stars
             };
             return new Beatmap(b.BeatmapMd5, b.BeatmapId, b.BeatmapSetId, metadata,
-                b.Status, false, 0, 0, 0, 0, leaderboard);
+                b.Status, false, 0, 0, 0, 0, leaderboard, context);
         }
         
         public static DbBeatmap ToDb(this Beatmap b)

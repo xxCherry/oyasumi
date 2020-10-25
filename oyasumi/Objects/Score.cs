@@ -69,14 +69,14 @@ namespace oyasumi.Objects
         }
 
 
-        public static async Task<List<Score>> GetRawScores(string beatmapMd5)
+        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5)
         {
             var leaderboardData = new List<Score>();
-            var context = OyasumiDbContextFactory.Get();
             var scores = await context.Scores
                 .AsQueryable()
                 .Take(50)
                 .ToListAsync();
+
             // omg, why i can't just use lambda func
             var scoreIds = scores
                 .Where(x => x.FileChecksum == beatmapMd5) // get all scores on the beatmap by the beatmap's md5
@@ -88,16 +88,16 @@ namespace oyasumi.Objects
                 });
 
             foreach (var score in scoreIds)
-                leaderboardData.Add(await FromDb(score.Id));
+                leaderboardData.Add(await FromDb(context, score.Id));
 
 
             return leaderboardData;
         }
 
-        public static async Task<string> GetFormattedScores(string beatmapMd5)
+        public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5)
         {
             var sb = new StringBuilder();
-            var scores = await GetRawScores(beatmapMd5);
+            var scores = await GetRawScores(context, beatmapMd5);
 
             foreach (var score in scores)
                 sb.AppendLine(score.ToString());
@@ -105,9 +105,8 @@ namespace oyasumi.Objects
             return sb.ToString();
         }
 
-        private async Task<int> GetLeaderboardRank()
+        private async Task<int> GetLeaderboardRank(OyasumiDbContext context)
         {
-            var context = OyasumiDbContextFactory.Get();
             var scores = await context.Scores.AsQueryable().Take(50).ToListAsync();
 
             var urTuple = scores // u is user and r is rank
@@ -125,10 +124,8 @@ namespace oyasumi.Objects
             return 0;
         }
 
-        public static async Task<Score> FromDb(int scoreId)
+        public static async Task<Score> FromDb(OyasumiDbContext context, int scoreId)
         {
-            var context = OyasumiDbContextFactory.Get();
-
             var dbScore = await context.Scores.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == scoreId);
 
             var score = new Score
@@ -147,7 +144,7 @@ namespace oyasumi.Objects
                 Mods = dbScore.Mods
             };
 
-            score.Rank = await score.GetLeaderboardRank();
+            score.Rank = await score.GetLeaderboardRank(context);
 
             return score;
         }

@@ -17,14 +17,15 @@ namespace oyasumi
 {
 	public class Startup
 	{
-        public Startup(IConfiguration configuration) => Configuration = configuration;
+        public Startup(IConfiguration configuration) => 
+			Configuration = configuration;
 
         public IConfiguration Configuration { get; }
 
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
 		{
-			services.AddDbContext<OyasumiDbContext>(options => options.UseMySql(
+			services.AddDbContextPool<OyasumiDbContext>(optionsBuilder => optionsBuilder.UseMySql(
 				$"server=localhost;database={Config.Properties.Database};user={Config.Properties.Username};password={Config.Properties.Password};"));
 			services.AddControllersWithViews();
 
@@ -41,7 +42,7 @@ namespace oyasumi
 		}
 
 		// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-		public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+		public void Configure(IApplicationBuilder app, IWebHostEnvironment env, OyasumiDbContext context)
 		{
 			if (env.IsDevelopment())
 			{
@@ -53,9 +54,9 @@ namespace oyasumi
 				// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
 				app.UseHsts();
 			}
+			
 
-			var context = OyasumiDbContextFactory.Get();
-
+			// User cache, speed up inital login by 15x
 			var users = context.Users;
 
 			foreach (var u in users)

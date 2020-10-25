@@ -18,17 +18,23 @@ namespace oyasumi.Controllers
     [Route("/web/")]
     public class WebController : Controller
     {
+        private readonly OyasumiDbContext _context;
+
+        public WebController(OyasumiDbContext context)
+        {
+            _context = context;
+        }
+
         [Route("bancho_connect.php")]
         public async Task<IActionResult> BanchoConnect()
         {
             return Ok("<>");
         }
 
-
         [HttpPost("osu-submit-modular-selector.php")]
         public async Task<IActionResult> SubmitModular()
         {
-            var score = await ((string)Request.Form["score"], (string)Request.Form["iv"], (string)Request.Form["osuver"]).ToScore();
+            var score = await ((string)Request.Form["score"], (string)Request.Form["iv"], (string)Request.Form["osuver"]).ToScore(_context);
 
             if (score is null)
                 return Ok("error: no");
@@ -51,21 +57,20 @@ namespace oyasumi.Controllers
                 case RankedStatus.Qualified:
                 case RankedStatus.Ranked:
                     var presenceBefore = score.Presence;
-                    await score.Presence.UpdateAccuracy(score.PlayMode); // update old accuracy
+                    await score.Presence.UpdateAccuracy(_context, score.PlayMode); // update old accuracy
 
                     score.PerformancePoints = 0; // no pp system yet
 
-                    score.Presence.AddPlaycount(score.PlayMode);
+                    await score.Presence.AddPlaycount(_context, score.PlayMode);
 
-                    score.Presence.AddScore(score.TotalScore, true, score.PlayMode);
-                    score.Presence.AddScore(score.TotalScore, false, score.PlayMode);
+                    await score.Presence.AddScore(_context, score.TotalScore, true, score.PlayMode);
+                    await score.Presence.AddScore(_context, score.TotalScore, false, score.PlayMode);
 
                     score.Accuracy = OppaiProvider.CalculateAccuracy(score);
 
-                    var context = OyasumiDbContextFactory.Get();
+                    await _context.Scores.AddAsync(score.ToDb());
 
-                    await context.Scores.AddAsync(score.ToDb());
-                    await context.SaveChangesAsync();
+                    await score.Presence.Apply(_context);
 
                     var replay = Request.Form.Files.GetFile("score");
 
@@ -80,9 +85,9 @@ namespace oyasumi.Controllers
                         }
                     }
 
-                    await score.Presence.UpdateAccuracy(score.PlayMode); // now get new accuracy
+                    await score.Presence.UpdateAccuracy(_context, score.PlayMode); // now get new accuracy
 
-                    score.Presence.UpdateUserStats();
+                    await score.Presence.UpdateUserStats(_context);
 
                     var presenceAfter = score.Presence;
 
@@ -97,8 +102,9 @@ namespace oyasumi.Controllers
                               + "\n"
                               + oaChart);
                 default: // map is unranked so we'll just add score and playcount
-                    score.Presence.AddScore(score.TotalScore, false, score.PlayMode);
-                    score.Presence.AddPlaycount(score.PlayMode);
+                    await score.Presence.AddScore(_context, score.TotalScore, false, score.PlayMode);
+                    await score.Presence.AddPlaycount(_context, score.PlayMode);
+                    await score.Presence.Apply(_context);
 
                     foreach (var otherPresence in PresenceManager.Presences.Values)
                         score.Presence.UserStats(otherPresence);
@@ -134,7 +140,7 @@ namespace oyasumi.Controllers
             var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, new BeatmapTitle
             {
                 Artist = fileName
-            }, true);
+            }, true, _context);
 
             // TODO: add NeedUpdate
             return status switch
