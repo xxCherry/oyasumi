@@ -26,14 +26,14 @@ namespace oyasumi.Managers
         /// </summary>
         /// <param name="checksum">MD5 checksum of beatmap</param>
         /// <param name="title">Beatmap title object</param>
-        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, BeatmapTitle title)
+        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, BeatmapTitle title, bool leaderboard)
         {
             var beatmap = Beatmaps[checksum]; // try get beatmap from local cache
 
             if (beatmap is not null)
             {  
                 if (beatmap.BeatmapId == -1)
-                    return (RankedStatus.NotSubmitted, beatmap); // just for handling them after calling Get()
+                    return (RankedStatus.NotSubmitted, beatmap);
                 else
                     return (RankedStatus.Approved, beatmap);                  // Approved is not actual ranked status
                                                                               // just for handling them after calling Get()
@@ -46,13 +46,13 @@ namespace oyasumi.Managers
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
             {
-                beatmap = dbBeatmap.FromDb();
+                beatmap = dbBeatmap.FromDb(leaderboard);
                 
                 Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
-            beatmap = await Beatmap.GetBeatmap(checksum); // try get beatmap from osu!api
+            beatmap = await Beatmap.GetBeatmap(checksum, leaderboard); // try get beatmap from osu!api
 
             if (beatmap.BeatmapId == -1)
             {
@@ -69,7 +69,7 @@ namespace oyasumi.Managers
 
         }
 
-        public static Beatmap FromDb(this DbBeatmap b)
+        public static Beatmap FromDb(this DbBeatmap b, bool leaderboard)
         {
             var metadata = new BeatmapMetadata
             {
@@ -85,7 +85,7 @@ namespace oyasumi.Managers
                 Stars = b.Stars
             };
             return new Beatmap(b.BeatmapMd5, b.BeatmapId, b.BeatmapSetId, metadata,
-                b.Status, false, 0, 0);
+                b.Status, false, 0, 0, 0, 0, leaderboard);
         }
         
         public static DbBeatmap ToDb(this Beatmap b)

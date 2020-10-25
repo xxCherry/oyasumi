@@ -26,7 +26,8 @@ namespace oyasumi.Database
                 $"server=localhost;database={Config.Properties.Database};user={Config.Properties.Username};password={Config.Properties.Password}");
         }
 
-        public DbSet<Users> Users { get; set; }
+        public DbSet<DbScore> Scores { get; set; }
+        public DbSet<User> Users { get; set; }
         public DbSet<UserStats> UsersStats { get; set; }
         public DbSet<DbBeatmap> Beatmaps { get; set; }
     }

@@ -13,10 +13,8 @@ namespace oyasumi.IO
 		private readonly MemoryStream _data;
 		private bool _clean = false;
 
-		public PacketWriter()
-		{
+		public PacketWriter() =>
 			_data = new MemoryStream();
-		}
 
 		public byte[] ToBytes()
 		{
@@ -35,12 +33,10 @@ namespace oyasumi.IO
 			return cloneData;
 		}
 
-		public async Task Write(IEnumerable<Packet> packetList)
+		public async Task Write(IAsyncEnumerable<Packet> packetList)
 		{
-			foreach (var packet in packetList)
-			{
+			await foreach (var packet in packetList)
 				await Write(packet);
-			}
 		}
 
 		public async Task Write(Packet packet)

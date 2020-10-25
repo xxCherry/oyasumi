@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "oyasumi": {
+      "commandName": "Project",
+      "commandLineArgs": "--urls=http://localhost:5000"
+    }
+  }
+}

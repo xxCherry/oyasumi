@@ -7,7 +7,7 @@ namespace oyasumi.Extensions
 {
     public static class UserExtensions
     {
-        public static async Task<(string username, string password)> ParseLoginDataAsync (this Stream self)
+        public static async Task<(string username, string password)> ParseLoginDataAsync(this Stream self)
         {
             using var reader = new StreamReader(self, leaveOpen: true);
 

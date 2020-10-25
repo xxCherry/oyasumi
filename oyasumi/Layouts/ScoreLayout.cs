@@ -17,5 +17,6 @@ namespace oyasumi.Objects
         public string pass { get; set; }
         public string osuver { get; set; }
         public string s { get; set; }
+        public string iv { get; set; }
     }
 }

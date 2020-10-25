@@ -13,7 +13,6 @@ namespace oyasumi.Managers
         public static Presence GetPresenceByToken(string token) => Presences[token];
         public static Presence GetPresenceById(int id) => Presences[id];
         public static Presence GetPresenceByName(string name) => Presences.Values.FirstOrDefault(x => x.Username == name);
-
         public static void PacketEnqueue(Packet p)
         {
             foreach (var pr in Presences.Values)

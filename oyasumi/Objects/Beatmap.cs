@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using oyasumi.Database;
 using oyasumi.Enums;
 
 namespace oyasumi.Objects
@@ -58,11 +60,21 @@ namespace oyasumi.Objects
         public int Passcount { get; set; }
         public int MaxCombo { get; set; }
         public float DifficultyRating { get; set; }
-
     }
 
     public class Beatmap
     {
+        public static Dictionary<APIRankedStatus, RankedStatus> ApiToOsuRankedStatus = new()
+        {
+            [APIRankedStatus.Graveyard] = RankedStatus.LatestPending,
+            [APIRankedStatus.WorkInProgress] = RankedStatus.LatestPending,
+            [APIRankedStatus.LatestPending] = RankedStatus.LatestPending,
+            [APIRankedStatus.Ranked] = RankedStatus.Ranked,
+            [APIRankedStatus.Approved] = RankedStatus.Approved,
+            [APIRankedStatus.Qualified] = RankedStatus.Qualified,
+            [APIRankedStatus.Loved] = RankedStatus.Loved
+        };
+
         public string MD5;
         public int BeatmapId;
         public int BeatmapSetId;
@@ -70,11 +82,15 @@ namespace oyasumi.Objects
         public bool Frozen;
         public int PlayCount;
         public int PassCount;
-            
+        public int OnlineOffset;
+        public int MapRating;
+
+        public string Leaderboard;
+
         public BeatmapMetadata Metadata;
-        
+        public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
         public Beatmap(string md5, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
-            bool frozen, int playCount, int passCount)
+            bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard)
         {
             MD5 = md5;
             BeatmapId = id;
@@ -84,9 +100,14 @@ namespace oyasumi.Objects
             Frozen = frozen;
             PlayCount = playCount;
             PassCount = passCount;
-        }
+            OnlineOffset = onlineOffset;
+            MapRating = mapRating;
 
-        public static async Task<Beatmap> GetBeatmap(string md5)
+            if (leaderboard)
+                Leaderboard = Score.GetFormattedScores(md5).Result;
+
+        }
+        public static async Task<Beatmap> GetBeatmap(string md5, bool leaderboard)
         {
             using var client = new HttpClient();
 
@@ -94,11 +115,10 @@ namespace oyasumi.Objects
 
             if (!resp.IsSuccessStatusCode) // if map not found or mirror is down then set status to NotSubmitted
                 return new Beatmap(md5, -1, -1, new BeatmapMetadata(),
-                    RankedStatus.NotSubmitted, false, 0, 0);
+                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard);
 
             var beatmap = JsonConvert.DeserializeObject<JsonBeatmap>(await resp.Content.ReadAsStringAsync());
 
-            // hack to use linq on dynamic
             var requestedDifficulty = beatmap.ChildrenBeatmaps.FirstOrDefault(x => x.FileMD5 == md5);
 
             var beatmapMetadata = new BeatmapMetadata
@@ -114,25 +134,18 @@ namespace oyasumi.Objects
                 Stars = requestedDifficulty.DifficultyRating
             };
 
-            var status = (APIRankedStatus)beatmap.RankedStatus switch
-            {
-                APIRankedStatus.Graveyard => RankedStatus.LatestPending,
-                APIRankedStatus.WorkInProgress => RankedStatus.LatestPending,
-                APIRankedStatus.LatestPending => RankedStatus.LatestPending,
-                APIRankedStatus.Ranked => RankedStatus.Ranked,
-                APIRankedStatus.Approved => RankedStatus.Approved,
-                APIRankedStatus.Qualified => RankedStatus.Qualified,
-                APIRankedStatus.Loved => RankedStatus.Loved,
-                _ => RankedStatus.NotSubmitted
-            };
+            var status = ApiToOsuRankedStatus[(APIRankedStatus)beatmap.RankedStatus];
 
             return new Beatmap(md5, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
-                status, false, 0, 0);
+                status, false, 0, 0, 0, 0, leaderboard);
         }
 
         public override string ToString()
         {
-            return $"{(int)Status}|false|{BeatmapId}|{BeatmapSetId}|50";
+            return $"{(int)Status}|false|{BeatmapId}|{BeatmapSetId}|50\n" +
+                   $"{OnlineOffset}\n" +
+                   $"{BeatmapName}\n" +
+                   $"{MapRating}\n";
         }
     }
 }

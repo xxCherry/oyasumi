@@ -1,17 +1,21 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using oyasumi.Database;
+using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Extensions;
+using oyasumi.Layouts;
 using oyasumi.Managers;
 using oyasumi.Objects;
+using oyasumi.Utilities;
 
 namespace oyasumi.Controllers
 {
-    [Route("/web")]
+    [Route("/web/")]
     public class WebController : Controller
     {
         [Route("bancho_connect.php")]
@@ -21,89 +25,91 @@ namespace oyasumi.Controllers
         }
 
 
-        /*
-         * # append beatmap info chart (#1)
-        charts.append(
-            f'beatmapId:{s.bmap.id}|'
-            f'beatmapSetId:{s.bmap.set_id}|'
-            f'beatmapPlaycount:{s.bmap.plays}|'
-            f'beatmapPasscount:{s.bmap.passes}|'
-            f'approvedDate:{s.bmap.last_update}'
-        )
+        [HttpPost("osu-submit-modular-selector.php")]
+        public async Task<IActionResult> SubmitModular()
+        {
+            var score = await ((string)Request.Form["score"], (string)Request.Form["iv"], (string)Request.Form["osuver"]).ToScore();
 
-        # append beatmap ranking chart (#2)
-        charts.append('|'.join((
-            'chartId:beatmap',
-            f'chartUrl:https://akatsuki.pw/b/{s.bmap.id}',
-            'chartName:Beatmap Ranking',
+            if (score is null)
+                return Ok("error: no");
+            if (score.Presence is null)
+                return Ok("error: pass");
+            if (!(score.Presence.Username, (string)Request.Form["pass"]).CheckLogin())
+                return Ok("error: pass");
+            /*if ((score.Presence.Privileges & Privileges.Restricted) > 0)
+                 return Ok("error: no"); */
 
-            ( # we had a score on the map prior to this
-                f'rankBefore:{s.prev_best.rank}|rankAfter:{s.rank}|'
-                f'rankedScoreBefore:{s.prev_best.score}|rankedScoreAfter:{s.score}|'
-                f'totalScoreBefore:{s.prev_best.score}|totalScoreAfter:{s.score}|'
-                f'maxComboBefore:{s.prev_best.max_combo}|maxComboAfter:{s.max_combo}|'
-                f'accuracyBefore:{s.prev_best.acc:.2f}|accuracyAfter:{s.acc:.2f}|'
-                f'ppBefore:{s.prev_best.pp:.4f}|ppAfter:{s.pp:.4f}|'
-                f'onlineScoreId:{s.id}'
-            ) if s.prev_best else ( # we don't, this is our first
-                f'rankBefore:|rankAfter:{s.rank}|'
-                f'rankedScoreBefore:|rankedScoreAfter:{s.score}|' # these are
-                f'totalScoreBefore:|totalScoreAfter:{s.score}|' # prolly wrong
-                f'maxComboBefore:|maxComboAfter:{s.max_combo}|'
-                f'accuracyBefore:|accuracyAfter:{s.acc:.2f}|'
-                f'ppBefore:|ppAfter:{s.pp:.4f}|'
-                f'onlineScoreId:{s.id}'
-            )
-        )))#'|'.join(beatmap_chart))
+            var beatmap = score.Beatmap;
+            Base.UserCache.TryGetValue(score.Presence.Username, out var user);
 
-        # append overall ranking chart (#3)
-        charts.append('|'.join((
-            'chartId:overall',
-            f'chartUrl:https://akatsuki.pw/u/{s.player.id}',
-            'chartName:Overall Ranking',
+            switch (beatmap.Status)
+            {
+                case RankedStatus.NotSubmitted:
+                    return Ok("error: no");
+                case RankedStatus.Loved:
+                case RankedStatus.Approved:
+                case RankedStatus.Qualified:
+                case RankedStatus.Ranked:
+                    var presenceBefore = score.Presence;
+                    await score.Presence.UpdateAccuracy(score.PlayMode); // update old accuracy
 
-            # TODO: achievements
-            ( # we have a score on the account prior to this
-                f'rankBefore:{prev_stats.rank}|rankAfter:{stats.rank}|'
-                f'rankedScoreBefore:{prev_stats.rscore}|rankedScoreAfter:{stats.rscore}|'
-                f'totalScoreBefore:{prev_stats.tscore}|totalScoreAfter:{stats.tscore}|'
-                f'maxComboBefore:{prev_stats.max_combo}|maxComboAfter:{stats.max_combo}|'
-                f'accuracyBefore:{prev_stats.acc:.2f}|accuracyAfter:{stats.acc:.2f}|'
-                f'ppBefore:{prev_stats.pp:.4f}|ppAfter:{stats.pp:.4f}|'
-                # f'achievements-new:taiko-skill-pass-2+Katsu Katsu Katsu+Hora! Ikuzo!/taiko-skill-fc-2+To Your Own Beat+Straight and steady.|'
-                f'onlineScoreId:{s.id}'
-            ) if prev_stats else ( # this is the account's first score
-                f'rankBefore:|rankAfter:{stats.rank}|'
-                f'rankedScoreBefore:|rankedScoreAfter:{stats.rscore}|'
-                f'totalScoreBefore:|totalScoreAfter:{stats.tscore}|'
-                f'maxComboBefore:|maxComboAfter:{stats.max_combo}|'
-                f'accuracyBefore:|accuracyAfter:{stats.acc:.2f}|'
-                f'ppBefore:|ppAfter:{stats.pp:.4f}|'
-                # f'achievements-new:taiko-skill-pass-2+Katsu Katsu Katsu+Hora! Ikuzo!/taiko-skill-fc-2+To Your Own Beat+Straight and steady.|'
-                f'onlineScoreId:{s.id}'
-            )
+                    score.PerformancePoints = 0; // no pp system yet
 
-        )))
-       */
+                    score.Presence.AddPlaycount(score.PlayMode);
 
-        [Route("osu-submit-modular-selector.php")]
-        public async Task<IActionResult> SubmitModular([FromBody] ScoreLayout layout)
-        {   
-            var score = layout.ToScore();
-            return Ok("<>");
+                    score.Presence.AddScore(score.TotalScore, true, score.PlayMode);
+                    score.Presence.AddScore(score.TotalScore, false, score.PlayMode);
+
+                    score.Accuracy = OppaiProvider.CalculateAccuracy(score);
+
+                    var context = OyasumiDbContextFactory.Get();
+
+                    await context.Scores.AddAsync(score.ToDb());
+                    await context.SaveChangesAsync();
+
+                    var replay = Request.Form.Files.GetFile("score");
+
+                    await using (var m = new MemoryStream())
+                    {
+                        replay.CopyTo(m);
+                        m.Position = 0;
+                        score.ReplayChecksum = Crypto.ComputeHash(m.ToArray());
+                        if (!string.IsNullOrEmpty(score.ReplayChecksum))
+                        {
+                            await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr", m.ToArray());
+                        }
+                    }
+
+                    await score.Presence.UpdateAccuracy(score.PlayMode); // now get new accuracy
+
+                    score.Presence.UpdateUserStats();
+
+                    var presenceAfter = score.Presence;
+
+                    var bmChart = new Chart("beatmap", "astellia.club", "Beatmap Ranking", score.ScoreId, "", presenceBefore, presenceAfter);
+                    var oaChart = new Chart("overall", "astellia.club", "Overall Ranking", score.ScoreId, "", presenceBefore, presenceAfter);
+
+                    foreach (var otherPresence in PresenceManager.Presences.Values)
+                        score.Presence.UserStats(otherPresence);
+
+                    return Ok($"beatmapId:{beatmap.BeatmapId}|beatmapSetId:{beatmap.BeatmapSetId}|beatmapPlaycount:0|beatmapPasscount:0|approvedDate:\n\n" +
+                              bmChart
+                              + "\n"
+                              + oaChart);
+                default: // map is unranked so we'll just add score and playcount
+                    score.Presence.AddScore(score.TotalScore, false, score.PlayMode);
+                    score.Presence.AddPlaycount(score.PlayMode);
+
+                    foreach (var otherPresence in PresenceManager.Presences.Values)
+                        score.Presence.UserStats(otherPresence);
+
+                    return Ok("error: no");
+            }
         }
 
-
         // TODO: make scores length configurable
-        /*
-         *     # Syntax
-               # status|server_has_osz|bid|beatmap set id|len_scores
-               # online_offset
-               # map_name
-               # map_rating: 1f
-               # score_id|username|score|combo|n50|n100|n300|nmiss|nkatu|ngeki|perfect|mods|userid|rank|time|server_has_repla
-         */
-        [Route("osu-osz2-getscores.php")]
+
+        [HttpGet("osu-osz2-getscores.php")]
         public async Task<IActionResult> GetScores
         (
             [FromQuery(Name = "s")] bool getScores,
@@ -118,7 +124,8 @@ namespace oyasumi.Controllers
             [FromQuery(Name = "ha")] string password
         )
         {
-            var context = new OyasumiDbContext();
+            if (scoreboardVersion != "4") // old client
+                return Ok("error: pass");
 
             if (!(username, password).CheckLogin())
                 return Ok("error: pass");
@@ -127,16 +134,13 @@ namespace oyasumi.Controllers
             var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, new BeatmapTitle
             {
                 Artist = fileName
-            });
-
-            Console.WriteLine(status.ToString());
-            Console.WriteLine(beatmap.ToString());
+            }, true);
 
             // TODO: add NeedUpdate
             return status switch
             {
                 RankedStatus.NotSubmitted => Ok("-1|false"),
-                RankedStatus.Approved => Ok(beatmap.ToString()),
+                RankedStatus.Approved => Ok($"{beatmap}\n" + beatmap.Leaderboard),
                 _ => Ok("error: no")
             };
         }

@@ -25,7 +25,7 @@ namespace oyasumi.Controllers
 	public class BanchoController : Controller
 	{
 		private readonly ILogger<BanchoController> _logger;
-
+			
 		public BanchoController(ILogger<BanchoController> logger)
 		{
 			_logger = logger;
@@ -33,18 +33,27 @@ namespace oyasumi.Controllers
 
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
 		{
-			if (Request.Method == "GET")
-				return Ok("oyasumi - the osu server.");
+			var stopwatch = new Stopwatch();
+			stopwatch.Start();
 
-			var dbContext = new OyasumiDbContext();
+			if (Request.Method == "GET")
+				return Ok("oyasumi - the osu! server.");
 			
 			if (string.IsNullOrEmpty(token))
 			{
 				var (username, password) = await Request.Body.ParseLoginDataAsync();
 
-				var user = dbContext.Users.FirstOrDefault(x => x.UsernameSafe == username.ToSafe());
+				User dbUser = null;
 
-				if (user is null)
+				if (Base.UserCache.TryGetValue(username, out var user))
+					dbUser = user;
+				else
+				{
+					var dbContext = OyasumiDbContextFactory.Get();
+					dbUser = dbContext.Users.AsQueryable().Where(x => x.UsernameSafe == username.ToSafe()).Take(1).FirstOrDefault();
+				}
+
+				if (dbUser is null)
 				{
 					Response.Headers["cho-token"] = "no-token";
 					return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
@@ -53,17 +62,21 @@ namespace oyasumi.Controllers
 
 				if (!Base.PasswordCache.TryGetValue(password, out _))
 				{
-					if (!Crypto.VerifyPassword(password, user.Password))
+					if (!Crypto.VerifyPassword(password, dbUser.Password))
 					{
 						Response.Headers["cho-token"] = "no-token";
 						return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
 							"application/octet-stream");
 					}
-					Base.PasswordCache.TryAdd(password, user.Password);
+					Base.PasswordCache.TryAdd(password, dbUser.Password);
 				}
 
-				var presence = new Presence(user.Id, username);
+				var presence = new Presence(dbUser.Id, username);
+
 				PresenceManager.Add(presence);
+
+				if (user is null)
+					Base.UserCache.TryAdd(username, dbUser);
 
 				presence.ProtocolVersion(19);
 				presence.LoginReply(presence.Id);
@@ -92,7 +105,8 @@ namespace oyasumi.Controllers
 
 				Response.Headers["cho-token"] = presence.Token;
 				Response.Headers["cho-protocol"] = "19";
-				
+
+				presence.Notification("Login took: " + stopwatch.Elapsed.TotalMilliseconds + "ms");
 				return File(bytes, "application/octet-stream");
 			}
 			else
@@ -111,7 +125,7 @@ namespace oyasumi.Controllers
 
 				var packets = PacketReader.Parse(ms);
 
-				foreach (var p in packets)
+				await foreach (var p in packets)
 				{
 					var meths = Base.Types.SelectMany(type => type.GetMethods());
 					MethodInfo meth = null;

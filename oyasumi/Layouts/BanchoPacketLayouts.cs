@@ -7,7 +7,7 @@ using oyasumi.Objects;
 
 namespace oyasumi.Layouts
 {
-    // TODO: move it to other folder
+    // TODO: probably i should rename this
     public static class BanchoPacketLayouts
     {
         public static void ProtocolVersion(this Presence p, int version)
