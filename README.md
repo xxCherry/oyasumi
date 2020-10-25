@@ -9,7 +9,7 @@
 
 ##### How can I contribute in this project?
 
- - You can ask access to callobrators
+ - You can ask access to collaborators
  - Or create pull request
  
 #### Goals
