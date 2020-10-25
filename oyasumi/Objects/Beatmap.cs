@@ -104,7 +104,11 @@ namespace oyasumi.Objects
             MapRating = mapRating;
 
             if (leaderboard)
-                Leaderboard = Score.GetFormattedScores(context, md5).Result;
+            {
+                Task.WaitAll(Task.Run(async () =>
+                    Leaderboard = await Score.GetFormattedScores(context, md5)
+                ));
+            }
 
         }
         public static async Task<Beatmap> GetBeatmap(string md5, bool leaderboard, OyasumiDbContext context)

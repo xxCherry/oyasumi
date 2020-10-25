@@ -74,22 +74,15 @@ namespace oyasumi.Objects
             var leaderboardData = new List<Score>();
             var scores = await context.Scores
                 .AsQueryable()
+                .Where(x => x.FileChecksum == beatmapMd5)
                 .Take(50)
-                .ToListAsync();
+                .ToArrayAsync();
 
-            // omg, why i can't just use lambda func
-            var scoreIds = scores
-                .Where(x => x.FileChecksum == beatmapMd5) // get all scores on the beatmap by the beatmap's md5
-                .OrderByDescending(x => x.TotalScore)
-                .GroupBy(x => x.TotalScore)
-                .Select((group, i) => new
-                {
-                    group.ToArray()[i].Id
-                });
+            Array.Sort(scores, new Comparison<DbScore>(
+                  (i1, i2) => i2.TotalScore.CompareTo(i1.TotalScore)));
 
-            foreach (var score in scoreIds)
+            foreach (var score in scores)
                 leaderboardData.Add(await FromDb(context, score.Id));
-
 
             return leaderboardData;
         }
