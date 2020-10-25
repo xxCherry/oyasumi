@@ -68,9 +68,12 @@ namespace oyasumi.Controllers
 
                     score.Accuracy = OppaiProvider.CalculateAccuracy(score);
 
-                    await _context.Scores.AddAsync(score.ToDb());
+                    var dbScore = score.ToDb();
 
+                    await _context.Scores.AddAsync(dbScore);
                     await score.Presence.Apply(_context);
+
+                    score.ScoreId = dbScore.Id;
 
                     var replay = Request.Form.Files.GetFile("score");
 

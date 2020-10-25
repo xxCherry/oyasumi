@@ -17,7 +17,7 @@ namespace oyasumi.Objects
         {
             get
             {
-                /*if (!File.Exists("config.json"))
+                if (!File.Exists("config.json"))
                 {
                     File.WriteAllText("config.json", JsonConvert.SerializeObject(new ConfigScheme
                     {
@@ -25,8 +25,7 @@ namespace oyasumi.Objects
                         Username = "root",
                         Password = ""
                     }));
-                } */
-
+                } 
                 return JsonConvert.DeserializeObject<ConfigScheme>(File.ReadAllText(@"config.json"));
             }
         }

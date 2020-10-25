@@ -7,7 +7,10 @@ namespace oyasumi.Database
 {
     public class OyasumiDbContext : DbContext
     {
-        public OyasumiDbContext(DbContextOptions<OyasumiDbContext> options) : base(options) { } 
+        public OyasumiDbContext(DbContextOptions<OyasumiDbContext> options) : base(options) 
+        {
+            Database.EnsureCreated();
+        } 
 
         public void Migrate()
         {
