@@ -45,11 +45,12 @@ namespace oyasumi.Controllers
 			{
 				var (username, password) = await Request.Body.ParseLoginDataAsync();
 
-				User dbUser = Base.UserCache[username];
+				var dbUser = Base.UserCache[username];
 
-				if (Base.UserCache[username] == default)
+				if (dbUser == default)
 				{
-					dbUser = _context.Users.AsNoTracking().Where(x => x.UsernameSafe == username.ToSafe()).Take(1).FirstOrDefault();
+					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe());
+
 					Base.UserCache.Add(username, dbUser.Id, dbUser);
 				}
 

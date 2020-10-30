@@ -58,10 +58,14 @@ namespace oyasumi
 			
 
 			// User cache, speed up inital login by 15x
-			var users = context.Users;
+			var users = context.Users.AsNoTracking().AsEnumerable();
+			var usersStats = context.UsersStats.AsNoTracking().AsEnumerable();
 
 			foreach (var u in users)
 				Base.UserCache.Add(u.Username, u.Id, u);
+
+			foreach (var us in usersStats)
+				Base.UserStatsCache.TryAdd(us.Id, us);
 
 			new Channel("#osu", "Default osu! channel", 1);
 			

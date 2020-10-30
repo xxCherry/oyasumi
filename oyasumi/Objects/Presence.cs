@@ -81,7 +81,7 @@ namespace oyasumi.Objects
 				stats = cachedStats; 
 			else
 			{
-				stats = await context.UsersStats.AsNoTracking().FirstOrDefaultAsync(x => x.Id == User.Id);
+				stats = await context.UsersStats.AsNoTracking().AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == User.Id);
 
 				if (!exists)
 					Base.UserStatsCache.TryAdd(User.Id, stats);
