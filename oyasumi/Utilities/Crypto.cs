@@ -4,22 +4,32 @@ using Org.BouncyCastle.Crypto.Paddings;
 using Org.BouncyCastle.Crypto.Parameters;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace oyasumi.Utilities
 {
+    public static class BCrypt
+    {
+        [DllImport(@"lib/BCrypt")]
+        public static extern string generate_hash(string password, int rounds = 10);
+
+        [DllImport(@"lib/BCrypt")]
+        public static extern bool validate_password(string password, string hash);
+    }
+
     public class Crypto
     {
         public static string GenerateHash(string password)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password, 10);
+            return BCrypt.generate_hash(password, 10);
         }
         
         public static bool VerifyPassword(string plaintext, string hash)
         {
-            return BCrypt.Net.BCrypt.Verify(plaintext, hash);
+            return BCrypt.validate_password(plaintext, hash);
         }
 
 
