@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using oyasumi.Database;
+using oyasumi.Managers;
 using oyasumi.Objects;
 
 namespace oyasumi
@@ -61,6 +62,11 @@ namespace oyasumi
 
 			foreach (var u in users)
 				Base.UserCache.Add(u.Username, u.Id, u);
+
+			new Channel("#osu", "Default osu! channel", 1);
+			
+			foreach (var chan in context.Channels)
+				new Channel(chan.Name, chan.Topic, 1);
 
 			//new OyasumiDbContext().Migrate();
 
