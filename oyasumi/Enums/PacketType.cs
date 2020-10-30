@@ -384,7 +384,7 @@ namespace oyasumi.Enums
 
         /// <summary>
         /// Originally meant "unauthorized". Currently not in use.
-        /// </summary>
+        /// </summary> 
         ServerUnused7,
 
         /// <summary>
@@ -668,6 +668,7 @@ namespace oyasumi.Enums
 
         /// <summary>
         /// Send the client a spooky message.
+        /// Unused.
         /// <para>Data: <see cref="BanchoString"/></para>
         /// </summary>
         ServerRtx,

@@ -7,7 +7,7 @@ namespace oyasumi.Managers
     public class PresenceManager
     {
         public static readonly TwoKeyDictionary<int, string, Presence> Presences = new TwoKeyDictionary<int, string, Presence>();
-        
+
         public static void Add(Presence p) => Presences.Add(p.Id, p.Token, p);
         public static void Remove(Presence p) =>  Presences.Remove(p.Id);
         public static Presence GetPresenceByToken(string token) => Presences[token];
