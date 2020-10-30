@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -26,50 +27,45 @@ namespace oyasumi.Managers
         /// </summary>
         /// <param name="checksum">MD5 checksum of beatmap</param>
         /// <param name="title">Beatmap title object</param>
-        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, BeatmapTitle title)
+        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, bool leaderboard, OyasumiDbContext context)
         {
             var beatmap = Beatmaps[checksum]; // try get beatmap from local cache
 
             if (beatmap is not null)
             {  
                 if (beatmap.BeatmapId == -1)
-                    return (RankedStatus.NotSubmitted, beatmap); // just for handling them after calling Get()
+                    return (RankedStatus.NotSubmitted, beatmap);
                 else
                     return (RankedStatus.Approved, beatmap);                  // Approved is not actual ranked status
                                                                               // just for handling them after calling Get()
             }
 
-            var context = new OyasumiDbContext();
-
-            var dbBeatmap = context.Beatmaps.FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db
+            var dbBeatmap = context.Beatmaps.AsNoTracking().FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db
 
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
             {
-                beatmap = dbBeatmap.FromDb();
+                beatmap = dbBeatmap.FromDb(leaderboard, context);
                 
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
+                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
-            beatmap = await Beatmap.GetBeatmap(checksum); // try get beatmap from osu!api
+            beatmap = await Beatmap.GetBeatmap(checksum, leaderboard, context); // try get beatmap from osu!api
 
             if (beatmap.BeatmapId == -1)
             {
-                //var dbBeatmap = context.Beatmaps.FirstOrDefault(x => x.); 
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
+                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.NotSubmitted, beatmap); // beatmap doesn't exist
             }
 
             // if beatmap exists in api we'll add it to local cache and db
-            Beatmaps.Add(beatmap.BeatmapId, beatmap.MD5, beatmap);
+            Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
             await context.Beatmaps.AddAsync(beatmap.ToDb());
             
             return (RankedStatus.Approved, beatmap);
-
         }
-
-        public static Beatmap FromDb(this DbBeatmap b)
+        public static Beatmap FromDb(this DbBeatmap b, bool leaderboard, OyasumiDbContext context)
         {
             var metadata = new BeatmapMetadata
             {
@@ -85,9 +81,9 @@ namespace oyasumi.Managers
                 Stars = b.Stars
             };
             return new Beatmap(b.BeatmapMd5, b.BeatmapId, b.BeatmapSetId, metadata,
-                b.Status, false, 0, 0);
+                b.Status, false, 0, 0, 0, 0, leaderboard, context);
         }
-        
+
         public static DbBeatmap ToDb(this Beatmap b)
         {
             return new DbBeatmap
@@ -102,14 +98,16 @@ namespace oyasumi.Managers
                 HPDrainRate = b.Metadata.HPDrainRate,
                 BPM = b.Metadata.BPM,
                 Stars = b.Metadata.Stars,
-                BeatmapMd5 = b.MD5,
+                BeatmapMd5 = b.FileChecksum,
                 BeatmapId = b.BeatmapId,
                 BeatmapSetId = b.BeatmapSetId,
                 Status = b.Status,
                 Frozen = b.Frozen,
                 PlayCount = b.PlayCount,
-                PassCount = b.PassCount
+                PassCount = b.PassCount,
+                //FileName = fileName
             };
         }
+
     }
 }

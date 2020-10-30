@@ -1,3 +1,6 @@
 bin/
 obj/
 .vs/
+config.json
+/oyasumi/data/osr
+/.idea/.idea.oyasumi
