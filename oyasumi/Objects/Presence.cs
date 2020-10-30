@@ -9,6 +9,7 @@ using oyasumi.Layouts;
 using oyasumi.Utilities;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 
 namespace oyasumi.Objects
 {
@@ -18,6 +19,9 @@ namespace oyasumi.Objects
 		public readonly string Username;
 
 		public readonly User User;
+
+		public Presence Spactaing;
+		public List<Presence> Spectators = new List<Presence>();
 
 		public readonly int Id;
 		public readonly int LoginTime = Time.CurrentUnixTimestamp;

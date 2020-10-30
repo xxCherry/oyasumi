@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using oyasumi.Enums;
 using oyasumi.IO;
+using oyasumi.Managers;
 using oyasumi.Objects;
 
 namespace oyasumi.Layouts
@@ -307,6 +308,57 @@ namespace oyasumi.Layouts
 
             packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
             
+            p.PacketEnqueue(packet);
+        }
+
+        public static void ChatMessage(this Presence p, Presence sender, string message, string target)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerChatMessage
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(sender.Username);
+            writer.Write(message);
+            writer.Write(target);
+            writer.Write(sender.Id);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void SpectatorJoined(this Presence p, int id)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerSpectateSpectatorJoined
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(id);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void SpectatorLeft(this Presence p, int id)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerSpectateSpectatorLeft
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(id);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
             p.PacketEnqueue(packet);
         }
     }
