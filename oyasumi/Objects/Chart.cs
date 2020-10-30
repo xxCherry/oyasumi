@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace oyasumi.Objects
 {
-    public class Chart
+    public struct Chart
     {
         private readonly string _chartId;
         private readonly string _chartUrl;
@@ -39,8 +39,8 @@ namespace oyasumi.Objects
                $"|rankAfter:{_after.Rank}" +
                $"|maxComboBefore:0" +
                $"|maxComboAfter:0" +
-               $"|accuracyBefore:{_before.Accuracy}" +
-               $"|accuracyAfter:{_after.Accuracy}" +
+               $"|accuracyBefore:{_before.Accuracy * 100}" +
+               $"|accuracyAfter:{_after.Accuracy * 100}" +
                $"|rankedScoreBefore:{_before.RankedScore}" +
                $"|rankedScoreAfter:{_after.RankedScore}" +
                $"|totalScoreBefore:{_before.TotalScore}" +

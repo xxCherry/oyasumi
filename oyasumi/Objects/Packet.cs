@@ -2,9 +2,9 @@
 
 namespace oyasumi.Objects
 {
-	public class Packet
+	public struct Packet
 	{
-		public PacketType Type;
-		public byte[] Data;
+		public PacketType Type { get; set; }
+		public byte[] Data { get; set; }
 	}
 }
