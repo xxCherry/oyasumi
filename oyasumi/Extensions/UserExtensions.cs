@@ -1,4 +1,5 @@
 ﻿using oyasumi.Managers;
+using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,5 +34,6 @@ namespace oyasumi.Extensions
         {
             return self.Replace(" ", "_").ToLower();
         }
+
     }
 }

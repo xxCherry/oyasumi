@@ -60,7 +60,7 @@ namespace oyasumi
 			var users = context.Users;
 
 			foreach (var u in users)
-				Base.UserCache.TryAdd(u.Username, u);
+				Base.UserCache.Add(u.Username, u.Id, u);
 
 			//new OyasumiDbContext().Migrate();
 

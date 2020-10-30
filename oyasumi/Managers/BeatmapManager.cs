@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -39,7 +40,7 @@ namespace oyasumi.Managers
                                                                               // just for handling them after calling Get()
             }
 
-            var dbBeatmap = context.Beatmaps.FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db
+            var dbBeatmap = context.Beatmaps.AsNoTracking().FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db
 
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
@@ -54,7 +55,6 @@ namespace oyasumi.Managers
 
             if (beatmap.BeatmapId == -1)
             {
-                //var dbBeatmap = context.Beatmaps.FirstOrDefault(x => x.); 
                 Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.NotSubmitted, beatmap); // beatmap doesn't exist
             }
@@ -65,7 +65,6 @@ namespace oyasumi.Managers
             
             return (RankedStatus.Approved, beatmap);
         }
-
         public static Beatmap FromDb(this DbBeatmap b, bool leaderboard, OyasumiDbContext context)
         {
             var metadata = new BeatmapMetadata
@@ -84,7 +83,7 @@ namespace oyasumi.Managers
             return new Beatmap(b.BeatmapMd5, b.BeatmapId, b.BeatmapSetId, metadata,
                 b.Status, false, 0, 0, 0, 0, leaderboard, context);
         }
-        
+
         public static DbBeatmap ToDb(this Beatmap b)
         {
             return new DbBeatmap
@@ -105,8 +104,10 @@ namespace oyasumi.Managers
                 Status = b.Status,
                 Frozen = b.Frozen,
                 PlayCount = b.PlayCount,
-                PassCount = b.PassCount
+                PassCount = b.PassCount,
+                //FileName = fileName
             };
         }
+
     }
 }

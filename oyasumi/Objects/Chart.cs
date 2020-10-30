@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace oyasumi.Objects
 {
-    public class Chart
+    public struct Chart
     {
         private readonly string _chartId;
         private readonly string _chartUrl;

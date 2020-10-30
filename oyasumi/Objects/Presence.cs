@@ -8,6 +8,7 @@ using oyasumi.IO;
 using oyasumi.Layouts;
 using oyasumi.Utilities;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace oyasumi.Objects
 {
@@ -42,29 +43,49 @@ namespace oyasumi.Objects
 
         private readonly ConcurrentQueue<Packet> _packetQueue = new ConcurrentQueue<Packet>();
 
-		public Presence(int id, string username)
+		public Presence(User user)
 		{
-			Id = id;
-			Username = username;
+			Id = user.Id;
+			Username = user.Username;
 			Token = Guid.NewGuid().ToString();
 			Privileges = Privileges.Normal | Privileges.Verified;
 			Status = new PresenceStatus
 			{
-				Status = ActionStatuses.Unknown,
+				Status = ActionStatuses.Idle,
 				StatusText = "",
 				BeatmapChecksum = "",
 				BeatmapId = 0,
 				CurrentMods = Mods.None,
 				CurrentPlayMode = PlayMode.Osu
 			};
-			User = Base.UserCache[username];
+			User = user;
 		}
 
-		public async Task UpdateUserStats(OyasumiDbContext context)
+		public async Task GetOrUpdateUserStats(OyasumiDbContext context, bool update)
 		{
-			var stats = await context.UsersStats.FirstOrDefaultAsync(x => x.Id == User.Id);
+			long rankedScore = 0;
+			long totalScore = 0;
+			int performance = 0;
+			float accuracy = 0.0f;
+			int playCount = 0;
 
-			var performance = Status.CurrentPlayMode switch
+			var exists = Base.UserStatsCache.TryGetValue(User.Id, out var cachedStats);
+
+			UserStats stats = null;
+
+			if (!update && exists) 
+				stats = cachedStats; 
+			else
+			{
+				stats = await context.UsersStats.AsNoTracking().FirstOrDefaultAsync(x => x.Id == User.Id);
+
+				if (!exists)
+					Base.UserStatsCache.TryAdd(User.Id, stats);
+
+				Base.UserStatsCache.TryUpdate(User.Id, stats, cachedStats);
+			}
+
+			performance = Status.CurrentPlayMode switch
 			{
 				PlayMode.Osu => stats.PerformanceOsu,
 				PlayMode.Taiko => stats.PerformanceTaiko,
@@ -76,7 +97,7 @@ namespace oyasumi.Objects
 			if (performance > short.MaxValue)
 				performance = 0;
 
-			var totalScore = Status.CurrentPlayMode switch
+			totalScore = Status.CurrentPlayMode switch
 			{
 				PlayMode.Osu => stats.TotalScoreOsu,
 				PlayMode.Taiko => stats.TotalScoreTaiko,
@@ -85,7 +106,7 @@ namespace oyasumi.Objects
 				_ => 0
 			};
 
-			var rankedScore = Status.CurrentPlayMode switch
+			rankedScore = Status.CurrentPlayMode switch
 			{
 				PlayMode.Osu => stats.RankedScoreOsu,
 				PlayMode.Taiko => stats.RankedScoreTaiko,
@@ -94,7 +115,7 @@ namespace oyasumi.Objects
 				_ => 0
 			};
 
-			var accuracy = Status.CurrentPlayMode switch
+			accuracy = Status.CurrentPlayMode switch
 			{
 				PlayMode.Osu => stats.AccuracyOsu * 100,
 				PlayMode.Taiko => stats.AccuracyTaiko * 100,
@@ -103,7 +124,7 @@ namespace oyasumi.Objects
 				_ => 0
 			};
 
-			var playCount = Status.CurrentPlayMode switch
+			playCount = Status.CurrentPlayMode switch
 			{
 				PlayMode.Osu => stats.PlaycountOsu,
 				PlayMode.Taiko => stats.PlaycountTaiko,
@@ -119,9 +140,8 @@ namespace oyasumi.Objects
 			Performance = (short)performance;
 		}
 
-		public async Task AddScore(OyasumiDbContext context, long score, bool ranked, PlayMode mode)
+		public void AddScore(UserStats stats, long score, bool ranked, PlayMode mode)
 		{
-			var stats = await context.UsersStats.FirstOrDefaultAsync(x => x.Id == Id);
 			switch (mode)
 			{
 				case PlayMode.Osu:
@@ -158,39 +178,38 @@ namespace oyasumi.Objects
 			}
 		}
 
-		public async Task AddPlaycount(OyasumiDbContext context, PlayMode mode)
-		{
-			var stats = await context.UsersStats.FirstOrDefaultAsync(x => x.Id == Id);
-			switch (mode)
-			{
-				case PlayMode.Osu:
-					stats.PlaycountOsu++;
-					break;
+        public void AddPlaycount(UserStats stats, PlayMode mode)
+        {
+            switch (mode)
+            {
+                case PlayMode.Osu:
+                    stats.PlaycountOsu++;
+                    break;
 
-				case PlayMode.Taiko:
-					stats.PlaycountTaiko++;
-					break;
+                case PlayMode.Taiko:
+                    stats.PlaycountTaiko++;
+                    break;
 
-				case PlayMode.CatchTheBeat:
-					stats.PlaycountCtb++;
-					break;
+                case PlayMode.CatchTheBeat:
+                    stats.PlaycountCtb++;
+                    break;
 
-				case PlayMode.OsuMania:
-					stats.PlaycountMania++;
-					break;
-			}
-		}
+                case PlayMode.OsuMania:
+                    stats.PlaycountMania++;
+                    break;
+            }
+        }
 
 
-		// taken from Sora https://github.com/Chimu-moe/Sora/blob/7bba59c8000b440f7f81d2a487a5109590e37068/src/Sora/Database/Models/DBLeaderboard.cs#L200
-		public async Task<double> UpdateAccuracy(OyasumiDbContext context, PlayMode mode)
+        // taken from Sora https://github.com/Chimu-moe/Sora/blob/7bba59c8000b440f7f81d2a487a5109590e37068/src/Sora/Database/Models/DBLeaderboard.cs#L200
+        public async Task<double> UpdateAccuracy(OyasumiDbContext context, PlayMode mode)
 		{
 			var totalAcc = 0d;
 			var divideTotal = 0d;
 			var i = 0;
 
 			var scores = (await context
-				.Scores
+				.Scores.AsNoTracking()
 				.ToListAsync())
 				.Where(s => s.PlayMode == mode)
 				.Where(s => s.UserId == Id)
