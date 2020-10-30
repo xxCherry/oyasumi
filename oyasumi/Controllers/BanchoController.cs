@@ -90,9 +90,14 @@ namespace oyasumi.Controllers
 
 				presence.UserPresenceSingle(presence.Id);
 
+				// Default channel
 				presence.ChatChannelListingComplete(0);
-				presence.ChatChannelJoinSuccess("#osu");
+				presence.JoinChannel("#osu");
 				presence.ChatChannelAvailable("#osu", "Default osu! channel", 1);
+
+				// TODO: user count
+				foreach (var chan in ChannelManager.Channels.Values)
+					presence.ChatChannelAvailable(chan.Name, chan.Description, 1);
 
 				foreach (var pr in PresenceManager.Presences.Values) // go for each presence
 				{

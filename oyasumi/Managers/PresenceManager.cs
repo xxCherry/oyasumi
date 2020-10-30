@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using oyasumi.Layouts;
 using oyasumi.Objects;
 using oyasumi.Utilities;
 
@@ -7,9 +8,13 @@ namespace oyasumi.Managers
     public class PresenceManager
     {
         public static readonly TwoKeyDictionary<int, string, Presence> Presences = new TwoKeyDictionary<int, string, Presence>();
-        
+
         public static void Add(Presence p) => Presences.Add(p.Id, p.Token, p);
-        public static void Remove(Presence p) =>  Presences.Remove(p.Id);
+        public static void Remove(Presence p) 
+        {
+            p.Spectating?.SpectatorLeft(p.Id);
+            Presences.Remove(p.Id);
+        }
         public static Presence GetPresenceByToken(string token) => Presences[token];
         public static Presence GetPresenceById(int id) => Presences[id];
         public static Presence GetPresenceByName(string name) => Presences.Values.FirstOrDefault(x => x.Username == name);

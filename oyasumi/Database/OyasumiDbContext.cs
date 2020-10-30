@@ -21,5 +21,6 @@ namespace oyasumi.Database
         public DbSet<User> Users { get; set; }
         public DbSet<UserStats> UsersStats { get; set; }
         public DbSet<DbBeatmap> Beatmaps { get; set; }
+        public DbSet<DbChannel> Channels { get; set; }
     }
 }
