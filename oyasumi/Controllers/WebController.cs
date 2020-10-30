@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Internal;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -26,7 +27,7 @@ namespace oyasumi.Controllers
         }
 
         [Route("bancho_connect.php")]
-        public async Task<IActionResult> BanchoConnect()
+        public IActionResult BanchoConnect()
         {
             return Ok("<>");
         }
@@ -34,7 +35,7 @@ namespace oyasumi.Controllers
         [HttpPost("osu-submit-modular-selector.php")]
         public async Task<IActionResult> SubmitModular()
         {
-            var score = await ((string)Request.Form["score"], (string)Request.Form["iv"], (string)Request.Form["osuver"]).ToScore(_context);
+            Score score = await ((string)Request.Form["score"], (string)Request.Form["iv"], (string)Request.Form["osuver"]).ToScore(_context);
 
             if (score is null)
                 return Ok("error: no");
@@ -46,7 +47,11 @@ namespace oyasumi.Controllers
                  return Ok("error: no"); */
 
             var beatmap = score.Beatmap;
-            Base.UserCache.TryGetValue(score.Presence.Username, out var user);
+
+            var user = Base.UserCache[score.Presence.Username];
+
+            if (user == default)
+                return Ok("error: no");
 
             switch (beatmap.Status)
             {
@@ -56,17 +61,44 @@ namespace oyasumi.Controllers
                 case RankedStatus.Approved:
                 case RankedStatus.Qualified:
                 case RankedStatus.Ranked:
+                    var failed = Request.Form["x"] == "1";
+
                     var presenceBefore = score.Presence;
+
+                    var stats = await _context.UsersStats.FirstOrDefaultAsync(x => x.Id == score.Presence.Id);
+
                     await score.Presence.UpdateAccuracy(_context, score.PlayMode); // update old accuracy
 
                     score.PerformancePoints = 0; // no pp system yet
 
-                    await score.Presence.AddPlaycount(_context, score.PlayMode);
+                    score.Presence.AddPlaycount(stats, score.PlayMode);
 
-                    await score.Presence.AddScore(_context, score.TotalScore, true, score.PlayMode);
-                    await score.Presence.AddScore(_context, score.TotalScore, false, score.PlayMode);
+                    if (!failed)
+                    {
+                        score.Presence.AddScore(stats, score.TotalScore, true, score.PlayMode);
+                        score.Presence.AddScore(stats, score.TotalScore, false, score.PlayMode);
+                    }
 
                     score.Accuracy = OppaiProvider.CalculateAccuracy(score);
+
+                    if (failed) 
+                        score.Completed = CompletedStatus.Failed;
+
+                    var oldScore = await _context.Scores
+                        .AsAsyncEnumerable()
+                        .Where(x => x.Completed == CompletedStatus.Best && x.UserId == score.Presence.Id && x.FileChecksum == score.FileChecksum)
+                        .FirstOrDefaultAsync();
+
+                    if (oldScore is not null) // if we already have score on the beatmap
+                    {
+                        if (oldScore.TotalScore < score.TotalScore) // then check if our last score is better.
+                        {
+                            oldScore.Completed = CompletedStatus.Submitted;
+                            score.Completed = CompletedStatus.Best;
+                        }
+                    }
+                    else 
+                        score.Completed = CompletedStatus.Best;
 
                     var dbScore = score.ToDb();
 
@@ -83,14 +115,12 @@ namespace oyasumi.Controllers
                         m.Position = 0;
                         score.ReplayChecksum = Crypto.ComputeHash(m.ToArray());
                         if (!string.IsNullOrEmpty(score.ReplayChecksum))
-                        {
                             await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr", m.ToArray());
-                        }
                     }
 
                     await score.Presence.UpdateAccuracy(_context, score.PlayMode); // now get new accuracy
 
-                    await score.Presence.UpdateUserStats(_context);
+                    await score.Presence.GetOrUpdateUserStats(_context, true);
 
                     var presenceAfter = score.Presence;
 
@@ -100,15 +130,24 @@ namespace oyasumi.Controllers
                     foreach (var otherPresence in PresenceManager.Presences.Values)
                         score.Presence.UserStats(otherPresence);
 
-                    score.Beatmap.Leaderboard = await Score.GetFormattedScores(_context, beatmap.FileChecksum);
+                    var scores = await Score.GetRawScores(_context, beatmap.FileChecksum);
+
+                    score.Beatmap.LeaderboardCache.Clear(); // Clear the cache
+
+                    foreach (var bScore in scores)
+                        score.Beatmap.LeaderboardCache.TryAdd(bScore.UserId, bScore);
+
+
+                    score.Beatmap.LeaderboardFormatted = Score.FormatScores(scores);
 
                     return Ok($"beatmapId:{beatmap.BeatmapId}|beatmapSetId:{beatmap.BeatmapSetId}|beatmapPlaycount:0|beatmapPasscount:0|approvedDate:\n\n" +
                               bmChart
                               + "\n"
                               + oaChart);
                 default: // map is unranked so we'll just add score and playcount
-                    await score.Presence.AddScore(_context, score.TotalScore, false, score.PlayMode);
-                    await score.Presence.AddPlaycount(_context, score.PlayMode);
+                    stats = await _context.UsersStats.FirstOrDefaultAsync(x => x.Id == score.Presence.Id);
+                    score.Presence.AddScore(stats, score.TotalScore, false, score.PlayMode);
+                    score.Presence.AddPlaycount(stats, score.PlayMode);
                     await score.Presence.Apply(_context);
 
                     foreach (var otherPresence in PresenceManager.Presences.Values)
@@ -144,12 +183,27 @@ namespace oyasumi.Controllers
             var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, true, _context);
 
             // TODO: add NeedUpdate
-            return status switch
+            switch (status)
             {
-                RankedStatus.NotSubmitted => Ok("-1|false"),
-                RankedStatus.Approved => Ok($"{beatmap}\n" + beatmap.Leaderboard),
-                _ => Ok("error: no")
-            };
+                case RankedStatus.NotSubmitted:
+                    return Ok("-1|false");
+                case RankedStatus.Approved:
+                    var personalBest = beatmap.LeaderboardCache.TryGetValue(Base.UserCache[username].Id, out var score);
+                    var personalBestString = string.Empty;
+
+                    if (personalBest)
+                        personalBestString = $"{score}";
+
+                    var reformattedLeaderboard = beatmap.LeaderboardFormatted;
+
+                    var ret = $"{beatmap}\n"
+                            + $"{personalBestString}\n"
+                            + (string.Join("\n", reformattedLeaderboard));
+
+                    return Ok(ret);
+                default:
+                    return Ok("-1|false");
+            }
         }
     }
 }

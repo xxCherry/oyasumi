@@ -38,5 +38,6 @@ namespace oyasumi.Database.Models
         public bool Relaxing { get; set; }
         public bool AutoPiloting { get; set; }
         public float PerformancePoints { get; set; }
+        public CompletedStatus Completed { get; set; }
     }
 }

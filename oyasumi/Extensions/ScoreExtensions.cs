@@ -38,10 +38,13 @@ namespace oyasumi.Extensions
 
             var flags = (osuVersionUnformatted.Length - osuVersion.Length) & ~4;
 
+            var presence = PresenceManager.GetPresenceByName(split[1].TrimEnd()); // TrimEnd() because osu! adds extra space if user is supporter
+
             return new Score
             {
                 FileChecksum = split[0],
-                Presence = PresenceManager.GetPresenceByName(split[1].TrimEnd()), // TrimEnd() because osu! adds extra space if user is supporter
+                Presence = presence,
+                User = presence.User,
                 Count300 = int.Parse(split[3]),
                 Count100 = int.Parse(split[4]),
                 Count50 = int.Parse(split[5]),

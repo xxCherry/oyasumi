@@ -11,9 +11,9 @@ namespace oyasumi.IO
 	public class PacketWriter
 	{
 		private readonly MemoryStream _data;
-		private bool _clean = false;
+		private bool _clean;
 
-		public PacketWriter() =>
+        public PacketWriter() =>
 			_data = new MemoryStream();
 
 		public byte[] ToBytes()
@@ -23,14 +23,9 @@ namespace oyasumi.IO
 			
 			var array = _data.ToArray();
 			
-			var cloneData = new byte[array.Length];
-
-			Array.Copy(array, cloneData, array.Length);
-			Array.Clear(array, 0, array.Length);
-			
 			_clean = true;
 
-			return cloneData;
+			return array;
 		}
 
 		public async Task Write(IAsyncEnumerable<Packet> packetList)

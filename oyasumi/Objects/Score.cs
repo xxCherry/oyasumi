@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
-using oyasumi.Managers;
 using oyasumi.Utilities;
 
 namespace oyasumi.Objects
@@ -15,7 +14,9 @@ namespace oyasumi.Objects
     public class Score
     {
         public int ScoreId { get; set; }
+        public User User { get; set; }
         public Presence Presence { get; set; }
+        public int UserId { get; set; }
         public int Count100 { get; set; }
         public int Count300 { get; set; }
         public int Count50 { get; set; }
@@ -39,13 +40,14 @@ namespace oyasumi.Objects
         public BadFlags Flags { get; set; }
         public int OsuVersion { get; set; }
         public int Rank { get; set; }
+        public CompletedStatus Completed { get; set; }
 
         public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5)
         {
             var leaderboardData = new List<Score>();
             var scores = await context.Scores
                 .AsQueryable()
-                .Where(x => x.FileChecksum == beatmapMd5)
+                .Where(x => x.FileChecksum == beatmapMd5 && x.Completed == CompletedStatus.Best)
                 .Take(50)
                 .ToArrayAsync();
 
@@ -56,6 +58,16 @@ namespace oyasumi.Objects
                 leaderboardData.Add(await FromDb(context, score.Id));
 
             return leaderboardData;
+        }
+
+        public static List<string> FormatScores(List<Score> scores)
+        {
+            var scoresString = new List<string>();
+
+            foreach (var score in scores)
+                scoresString.Add(score.ToString());
+
+            return scoresString;
         }
 
         public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5)
@@ -71,7 +83,7 @@ namespace oyasumi.Objects
 
         private async Task<int> GetLeaderboardRank(OyasumiDbContext context)
         {
-            var scores = await context.Scores.AsQueryable().Take(50).ToListAsync();
+            var scores = await context.Scores.AsQueryable().AsNoTracking().Take(50).ToListAsync();
 
             var urTuple = scores // u is user and r is rank
                 .Where(x => x.FileChecksum == FileChecksum)
@@ -82,7 +94,7 @@ namespace oyasumi.Objects
                 });
 
             foreach (var item in urTuple)
-                if (item.User.UserId == Presence.Id) 
+                if (item.User.UserId == User.Id) 
                     return item.Rank;
 
             return 0;
@@ -90,12 +102,15 @@ namespace oyasumi.Objects
 
         public static async Task<Score> FromDb(OyasumiDbContext context, int scoreId)
         {
-            var dbScore = await context.Scores.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == scoreId);
+            var dbScore = await context.Scores.AsNoTracking().FirstOrDefaultAsync(x => x.Id == scoreId);
 
             var score = new Score
             {
-                Presence = PresenceManager.GetPresenceById(dbScore.UserId),
+                User = Base.UserCache[dbScore.UserId],
+                Date = dbScore.Date,
+                UserId = dbScore.UserId,
                 FileChecksum = dbScore.FileChecksum,
+                ReplayChecksum = dbScore.ReplayChecksum,
                 TotalScore = dbScore.TotalScore,
                 MaxCombo = dbScore.MaxCombo,
                 Count50 = dbScore.Count50,
@@ -132,18 +147,18 @@ namespace oyasumi.Objects
                 AutoPiloting = Autopiloting,
                 Mods = Mods,
                 PlayMode = PlayMode,
-                UserId = Presence.Id,
+                UserId = User.Id,
                 Date = Date,
                 ReplayChecksum = ReplayChecksum,
                 TotalScore = TotalScore,
                 Flags = Flags,
-                OsuVersion = OsuVersion
+                OsuVersion = OsuVersion,
+                Completed = Completed
             };
         }
 
-
         public override string ToString() =>
-             $"{ScoreId}|{Presence.Username}|{TotalScore}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
-             $"|{CountGeki}|{Perfect}|{(int)Mods}|{Presence.Id}|{Rank}|{Date.ToUnixTimestamp()}|{!string.IsNullOrEmpty(ReplayChecksum)}";
+             $"{ScoreId}|{User.Username}|{TotalScore}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
+             $"|{CountGeki}|{Perfect}|{(int)Mods}|{User.Id}|{Rank}|{Date.ToUnixTimestamp()}|{!string.IsNullOrEmpty(ReplayChecksum)}";
     }
 }

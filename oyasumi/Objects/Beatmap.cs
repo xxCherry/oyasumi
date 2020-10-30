@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -85,7 +86,8 @@ namespace oyasumi.Objects
         public int OnlineOffset;
         public int MapRating;
 
-        public string Leaderboard;
+        public List<string> LeaderboardFormatted;
+        public ConcurrentDictionary<int, Score> LeaderboardCache;
 
         public BeatmapMetadata Metadata;
         public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
@@ -102,14 +104,20 @@ namespace oyasumi.Objects
             PassCount = passCount;
             OnlineOffset = onlineOffset;
             MapRating = mapRating;
+            LeaderboardCache = new ConcurrentDictionary<int, Score>();
 
             if (leaderboard)
             {
                 Task.WaitAll(Task.Run(async () =>
-                    Leaderboard = await Score.GetFormattedScores(context, md5)
-                ));
-            }
+                {
+                    var scores = await Score.GetRawScores(context, md5);
 
+                    foreach (var score in scores)
+                        LeaderboardCache.TryAdd(score.UserId, score);
+
+                    LeaderboardFormatted = Score.FormatScores(scores);
+                }));
+            }
         }
         public static async Task<Beatmap> GetBeatmap(string md5, bool leaderboard, OyasumiDbContext context)
         {
@@ -146,10 +154,10 @@ namespace oyasumi.Objects
 
         public override string ToString()
         {
-            return $"{(int)Status}|false|{BeatmapId}|{BeatmapSetId}|50\n" +
+            return $"{(int)Status}|false|{BeatmapId}|{BeatmapSetId}|{LeaderboardFormatted.Count}\n" +
                    $"{OnlineOffset}\n" +
                    $"{BeatmapName}\n" +
-                   $"{MapRating}\n";
+                   $"{MapRating}";
         }
     }
 }
