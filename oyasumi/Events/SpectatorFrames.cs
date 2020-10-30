@@ -13,11 +13,6 @@ namespace oyasumi.Events
         [Packet(PacketType.ClientSpectateData)]
         public static void Handle(Packet p, Presence pr)
         {
-           // var ms = new MemoryStream(p.Data);
-            //using var reader = new SerializationReader(ms);
-
-            //var frames = new List<(byte ButtonState, byte Button, float MouseX, float MouseY, int Time)>();
-
             foreach (var presence in pr.Spectators)
             {
                 presence.PacketEnqueue(new Packet() 

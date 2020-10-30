@@ -20,7 +20,7 @@ namespace oyasumi.Objects
 
 		public readonly User User;
 
-		public Presence Spactaing;
+		public Presence Spectating;
 		public List<Presence> Spectators = new List<Presence>();
 
 		public readonly int Id;

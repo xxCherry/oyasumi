@@ -1,12 +1,29 @@
-﻿using System;
+﻿using oyasumi.Enums;
+using oyasumi.IO;
+using oyasumi.Managers;
+using oyasumi.Objects;
+using oyasumi.Utilities;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
 namespace oyasumi.Events
 {
-    class SpectatorCantSpectate
+    public class SpectatorCantSpectate
     {
+        [Packet(PacketType.ServerSpectateNoBeatmap)]
+        public static void Handle(Packet p, Presence pr)
+        {
+            var cantSpectatePacket = new Packet()
+            {
+                Type = PacketType.ServerSpectateNoBeatmap,
+                Data = p.Data
+            };
+
+            pr.Spectating.PacketEnqueue(cantSpectatePacket);
+            foreach (var presence in pr.Spectators)
+            {
+                presence.PacketEnqueue(cantSpectatePacket);
+            }
+        }
     }
 }

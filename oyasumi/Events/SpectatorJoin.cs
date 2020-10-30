@@ -20,9 +20,8 @@ namespace oyasumi.Events
 
             var spectatingPresence = PresenceManager.GetPresenceById(userId);
 
-            pr.Spactaing = spectatingPresence;
-
-            pr.Spactaing.SpectatorJoined(pr.Id);
+            pr.Spectating = spectatingPresence;
+            pr.Spectating.SpectatorJoined(pr.Id);
 
             spectatingPresence.Spectators.Add(pr);
         }

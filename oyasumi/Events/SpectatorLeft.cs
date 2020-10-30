@@ -13,13 +13,12 @@ namespace oyasumi.Events
         [Packet(PacketType.ClientSpectateStop)]
         public static void Handle(Packet p, Presence pr)
         {
-            var ms = new MemoryStream(p.Data);
-            using var reader = new SerializationReader(ms);
-
-            pr.Spactaing.Spectators.Remove(pr);
-            pr.Spactaing.SpectatorLeft(pr.Id);
-            pr.Spactaing = null;
-
+            if (pr.Spectating is not null)
+            {
+                pr.Spectating.Spectators.Remove(pr);
+                pr.Spectating.SpectatorLeft(pr.Id);
+                pr.Spectating = null;
+            }
         }
     }
 }
