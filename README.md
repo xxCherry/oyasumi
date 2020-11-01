@@ -7,6 +7,7 @@
  * Login
  * Chat
  * Spectators
+ * Multiplayer
  * Data Caching (initial login around 120ms and second login around 0.1ms)
 
 ##### How can I contribute in this project?
@@ -15,5 +16,4 @@
  - Or create pull request
  
 #### Goals
- - Cross-support every osu! client (2008-2020) (Possibly in the future osu!Lazer)
-
+ - Just for fun
