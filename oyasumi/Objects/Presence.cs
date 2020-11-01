@@ -20,6 +20,8 @@ namespace oyasumi.Objects
 
 		public readonly User User;
 
+		public Match CurrentMatch;
+
 		public Presence Spectating;
 		public List<Presence> Spectators = new List<Presence>();
 
@@ -33,7 +35,7 @@ namespace oyasumi.Objects
 		public float Latitude;
 		public byte CountryCode = 1;
 		// --- > Shared
-		public int Rank = 1;
+		public int Rank;
 		// --- User Stats
 		public PresenceStatus Status;
 		public long RankedScore;
@@ -62,7 +64,32 @@ namespace oyasumi.Objects
 				CurrentMods = Mods.None,
 				CurrentPlayMode = PlayMode.Osu
 			};
+
 			User = user;
+		}
+
+		public Presence(int id, string username, long rankedScore, float accuracy, int playCount, long totalScore, short performance, int rank)
+		{
+			Id = id;
+			Username = username;
+			Token = Guid.NewGuid().ToString();
+			Privileges = Privileges.Normal | Privileges.Verified;
+			Status = new PresenceStatus
+			{
+				Status = ActionStatuses.Idle,
+				StatusText = "",
+				BeatmapChecksum = "",
+				BeatmapId = 0,
+				CurrentMods = Mods.None,
+				CurrentPlayMode = PlayMode.Osu
+			};
+
+			RankedScore = rankedScore;
+			Accuracy = accuracy;
+			PlayCount = playCount;
+			TotalScore = totalScore;
+			Performance = performance;
+			Rank = rank;
 		}
 
 		public async Task GetOrUpdateUserStats(OyasumiDbContext context, bool update)

@@ -22,8 +22,6 @@ namespace oyasumi.Objects
             Name = name;
             Description = description;
             UserCount = userCount;
-
-            ChannelManager.Channels.Add(Name, this);
         }
     }
 }

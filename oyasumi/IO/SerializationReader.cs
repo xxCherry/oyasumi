@@ -1,7 +1,12 @@
-﻿using System;
+﻿using oyasumi.Database;
+using oyasumi.Enums;
+using oyasumi.Managers;
+using oyasumi.Objects;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace oyasumi.IO
 {
@@ -37,6 +42,52 @@ namespace oyasumi.IO
                 default:
                     throw new Exception($"Type byte is not {TypeBytes.Null} or {TypeBytes.String} (position: {BaseStream.Position})");
             }
+        }
+
+        public Match ReadMatch(OyasumiDbContext context)
+        {
+            var match = new Match();
+
+            ReadInt16(); // match id
+            ReadByte(); // in progress
+
+            match.Type = (MatchTypes)ReadByte();
+            match.ActiveMods = (Mods)ReadInt32();
+
+            match.GameName = ReadString();
+            match.GamePassword = ReadString();
+
+            ReadString(); // game name
+
+            match.BeatmapId = ReadInt32();
+            match.BeatmapChecksum = ReadString();
+
+            match.Beatmap = BeatmapManager.Get(match.BeatmapChecksum, true, context).Result.Item2;
+
+            foreach (var slot in match.Slots)
+                slot.Status = (SlotStatus)ReadByte();
+
+            foreach (var slot in match.Slots)
+                slot.Team = (SlotTeams)ReadByte();
+
+            foreach (var slot in match.Slots)
+                if ((slot.Status & SlotStatus.HasPlayer) > 0)
+                    ReadInt32();
+
+            match.Host = PresenceManager.GetPresenceById(ReadInt32());
+
+            match.PlayMode = (PlayMode)ReadByte();
+            match.ScoringType = (MatchScoringTypes)ReadByte();
+            match.TeamType = (MatchTeamTypes)ReadByte();
+            match.FreeMods = ReadBoolean();
+            
+            if (match.FreeMods)
+                foreach (var slot in match.Slots)
+                    slot.Mods = (Mods)ReadInt32();
+
+            match.Seed = ReadInt32();
+
+            return match;
         }
 
         public DateTime ReadDateTime()

@@ -32,6 +32,7 @@ namespace oyasumi.Utilities
             return BCrypt.validate_password(plaintext, hash);
         }
 
+        public static string ComputeHash(string str) => ComputeHash(Encoding.UTF8.GetBytes(str));
 
         public static string ComputeHash(byte[] buffer)
         {
@@ -49,28 +50,6 @@ namespace oyasumi.Utilities
 
         public static string DecryptString(string message, byte[] key, string iv)
         {
-            // Works only on .NET framework
-            /*var msgBytes = Convert.FromBase64String(message);
-
-            using RijndaelManaged rj = new RijndaelManaged
-            {
-                Key = key,
-                BlockSize = 256,
-                Mode = CipherMode.CBC,
-                IV = Convert.FromBase64String(iv)
-            };
-
-            using MemoryStream ms = new MemoryStream(msgBytes);
-
-            using CryptoStream cs = new CryptoStream(ms, rj.CreateDecryptor(key, rj.IV), CryptoStreamMode.Read);
-
-            var byteBuffer = new byte[msgBytes.Length];
-            var length = await cs.ReadAsync(byteBuffer.AsMemory(0, msgBytes.Length));
-            byte[] stringBuffer = new byte[length];
-            Array.Copy(byteBuffer, stringBuffer, length);
-
-            return Encoding.UTF8.GetString(stringBuffer); */
-
             var msgBytes = Convert.FromBase64String(message);
             var engine = new RijndaelEngine(256);
 
