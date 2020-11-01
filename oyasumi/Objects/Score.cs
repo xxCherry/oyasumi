@@ -55,7 +55,7 @@ namespace oyasumi.Objects
                   (s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore)));
 
             foreach (var score in scores)
-                leaderboardData.Add(await FromDb(context, score.Id));
+                leaderboardData.Add(await FromDb(context, score.Id, scores));
 
             return leaderboardData;
         }
@@ -81,31 +81,21 @@ namespace oyasumi.Objects
             return sb.ToString();
         }
 
-        private async Task<int> GetLeaderboardRank(OyasumiDbContext context)
+        private int CalculateLeaderboardRank(DbScore[] scores)
         {
-            var scores = await context.Scores.AsQueryable().AsNoTracking().Take(50).ToListAsync();
-
-            var urTuple = scores // u is user and r is rank
-                .Where(x => x.FileChecksum == FileChecksum)
-                .GroupBy(x => x.TotalScore)
-                .Select((group, i) => new {
-                    Rank = i + 1,
-                    User = group.ToArray()[i]
-                });
-
-            foreach (var item in urTuple)
-                if (item.User.UserId == User.Id) 
-                    return item.Rank;
-
+            for (var i = 0; i < scores.Length; i++)
+                if (scores[i].UserId == User.Id)
+                    return i + 1;
             return 0;
         }
 
-        public static async Task<Score> FromDb(OyasumiDbContext context, int scoreId)
+        public static async Task<Score> FromDb(OyasumiDbContext context, int scoreId, DbScore[] scores = null)
         {
             var dbScore = await context.Scores.AsNoTracking().FirstOrDefaultAsync(x => x.Id == scoreId);
 
             var score = new Score
             {
+                ScoreId = scoreId,
                 User = Base.UserCache[dbScore.UserId],
                 Date = dbScore.Date,
                 UserId = dbScore.UserId,
@@ -122,8 +112,7 @@ namespace oyasumi.Objects
                 Perfect = dbScore.Perfect,
                 Mods = dbScore.Mods
             };
-
-            score.Rank = await score.GetLeaderboardRank(context);
+            score.Rank = score.CalculateLeaderboardRank(scores);
 
             return score;
         }

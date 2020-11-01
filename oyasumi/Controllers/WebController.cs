@@ -81,8 +81,11 @@ namespace oyasumi.Controllers
 
                     score.Accuracy = OppaiProvider.CalculateAccuracy(score);
 
-                    if (failed) 
+                    if (failed)
+                    {
                         score.Completed = CompletedStatus.Failed;
+                        return Ok("no");
+                    }
 
                     var oldScore = await _context.Scores
                         .AsAsyncEnumerable()

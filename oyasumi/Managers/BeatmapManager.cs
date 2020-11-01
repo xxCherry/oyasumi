@@ -40,13 +40,21 @@ namespace oyasumi.Managers
                                                                               // just for handling them after calling Get()
             }
 
+            //List<Score> scores;
+
             var dbBeatmap = context.Beatmaps.AsNoTracking().FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db
 
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
             {
                 beatmap = dbBeatmap.FromDb(leaderboard, context);
-                
+
+                /*scores = await Score.GetRawScores(context, checksum);
+
+                if (scores is not null)
+                    foreach (var score in scores) 
+                        beatmap.LeaderboardCache.TryAdd(score.User.Id, score);*/
+
                 Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
@@ -58,6 +66,11 @@ namespace oyasumi.Managers
                 Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.NotSubmitted, beatmap); // beatmap doesn't exist
             }
+            
+            /*scores = await Score.GetRawScores(context, checksum);
+            if (scores is not null)
+                foreach (var score in scores)
+                    beatmap.LeaderboardCache.TryAdd(score.User.Id, score); */
 
             // if beatmap exists in api we'll add it to local cache and db
             Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
