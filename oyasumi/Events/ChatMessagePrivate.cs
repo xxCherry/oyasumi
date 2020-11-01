@@ -25,7 +25,21 @@ namespace oyasumi.Events
             var message = reader.ReadString();
             var target = reader.ReadString();
 
-            ChannelManager.SendMessage(pr, message, target, false);
+            if (target == "oyasumi") // Handle commands if bot
+            {
+                if (message.StartsWith("!"))
+                {   
+                    var command = message[1..]; // from 1 to end of string
+                    if (command == "ping")
+                    {
+                        ChannelManager.SendMessage("oyasumi", "Pong", pr.Username, 1, false);
+                    }
+                }
+            }
+            else
+            {
+                ChannelManager.SendMessage(pr, message, target, false);
+            }
         }
     }
 }
