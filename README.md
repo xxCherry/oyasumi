@@ -1,11 +1,13 @@
-# Oyasumi
+# oyasumi
 
 
 ##### What this bancho can?
- * Basic working packets
- * [WIP] Score sumbittion and Beatmap Leaderboard
+ * Score sumbission
+ * Beatmap Leaderboard
  * Login
- * Data Caching
+ * Chat
+ * Spectators
+ * Data Caching (initial login around 120ms and second login around 0.1ms)
 
 ##### How can I contribute in this project?
 
@@ -13,5 +15,5 @@
  - Or create pull request
  
 #### Goals
- - Cross-support every osu! client (2007-2020) (Possibly in the future osu!Lazer)
+ - Cross-support every osu! client (2008-2020) (Possibly in the future osu!Lazer)
 

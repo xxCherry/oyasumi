@@ -134,8 +134,6 @@ namespace oyasumi.Layouts
             
             p.PacketEnqueue(packet);
         }
-        
-        
 
         public static async Task<byte[]> BanchoRestart(int timeout)
         {
@@ -311,6 +309,25 @@ namespace oyasumi.Layouts
             p.PacketEnqueue(packet);
         }
 
+        public static void ChatMessage(this Presence p, string sender, string message, string target, int id)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerChatMessage
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(sender);
+            writer.Write(message);
+            writer.Write(target);
+            writer.Write(id);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
         public static void ChatMessage(this Presence p, Presence sender, string message, string target)
         {
             var packet = new Packet
@@ -358,6 +375,148 @@ namespace oyasumi.Layouts
             writer.Write(id);
 
             packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void NewMatch(this Presence p, Match match)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiMatchNew
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.WriteMatch(match);
+            
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+
+        public static void MatchJoinFail(this Presence p)
+        {
+            p.PacketEnqueue(new Packet
+            {
+                Type = PacketType.ServerMultiMatchJoinFail
+            });
+        }
+
+        public static void MatchJoinSuccess(this Presence p, Match match)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiMatchJoinSuccess
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.WriteMatch(match);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void MatchUpdate(this Presence p, Match match)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiMatchUpdate
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.WriteMatch(match);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void MatchStart(this Presence p, Match match)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiMatchStart
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.WriteMatch(match);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void MatchPlayerFailed(this Presence p, int slotId)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiOtherFailed
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(slotId);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void MatchPlayerSkipped(this Presence p)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiSkipRequestOther
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(p.Id);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void MatchTransferHost(this Presence p)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiHostTransfer
+            };
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void AllPlayersLoaded(this Presence p)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiAllPlayersLoaded
+            };
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void MatchInvite(this Presence p, Presence sender, string message)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerMultiInvite
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(sender.Username);
+            writer.Write(message);
+            writer.Write(p.Username);
+            writer.Write(sender.Id);
 
             p.PacketEnqueue(packet);
         }

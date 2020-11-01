@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using oyasumi.Database;
+using oyasumi.Enums;
 using oyasumi.Managers;
 using oyasumi.Objects;
 
@@ -67,10 +68,17 @@ namespace oyasumi
 			foreach (var us in usersStats)
 				Base.UserStatsCache.TryAdd(us.Id, us);
 
-			new Channel("#osu", "Default osu! channel", 1);
-			
+			ChannelManager.Channels.Add("#osu", new Channel("#osu", "Default osu! channel", 1));
+
 			foreach (var chan in context.Channels)
-				new Channel(chan.Name, chan.Topic, 1);
+				ChannelManager.Channels.Add(chan.Name,  new Channel(chan.Name, chan.Topic, 1));
+
+			var bot = new Presence(1, "oyasumi", 1, -0.00000000000001f, -100, -1, -1000, 0);
+
+			bot.Status.Status = ActionStatuses.Watching;
+			bot.Status.StatusText = "for sneaky gamers";
+
+			PresenceManager.Add(bot);
 
 			//new OyasumiDbContext().Migrate();
 

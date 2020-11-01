@@ -33,6 +33,13 @@ namespace oyasumi.Controllers
 			_context = context;
 		}
 
+		public static List<PacketType> PacketsWithContext = new()
+		{
+			PacketType.ClientMultiSettingsChange,
+			PacketType.ClientMultiMatchCreate,
+			PacketType.ClientMultiChangePassword
+		};
+
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
 		{
 			if (Request.Method == "GET")
@@ -51,14 +58,14 @@ namespace oyasumi.Controllers
 				{
 					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe());
 
-					Base.UserCache.Add(username, dbUser.Id, dbUser);
-				}
+					if (dbUser is null)
+					{
+						Response.Headers["cho-token"] = "no-token";
+						return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
+							"application/octet-stream");
+					}
 
-				if (dbUser is null)
-				{
-					Response.Headers["cho-token"] = "no-token";
-					return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
-						"application/octet-stream");
+					Base.UserCache.Add(username, dbUser.Id, dbUser);
 				}
 
 				if (!Base.PasswordCache.TryGetValue(password, out _))
@@ -133,52 +140,98 @@ namespace oyasumi.Controllers
 
 				var packets = PacketReader.Parse(ms);
 
+				// Messy af, code dup
+				// TODO: Rewrite this piece of code
 				foreach (var packet in packets)
 				{
-					if (!Base.PacketImplCache.TryGetValue(packet.Type, out var handle))
+					if (!PacketsWithContext.Contains(packet.Type))
 					{
-						MethodInfo meth = null;
-						if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
+						if (!Base.PacketImplNoContextCache.TryGetValue(packet.Type, out var handle))
 						{
-							var meths = Base.Types.SelectMany(type => type.GetMethods());
-
-							foreach (var m in meths)
+							MethodInfo meth = null;
+							if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
 							{
-								if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != packet.Type)
-									continue;
+								var meths = Base.Types.SelectMany(type => type.GetMethods());
 
-								meth = m;
+								foreach (var m in meths)
+								{
+									if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != packet.Type)
+										continue;
 
-								if (meth is not null)
-									Base.MethodCache.TryAdd(packet.Type, meth);
+									meth = m;
 
-								break;
+									if (meth is not null)
+										Base.MethodCache.TryAdd(packet.Type, meth);
+
+									break;
+								}
 							}
+							else
+								meth = packetImpl;
+
+							if (meth is null)
+							{
+								// not handled
+								Console.WriteLine(packet.Type.ToString());
+								return Ok();
+							}
+
+							var packetParam = Expression.Parameter(typeof(Packet), "p");
+							var presenceParam = Expression.Parameter(typeof(Presence), "pr");
+							var call = Expression.Call(null, meth, packetParam, presenceParam);
+							var lambda = Expression.Lambda<Action<Packet, Presence>>(call, packetParam, presenceParam);
+							handle = lambda.CompileFast();
+
+							Base.PacketImplNoContextCache.TryAdd(packet.Type, handle);
+
+							handle(packet, presence);
 						}
 						else
-							meth = packetImpl;
-
-						if (meth is null)
 						{
-							// not handled
-							Console.WriteLine(packet.Type.ToString());
-							return Ok();
+							handle(packet, presence);
 						}
-
-						var packetParam = Expression.Parameter(typeof(Packet), "p");
-						var presenceParam = Expression.Parameter(typeof(Presence), "pr");
-						var call = Expression.Call(null, meth, packetParam, presenceParam);
-						var lambda = Expression.Lambda<Action<Packet, Presence>>(call, packetParam, presenceParam);
-						handle = lambda.CompileFast();
-
-						Base.PacketImplCache.TryAdd(packet.Type, handle);
-
-						handle(packet, presence);
 					}
 					else
                     {
-						handle(packet, presence);
-                    }
+						if (!Base.PacketImplContextCache.TryGetValue(packet.Type, out var handle))
+						{
+							MethodInfo meth = null;
+							if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
+							{
+								var meths = Base.Types.SelectMany(type => type.GetMethods());
+
+								foreach (var m in meths)
+								{
+									if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != packet.Type)
+										continue;
+
+									meth = m;
+
+									if (meth is not null)
+										Base.MethodCache.TryAdd(packet.Type, meth);
+
+									break;
+								}
+							}
+							else
+								meth = packetImpl;
+
+							var packetParam = Expression.Parameter(typeof(Packet), "p");
+							var presenceParam = Expression.Parameter(typeof(Presence), "pr");
+							var dbContextParam = Expression.Parameter(typeof(OyasumiDbContext), "context");
+							var call = Expression.Call(null, meth, packetParam, presenceParam, dbContextParam);
+							var lambda = Expression.Lambda<Action<Packet, Presence, OyasumiDbContext>>(call, packetParam, presenceParam, dbContextParam);
+							handle = lambda.CompileFast();
+
+							Base.PacketImplContextCache.TryAdd(packet.Type, handle);
+
+							handle(packet, presence, _context);
+						}
+						else
+						{
+							handle(packet, presence, _context);
+						}
+					}
 				}
 
 				var bytes = await presence.WritePackets();

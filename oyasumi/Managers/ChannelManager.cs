@@ -37,6 +37,29 @@ namespace oyasumi.Managers
             channel.Presences.Remove(pr);
         }
 
+        public static void SendMessage(string sender, string message, string rawTarget, int id, bool isPublic)
+        {
+            if (!isPublic)
+            {
+                var target = PresenceManager.GetPresenceByName(rawTarget);
+                
+                if (target is not null)
+                    target.ChatMessage(sender, message, rawTarget, id);
+            }
+            else
+            {
+                if (!Channels.TryGetValue(rawTarget, out var channel)) // Presence tried to send message to non-existent channel
+                    return;
+
+                foreach (var prRaw in channel.Presences)
+                {
+                    var pr = (Presence)prRaw;
+                    if (pr.Id != id)
+                        pr.ChatMessage(sender, message, rawTarget, id);
+                }
+            }
+        }
+
         public static void SendMessage(Presence sender, string message, string rawTarget, bool isPublic)
         {
             if (!isPublic)
@@ -58,7 +81,6 @@ namespace oyasumi.Managers
                         pr.ChatMessage(sender, message, rawTarget);
                 }
             }
-
         }
     }
 }

@@ -137,7 +137,6 @@ namespace oyasumi.Controllers
                     foreach (var bScore in scores)
                         score.Beatmap.LeaderboardCache.TryAdd(bScore.UserId, bScore);
 
-
                     score.Beatmap.LeaderboardFormatted = Score.FormatScores(scores);
 
                     return Ok($"beatmapId:{beatmap.BeatmapId}|beatmapSetId:{beatmap.BeatmapSetId}|beatmapPlaycount:0|beatmapPasscount:0|approvedDate:\n\n" +
@@ -156,8 +155,6 @@ namespace oyasumi.Controllers
                     return Ok("error: no");
             }
         }
-
-        // TODO: make scores length configurable
 
         [HttpGet("osu-osz2-getscores.php")]
         public async Task<IActionResult> GetScores

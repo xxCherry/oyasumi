@@ -1,4 +1,6 @@
-﻿using System;
+﻿using oyasumi.Enums;
+using oyasumi.Objects;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -29,7 +31,7 @@ namespace oyasumi.IO
         public override void Write(byte[] bytes)
         {
             if (bytes == null)
-                Write(-1);
+                Write(0);
             else
             {
                 Write(bytes.Length);
@@ -90,6 +92,44 @@ namespace oyasumi.IO
                     WriteObject(kvp.Value);
                 }
             }
+        }
+
+        public void WriteMatch(Match match)
+        {
+            Write((short)match.Id);
+            Write(match.InProgress);
+            Write((byte)match.Type);
+            Write((uint)match.ActiveMods);
+            Write(match.GameName);
+            Write(match.GamePassword);
+            Write(match.Beatmap.BeatmapName);
+            Write(match.BeatmapId);
+            Write(match.BeatmapChecksum);
+
+            for (int i = 0; i < Match.MAX_PLAYERS; i++)
+                Write((byte)match.Slots[i].Status);
+
+            for (int i = 0; i < Match.MAX_PLAYERS; i++)
+                Write((byte)match.Slots[i].Team);
+
+            for (int i = 0; i < Match.MAX_PLAYERS; i++)
+                if ((match.Slots[i].Status & SlotStatus.HasPlayer) > 0)
+                    Write(match.Slots[i].Presence.Id);
+
+            Write(match.Host.Id);
+
+            Write((byte)match.PlayMode);
+            Write((byte)match.ScoringType);
+            Write((byte)match.TeamType);
+            Write(match.FreeMods);
+
+            //Write((byte)match.SpecialModes);
+
+            if (match.FreeMods)
+                for (int i = 0; i < Match.MAX_PLAYERS; i++)
+                    Write((int)match.Slots[i].Mods);
+
+            Write(match.Seed);
         }
 
         private void WriteObject(object o)
