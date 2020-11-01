@@ -1,0 +1,21 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using oyasumi.Enums;
+using oyasumi.IO;
+using oyasumi.Layouts;
+using oyasumi.Managers;
+using oyasumi.Objects;
+
+namespace oyasumi.Events
+{
+    public class MatchLeave
+    {
+        [Packet(PacketType.ClientMultiMatchLeave)]
+        public static void Handle(Packet p, Presence pr) =>
+            pr.LeaveMatch();
+    }
+}

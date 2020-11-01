@@ -29,13 +29,7 @@ namespace oyasumi.IO
 		{
 			var type = (PacketType)reader.ReadInt16();
 
-			/*if (_packetCache.TryGetValue(type, out var p))
-			{
-				reader.BaseStream.Seek(5, SeekOrigin.Current); // seek through bytes to set correct offset
-				return p;
-			} */
-			
-			reader.ReadByte();
+			reader.ReadByte(); // Compression byte
 
 			var length = reader.ReadInt32();
 			var packetData = reader.ReadBytes(length);
@@ -46,8 +40,6 @@ namespace oyasumi.IO
 				Data = packetData
 			};
 
-			/*if (length == 0)
-				_packetCache.TryAdd(type, packet); */
 			return packet;
 		}
 		

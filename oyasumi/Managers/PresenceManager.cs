@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using oyasumi.Enums;
 using oyasumi.Layouts;
 using oyasumi.Objects;
 using oyasumi.Utilities;
@@ -9,7 +10,10 @@ namespace oyasumi.Managers
     {
         public static readonly TwoKeyDictionary<int, string, Presence> Presences = new TwoKeyDictionary<int, string, Presence>();
 
-        public static void Add(Presence p) => Presences.Add(p.Id, p.Token, p);
+        public static void Add(Presence p)
+        {
+            Presences.Add(p.Id, p.Token, p);
+        }
         public static void Remove(Presence p) 
         {
             p.Spectating?.SpectatorLeft(p.Id);

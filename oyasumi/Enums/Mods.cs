@@ -43,6 +43,8 @@ namespace oyasumi.Enums
 
         ScoreIncreaseMods = Hidden | HardRock | DoubleTime | Flashlight | FadeIn | Easy | Relax | Relax2 | SpunOut |
                             NoFail | Easy | HalfTime | Autoplay | SuddenDeath | Perfect | KeyMod | Target | Random |
-                            Nightcore | LastMod
+                            Nightcore | LastMod,
+
+        SpeedAltering = DoubleTime | Nightcore | HalfTime
     }
 }

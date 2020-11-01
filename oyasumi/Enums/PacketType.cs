@@ -312,7 +312,7 @@ namespace oyasumi.Enums
         /// <summary>
         /// Tell bancho that we finished the multiplayer match.
         /// </summary>
-        ServerMultiMatchCompleted,
+        ClientMultiMatchCompleted,
 
         /// <summary>
         /// Tell the client they received host privileges in the multiplayer
