@@ -142,7 +142,7 @@ namespace oyasumi.Controllers
 
                     score.Beatmap.LeaderboardFormatted = Score.FormatScores(scores);
 
-                    return Ok($"beatmapId:{beatmap.BeatmapId}|beatmapSetId:{beatmap.BeatmapSetId}|beatmapPlaycount:0|beatmapPasscount:0|approvedDate:\n\n" +
+                    return Ok($"beatmapId:{beatmap.Id}|beatmapSetId:{beatmap.SetId}|beatmapPlaycount:0|beatmapPasscount:0|approvedDate:\n\n" +
                               bmChart
                               + "\n"
                               + oaChart);

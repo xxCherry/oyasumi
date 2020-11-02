@@ -33,7 +33,7 @@ namespace oyasumi.Managers
 
             if (beatmap is not null)
             {  
-                if (beatmap.BeatmapId == -1)
+                if (beatmap.Id == -1)
                     return (RankedStatus.NotSubmitted, beatmap);
                 else
                     return (RankedStatus.Approved, beatmap);                  // Approved is not actual ranked status
@@ -55,15 +55,15 @@ namespace oyasumi.Managers
                     foreach (var score in scores) 
                         beatmap.LeaderboardCache.TryAdd(score.User.Id, score);*/
 
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
+                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
             beatmap = await Beatmap.GetBeatmap(checksum, leaderboard, context); // try get beatmap from osu!api
 
-            if (beatmap.BeatmapId == -1)
+            if (beatmap.Id == -1)
             {
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
+                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.NotSubmitted, beatmap); // beatmap doesn't exist
             }
             
@@ -73,7 +73,7 @@ namespace oyasumi.Managers
                     beatmap.LeaderboardCache.TryAdd(score.User.Id, score); */
 
             // if beatmap exists in api we'll add it to local cache and db
-            Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
+            Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
             await context.Beatmaps.AddAsync(beatmap.ToDb());
             
             return (RankedStatus.Approved, beatmap);
@@ -112,8 +112,8 @@ namespace oyasumi.Managers
                 BPM = b.Metadata.BPM,
                 Stars = b.Metadata.Stars,
                 BeatmapMd5 = b.FileChecksum,
-                BeatmapId = b.BeatmapId,
-                BeatmapSetId = b.BeatmapSetId,
+                BeatmapId = b.Id,
+                BeatmapSetId = b.SetId,
                 Status = b.Status,
                 Frozen = b.Frozen,
                 PlayCount = b.PlayCount,

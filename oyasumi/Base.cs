@@ -26,8 +26,7 @@ namespace oyasumi
 
 		// ConcurrentDictonary here for prevent using locks and because I'm too lazy to write them
 		public static readonly ConcurrentDictionary<PacketType, MethodInfo> MethodCache = new ConcurrentDictionary<PacketType, MethodInfo>();
-		public static readonly ConcurrentDictionary<PacketType, Action<Packet, Presence>> PacketImplNoContextCache = new ConcurrentDictionary<PacketType, Action<Packet, Presence>>();
-		public static readonly ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>> PacketImplContextCache = new ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>>();
+		public static readonly ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>> PacketImplCache = new ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>>();
 		public static readonly ConcurrentDictionary<int, UserStats> UserStatsCache = new ConcurrentDictionary<int, UserStats>();
 		public static readonly ConcurrentDictionary<string, string> PasswordCache = new ConcurrentDictionary<string, string>();
 		public static readonly TwoKeyDictionary<string, int, User> UserCache = new TwoKeyDictionary<string, int, User>();
@@ -41,11 +40,6 @@ namespace oyasumi
 
 		public static IHostBuilder CreateHostBuilder(string[] args) =>
 			Host.CreateDefaultBuilder(args)
-				.ConfigureLogging((logging) =>
-				{
-					// clear default logging providers
-					logging.ClearProviders();
-				})
 				.ConfigureWebHostDefaults(webBuilder =>
 				{
 					webBuilder.UseStartup<Startup>();
