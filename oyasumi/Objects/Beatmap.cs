@@ -77,14 +77,14 @@ namespace oyasumi.Objects
         };
 
         public string FileChecksum;
-        public int BeatmapId;
-        public int BeatmapSetId;
+        public int Id;
+        public int SetId;
         public RankedStatus Status;
         public bool Frozen;
         public int PlayCount;
         public int PassCount;
         public int OnlineOffset;
-        public int MapRating;
+        public int Rating;
 
         public List<string> LeaderboardFormatted;
         public ConcurrentDictionary<int, Score> LeaderboardCache;
@@ -95,15 +95,15 @@ namespace oyasumi.Objects
             bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard, OyasumiDbContext context)
         {
             FileChecksum = md5;
-            BeatmapId = id;
-            BeatmapSetId = setId;
+            Id = id;
+            SetId = setId;
             Metadata = metadata;
             Status = status;
             Frozen = frozen;
             PlayCount = playCount;
             PassCount = passCount;
             OnlineOffset = onlineOffset;
-            MapRating = mapRating;
+            Rating = mapRating;
             LeaderboardCache = new ConcurrentDictionary<int, Score>();
 
             if (leaderboard)
@@ -154,10 +154,10 @@ namespace oyasumi.Objects
 
         public override string ToString()
         {
-            return $"{(int)Status}|false|{BeatmapId}|{BeatmapSetId}|{LeaderboardFormatted.Count}\n" +
+            return $"{(int)Status}|false|{Id}|{SetId}|{LeaderboardFormatted.Count}\n" +
                    $"{OnlineOffset}\n" +
                    $"{BeatmapName}\n" +
-                   $"{MapRating}";
+                   $"{Rating}";
         }
     }
 }

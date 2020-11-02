@@ -140,97 +140,47 @@ namespace oyasumi.Controllers
 
 				var packets = PacketReader.Parse(ms);
 
-				// Messy af, code dup
-				// TODO: Rewrite this piece of code
 				foreach (var packet in packets)
 				{
-					if (!PacketsWithContext.Contains(packet.Type))
+					if (!Base.PacketImplCache.TryGetValue(packet.Type, out var handle))
 					{
-						if (!Base.PacketImplNoContextCache.TryGetValue(packet.Type, out var handle))
+						MethodInfo meth = null;
+						if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
 						{
-							MethodInfo meth = null;
-							if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
+							var meths = Base.Types.SelectMany(type => type.GetMethods());
+
+							foreach (var m in meths)
 							{
-								var meths = Base.Types.SelectMany(type => type.GetMethods());
+								if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != packet.Type)
+									continue;
 
-								foreach (var m in meths)
-								{
-									if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != packet.Type)
-										continue;
+								meth = m;
 
-									meth = m;
+								if (meth is not null)
+									Base.MethodCache.TryAdd(packet.Type, meth);
 
-									if (meth is not null)
-										Base.MethodCache.TryAdd(packet.Type, meth);
-
-									break;
-								}
+								break;
 							}
-							else
-								meth = packetImpl;
-
-							if (meth is null)
-							{
-								// not handled
-								Console.WriteLine(packet.Type.ToString());
-								return Ok();
-							}
-
-							var packetParam = Expression.Parameter(typeof(Packet), "p");
-							var presenceParam = Expression.Parameter(typeof(Presence), "pr");
-							var call = Expression.Call(null, meth, packetParam, presenceParam);
-							var lambda = Expression.Lambda<Action<Packet, Presence>>(call, packetParam, presenceParam);
-							handle = lambda.CompileFast();
-
-							Base.PacketImplNoContextCache.TryAdd(packet.Type, handle);
-
-							handle(packet, presence);
 						}
 						else
+							meth = packetImpl;
+
+						if (meth is null)
 						{
-							handle(packet, presence);
+							// not handled
+							Console.WriteLine(packet.Type.ToString());
+							return Ok();
 						}
+
+						handle = ReflectionUtils.CompilePacketHandler(meth);
+
+						Base.PacketImplCache.TryAdd(packet.Type, handle);
+
+						handle(packet, presence, _context);
 					}
 					else
-                    {
-						if (!Base.PacketImplContextCache.TryGetValue(packet.Type, out var handle))
-						{
-							MethodInfo meth = null;
-							if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
-							{
-								var meths = Base.Types.SelectMany(type => type.GetMethods());
-
-								foreach (var m in meths)
-								{
-									if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != packet.Type)
-										continue;
-
-									meth = m;
-
-									if (meth is not null)
-										Base.MethodCache.TryAdd(packet.Type, meth);
-
-									break;
-								}
-							}
-							else
-								meth = packetImpl;
-
-							var packetParam = Expression.Parameter(typeof(Packet), "p");
-							var presenceParam = Expression.Parameter(typeof(Presence), "pr");
-							var dbContextParam = Expression.Parameter(typeof(OyasumiDbContext), "context");
-							var call = Expression.Call(null, meth, packetParam, presenceParam, dbContextParam);
-							var lambda = Expression.Lambda<Action<Packet, Presence, OyasumiDbContext>>(call, packetParam, presenceParam, dbContextParam);
-							handle = lambda.CompileFast();
-
-							Base.PacketImplContextCache.TryAdd(packet.Type, handle);
-
-							handle(packet, presence, _context);
-						}
-						else
-						{
-							handle(packet, presence, _context);
-						}
+					{
+						handle(packet, presence, _context);
 					}
 				}
 
