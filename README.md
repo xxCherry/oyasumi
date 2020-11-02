@@ -1,7 +1,7 @@
-# oyasumi
+# oyasumi - the osu! server implementation
 
 
-##### What this bancho can?
+##### Features
  * Score sumbission
  * Beatmap Leaderboard
  * Login
