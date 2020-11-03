@@ -62,7 +62,7 @@ namespace oyasumi.IO
             match.BeatmapId = ReadInt32();
             match.BeatmapChecksum = ReadString();
 
-            match.Beatmap = BeatmapManager.Get(match.BeatmapChecksum, true, context).Result.Item2;
+            match.Beatmap = BeatmapManager.Get(match.BeatmapChecksum, context).Result.Item2;
 
             foreach (var slot in match.Slots)
                 slot.Status = (SlotStatus)ReadByte();

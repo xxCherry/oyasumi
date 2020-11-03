@@ -17,6 +17,10 @@ namespace oyasumi.Managers
         public static void Remove(Presence p) 
         {
             p.Spectating?.SpectatorLeft(p.Id);
+
+            foreach (var channel in p.Channels)
+                p.LeaveChannel(channel.Name);
+
             Presences.Remove(p.Id);
         }
         public static Presence GetPresenceByToken(string token) => Presences[token];
