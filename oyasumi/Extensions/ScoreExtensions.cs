@@ -31,7 +31,7 @@ namespace oyasumi.Extensions
             var isRelax = (mods & Mods.Relax) > 0;
             var isAutopilot = (mods & Mods.Relax2) > 0;
 
-            var beatmap = await BeatmapManager.Get(split[0], false, context);
+            var beatmap = await BeatmapManager.Get(split[0], context, false);
 
             var osuVersionUnformatted = split[17];
             var osuVersion = osuVersionUnformatted.Trim();

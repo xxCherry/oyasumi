@@ -27,13 +27,13 @@ namespace oyasumi.Managers
         /// </summary>
         /// <param name="checksum">MD5 checksum of beatmap</param>
         /// <param name="title">Beatmap title object</param>
-        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, bool leaderboard, OyasumiDbContext context)
+        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, OyasumiDbContext context, bool leaderboard = true, PlayMode mode = PlayMode.Osu)
         {
             var beatmap = Beatmaps[checksum]; // try get beatmap from local cache
 
             if (beatmap is not null)
             {  
-                if (beatmap.BeatmapId == -1)
+                if (beatmap.Id == -1)
                     return (RankedStatus.NotSubmitted, beatmap);
                 else
                     return (RankedStatus.Approved, beatmap);                  // Approved is not actual ranked status
@@ -45,27 +45,29 @@ namespace oyasumi.Managers
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
             {
-                beatmap = dbBeatmap.FromDb(leaderboard, context);
-                
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
+                beatmap = dbBeatmap.FromDb(context, leaderboard, mode);
+
+                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
-            beatmap = await Beatmap.GetBeatmap(checksum, leaderboard, context); // try get beatmap from osu!api
+            beatmap = await Beatmap.GetBeatmap(checksum, leaderboard, mode, context); // try get beatmap from osu!api
 
-            if (beatmap.BeatmapId == -1)
+            if (beatmap.Id == -1)
             {
-                Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
+                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.NotSubmitted, beatmap); // beatmap doesn't exist
             }
 
             // if beatmap exists in api we'll add it to local cache and db
-            Beatmaps.Add(beatmap.BeatmapId, beatmap.FileChecksum, beatmap);
+            Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
             await context.Beatmaps.AddAsync(beatmap.ToDb());
+
+            await context.SaveChangesAsync();
             
             return (RankedStatus.Approved, beatmap);
         }
-        public static Beatmap FromDb(this DbBeatmap b, bool leaderboard, OyasumiDbContext context)
+        public static Beatmap FromDb(this DbBeatmap b, OyasumiDbContext context, bool leaderboard, PlayMode mode)
         {
             var metadata = new BeatmapMetadata
             {
@@ -81,7 +83,7 @@ namespace oyasumi.Managers
                 Stars = b.Stars
             };
             return new Beatmap(b.BeatmapMd5, b.BeatmapId, b.BeatmapSetId, metadata,
-                b.Status, false, 0, 0, 0, 0, leaderboard, context);
+                b.Status, false, 0, 0, 0, 0, leaderboard, mode, context);
         }
 
         public static DbBeatmap ToDb(this Beatmap b)
@@ -99,8 +101,8 @@ namespace oyasumi.Managers
                 BPM = b.Metadata.BPM,
                 Stars = b.Metadata.Stars,
                 BeatmapMd5 = b.FileChecksum,
-                BeatmapId = b.BeatmapId,
-                BeatmapSetId = b.BeatmapSetId,
+                BeatmapId = b.Id,
+                BeatmapSetId = b.SetId,
                 Status = b.Status,
                 Frozen = b.Frozen,
                 PlayCount = b.PlayCount,
