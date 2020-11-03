@@ -73,7 +73,7 @@ namespace oyasumi
 			foreach (var chan in context.Channels)
 				ChannelManager.Channels.Add(chan.Name,  new Channel(chan.Name, chan.Topic, 1));
 
-			var bot = new Presence(1, "oyasumi", 1, -0.00000000000001f, -100, -1, -1000, 0);
+			var bot = new Presence(1, "oyasumi", 1, 0.01f, 0, -1, -1000, 0);
 
 			bot.Status.Status = ActionStatuses.Watching;
 			bot.Status.StatusText = "for sneaky gamers";

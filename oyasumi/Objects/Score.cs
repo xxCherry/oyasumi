@@ -42,12 +42,12 @@ namespace oyasumi.Objects
         public int Rank { get; set; }
         public CompletedStatus Completed { get; set; }
 
-        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5)
+        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode)
         {
             var leaderboardData = new List<Score>();
             var scores = await context.Scores
                 .AsQueryable()
-                .Where(x => x.FileChecksum == beatmapMd5 && x.Completed == CompletedStatus.Best)
+                .Where(x => x.FileChecksum == beatmapMd5 && x.Completed == CompletedStatus.Best && x.PlayMode == mode)
                 .Take(50)
                 .ToArrayAsync();
 
@@ -60,20 +60,20 @@ namespace oyasumi.Objects
             return leaderboardData;
         }
 
-        public static List<string> FormatScores(List<Score> scores)
+        public static List<string> FormatScores(List<Score> scores, PlayMode mode)
         {
-            var scoresString = new List<string>();
+            var scoreList = new List<string>();
 
             foreach (var score in scores)
-                scoresString.Add(score.ToString());
+                scoreList.Add(score.ToString());
 
-            return scoresString;
+            return scoreList;
         }
 
-        public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5)
+        public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode)
         {
             var sb = new StringBuilder();
-            var scores = await GetRawScores(context, beatmapMd5);
+            var scores = await GetRawScores(context, beatmapMd5, mode);
 
             foreach (var score in scores)
                 sb.AppendLine(score.ToString());

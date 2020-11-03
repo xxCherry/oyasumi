@@ -23,7 +23,6 @@ using oyasumi.Utilities;
 
 namespace oyasumi.Controllers
 {
-	[Route("/")]
 	public class BanchoController : Controller
 	{
 		private readonly OyasumiDbContext _context;
@@ -40,6 +39,14 @@ namespace oyasumi.Controllers
 			PacketType.ClientMultiChangePassword
 		};
 
+		public async Task<FileContentResult> WrongCredentials()
+        {
+			Response.Headers["cho-token"] = "no-token";
+			return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
+				"application/octet-stream");
+		}
+
+		[Route("/")]
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
 		{
 			if (Request.Method == "GET")
@@ -59,11 +66,7 @@ namespace oyasumi.Controllers
 					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe());
 
 					if (dbUser is null)
-					{
-						Response.Headers["cho-token"] = "no-token";
-						return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
-							"application/octet-stream");
-					}
+						return await WrongCredentials();
 
 					Base.UserCache.Add(username, dbUser.Id, dbUser);
 				}
@@ -71,11 +74,8 @@ namespace oyasumi.Controllers
 				if (!Base.PasswordCache.TryGetValue(password, out _))
 				{
 					if (!Crypto.VerifyPassword(password, dbUser.Password))
-					{
-						Response.Headers["cho-token"] = "no-token";
-						return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
-							"application/octet-stream");
-					}
+						return await WrongCredentials();
+
 					Base.PasswordCache.TryAdd(password, dbUser.Password);
 				}
 
@@ -105,7 +105,7 @@ namespace oyasumi.Controllers
 
 				// TODO: user count
 				foreach (var chan in ChannelManager.Channels.Values)
-					presence.ChatChannelAvailable(chan.Name, chan.Description, 1);
+					presence.ChatChannelAvailable(chan.Name, chan.Description, (short)chan.UserCount);
 
 				foreach (var pr in PresenceManager.Presences.Values) // go for each presence
 				{
@@ -147,20 +147,8 @@ namespace oyasumi.Controllers
 						MethodInfo meth = null;
 						if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
 						{
-							var meths = Base.Types.SelectMany(type => type.GetMethods());
-
-							foreach (var m in meths)
-							{
-								if (m?.GetCustomAttribute<PacketAttribute>()?.PacketType != packet.Type)
-									continue;
-
-								meth = m;
-
-								if (meth is not null)
-									Base.MethodCache.TryAdd(packet.Type, meth);
-
-								break;
-							}
+							meth = Base.Types.SelectMany(type => type.GetMethods()).FirstOrDefault(m => m?.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
+							Base.MethodCache.TryAdd(packet.Type, meth);
 						}
 						else
 							meth = packetImpl;
@@ -179,9 +167,7 @@ namespace oyasumi.Controllers
 						handle(packet, presence, _context);
 					}
 					else
-					{
 						handle(packet, presence, _context);
-					}
 				}
 
 				var bytes = await presence.WritePackets();

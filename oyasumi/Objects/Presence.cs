@@ -25,6 +25,8 @@ namespace oyasumi.Objects
 		public Presence Spectating;
 		public List<Presence> Spectators = new List<Presence>();
 
+		public List<Channel> Channels = new List<Channel>();
+
 		public readonly int Id;
 		public readonly int LoginTime = Time.CurrentUnixTimestamp;
 		public Privileges Privileges;
@@ -148,10 +150,10 @@ namespace oyasumi.Objects
 
 			accuracy = Status.CurrentPlayMode switch
 			{
-				PlayMode.Osu => stats.AccuracyOsu * 100,
-				PlayMode.Taiko => stats.AccuracyTaiko * 100,
-				PlayMode.CatchTheBeat => stats.AccuracyCtb * 100,
-				PlayMode.OsuMania => stats.AccuracyMania * 100,
+				PlayMode.Osu => stats.AccuracyOsu,
+				PlayMode.Taiko => stats.AccuracyTaiko,
+				PlayMode.CatchTheBeat => stats.AccuracyCtb,
+				PlayMode.OsuMania => stats.AccuracyMania,
 				_ => 0
 			};
 
@@ -233,7 +235,7 @@ namespace oyasumi.Objects
 
 
         // taken from Sora https://github.com/Chimu-moe/Sora/blob/7bba59c8000b440f7f81d2a487a5109590e37068/src/Sora/Database/Models/DBLeaderboard.cs#L200
-        public async Task<double> UpdateAccuracy(OyasumiDbContext context, PlayMode mode)
+        public async Task<double> UpdateAccuracy(OyasumiDbContext context, UserStats stats, PlayMode mode)
 		{
 			var totalAcc = 0d;
 			var divideTotal = 0d;
@@ -261,7 +263,30 @@ namespace oyasumi.Objects
 
 			Accuracy = (float)acc; // Keep accuracy up to date;
 
+			switch (mode)
+            {
+				case PlayMode.Osu:
+					stats.AccuracyOsu = Accuracy;
+					break;
+				case PlayMode.CatchTheBeat:
+					stats.AccuracyCtb = Accuracy;
+					break;
+				case PlayMode.Taiko:
+					stats.AccuracyTaiko = Accuracy;
+					break;
+				case PlayMode.OsuMania:
+					stats.AccuracyMania = Accuracy;
+					break;
+			}
+
+
 			return acc;
+		}
+
+		// TODO:
+		public async Task<double> UpdatePerformance(OyasumiDbContext context, PlayMode mode)
+		{
+			return 0;
 		}
 
 		public async Task Apply(OyasumiDbContext context)
