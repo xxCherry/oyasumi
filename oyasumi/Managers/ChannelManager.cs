@@ -23,6 +23,8 @@ namespace oyasumi.Managers
 
             pr.ChatChannelJoinSuccess(channel.Name);
 
+            channel.UserCount++;
+            pr.Channels.Add(channel);
             channel.Presences.Add(pr);
         }
 
@@ -34,10 +36,12 @@ namespace oyasumi.Managers
             if (pr is null) // Presence is not online
                 return;
 
+            channel.UserCount--;
+            pr.Channels.Remove(channel);
             channel.Presences.Remove(pr);
         }
 
-        public static void SendMessage(string sender, string message, string rawTarget, int id, bool isPublic)
+        public static void SendMessage(string sender, string message, string rawTarget, int id, bool isPublic) // Mostly used for dummy presences
         {
             if (!isPublic)
             {
@@ -72,6 +76,9 @@ namespace oyasumi.Managers
             else
             {
                 if (!Channels.TryGetValue(rawTarget, out var channel)) // Presence tried to send message to non-existent channel
+                    return;
+
+                if (!channel.Presences.Contains(sender)) // Presence tried to send message but they aren't in that channel
                     return;
 
                 foreach (var prRaw in channel.Presences)
