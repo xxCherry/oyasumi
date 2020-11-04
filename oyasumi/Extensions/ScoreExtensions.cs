@@ -40,6 +40,9 @@ namespace oyasumi.Extensions
 
             var presence = PresenceManager.GetPresenceByName(split[1].TrimEnd()); // TrimEnd() because osu! adds extra space if user is supporter
 
+            if (presence is null)
+                return new Score();
+
             return new Score
             {
                 FileChecksum = split[0],

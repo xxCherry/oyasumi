@@ -32,13 +32,6 @@ namespace oyasumi.Controllers
 			_context = context;
 		}
 
-		public static List<PacketType> PacketsWithContext = new()
-		{
-			PacketType.ClientMultiSettingsChange,
-			PacketType.ClientMultiMatchCreate,
-			PacketType.ClientMultiChangePassword
-		};
-
 		public async Task<FileContentResult> WrongCredentials()
         {
 			Response.Headers["cho-token"] = "no-token";
@@ -57,7 +50,7 @@ namespace oyasumi.Controllers
 
 			if (string.IsNullOrEmpty(token))
 			{
-				var (username, password) = await Request.Body.ParseLoginDataAsync();
+				var (username, password, timezone) = await Request.Body.ParseLoginDataAsync();
 
 				var dbUser = Base.UserCache[username];
 
@@ -79,7 +72,18 @@ namespace oyasumi.Controllers
 					Base.PasswordCache.TryAdd(password, dbUser.Password);
 				}
 
-				var presence = new Presence(dbUser);
+				var ip = Request.Headers["X-Real-IP"];
+
+				if (dbUser.Country == "XX") 
+				{
+					var geoData = await NetUtils.FetchGeoLocation(ip);
+
+					dbUser.Country = geoData.countryCode;
+
+					await _context.SaveChangesAsync();
+				}
+
+				var presence = new Presence(dbUser, timezone);
 
 				PresenceManager.Add(presence);
 
@@ -147,7 +151,9 @@ namespace oyasumi.Controllers
 						MethodInfo meth = null;
 						if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
 						{
-							meth = Base.Types.SelectMany(type => type.GetMethods()).FirstOrDefault(m => m?.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
+							meth = Base.Types
+								.SelectMany(type => type.GetMethods())
+								.FirstOrDefault(m => m?.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
 							Base.MethodCache.TryAdd(packet.Type, meth);
 						}
 						else

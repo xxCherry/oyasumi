@@ -11,7 +11,7 @@ namespace oyasumi.Objects
 {
     public class Channel
     {
-        public ConcurrentList<Presence> Presences = new ConcurrentList<Presence>();
+        public ConcurrentDictionary<int, Presence> Presences = new ConcurrentDictionary<int, Presence>();
 
         public string Name;
         public string Description;

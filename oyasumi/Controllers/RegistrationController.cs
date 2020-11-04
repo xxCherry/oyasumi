@@ -66,7 +66,7 @@ namespace oyasumi.Controllers
                 var serializedErrors = JsonConvert.SerializeObject(errors);
                 var compiledJson = "{'form_error': {'user':" + serializedErrors + "}}";
 
-                return ResponseUtils.Content(compiledJson, 422);
+                return NetUtils.Content(compiledJson, 422);
             }
 
             if (Request.Form["check"] == "0")

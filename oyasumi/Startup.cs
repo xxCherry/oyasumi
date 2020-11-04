@@ -88,6 +88,9 @@ namespace oyasumi
 
 			app.UseAuthorization();
 
+			app.UseStaticFiles();
+			app.UseDefaultFiles();
+
 			app.UseEndpoints(endpoints =>
 			{
 				endpoints.MapControllerRoute(

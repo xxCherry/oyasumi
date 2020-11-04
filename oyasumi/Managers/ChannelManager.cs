@@ -24,8 +24,8 @@ namespace oyasumi.Managers
             pr.ChatChannelJoinSuccess(channel.Name);
 
             channel.UserCount++;
-            pr.Channels.Add(channel);
-            channel.Presences.Add(pr);
+            pr.Channels.TryAdd(channel.Name, channel);
+            channel.Presences.TryAdd(pr.Id, pr);
         }
 
         public static void LeaveChannel(this Presence pr, string channelName)
@@ -37,8 +37,8 @@ namespace oyasumi.Managers
                 return;
 
             channel.UserCount--;
-            pr.Channels.Remove(channel);
-            channel.Presences.Remove(pr);
+            pr.Channels.TryRemove(channel.Name, out _);
+            channel.Presences.TryRemove(pr.Id, out _);
         }
 
         public static void SendMessage(string sender, string message, string rawTarget, int id, bool isPublic) // Mostly used for dummy presences
@@ -55,7 +55,7 @@ namespace oyasumi.Managers
                 if (!Channels.TryGetValue(rawTarget, out var channel)) // Presence tried to send message to non-existent channel
                     return;
 
-                foreach (var prRaw in channel.Presences)
+                foreach (var prRaw in channel.Presences.Values)
                 {
                     var pr = (Presence)prRaw;
                     if (pr.Id != id)
@@ -78,10 +78,10 @@ namespace oyasumi.Managers
                 if (!Channels.TryGetValue(rawTarget, out var channel)) // Presence tried to send message to non-existent channel
                     return;
 
-                if (!channel.Presences.Contains(sender)) // Presence tried to send message but they aren't in that channel
+                if (!channel.Presences.Values.Contains(sender)) // Presence tried to send message but they aren't in that channel
                     return;
 
-                foreach (var prRaw in channel.Presences)
+                foreach (var prRaw in channel.Presences.Values)
                 {
                     var pr = (Presence)prRaw;
                     if (pr != sender)
