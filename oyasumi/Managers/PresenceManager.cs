@@ -18,10 +18,10 @@ namespace oyasumi.Managers
         {
             p.Spectating?.SpectatorLeft(p.Id);
 
-            foreach (var channel in p.Channels)
-                p.LeaveChannel(channel.Name);
-
             Presences.Remove(p.Id);
+
+            foreach (var channel in p.Channels.Values)
+                p.LeaveChannel(channel.Name);
         }
         public static Presence GetPresenceByToken(string token) => Presences[token];
         public static Presence GetPresenceById(int id) => Presences[id];

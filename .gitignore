@@ -2,5 +2,6 @@ bin/
 obj/
 .vs/
 config.json
-/oyasumi/data/osr
+oyasumi/data/osr
+oyasumi/data/
 /.idea/.idea.oyasumi

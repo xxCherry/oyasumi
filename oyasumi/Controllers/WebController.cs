@@ -63,7 +63,7 @@ namespace oyasumi.Controllers
                 case RankedStatus.Ranked:
                     var failed = Request.Form["x"] == "1";
 
-                    if (failed)
+                    if (failed || !score.Passed)
                     {
                         score.Completed = CompletedStatus.Failed;
                         return Ok("error: no");
@@ -74,8 +74,11 @@ namespace oyasumi.Controllers
                     var stats = await _context.UsersStats.FirstOrDefaultAsync(x => x.Id == score.Presence.Id);
 
                     await score.Presence.UpdateAccuracy(_context, stats, score.PlayMode); // update old accuracy
+                    await score.Presence.UpdatePerformance(_context, stats, score.PlayMode); // update old performance
 
-                    score.PerformancePoints = 0; // no pp system yet
+                    var oppai = new OppaiProvider();
+
+                    score.PerformancePoints = (await oppai.CalculatePerformancePoints(score)).Value.Total;
 
                     score.Presence.AddPlaycount(stats, score.PlayMode);
 
@@ -119,11 +122,17 @@ namespace oyasumi.Controllers
                             await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr", m.ToArray());
                     }
 
+                    await _context.SaveChangesAsync();
+
                     await score.Presence.UpdateAccuracy(_context, stats, score.PlayMode); // now get new accuracy
 
-                    await score.Presence.GetOrUpdateUserStats(_context, true);
+                    await score.Presence.UpdatePerformance(_context, stats, score.PlayMode); // now get new performance
 
-                    await score.Presence.Apply(_context);
+                    await _context.SaveChangesAsync();
+
+                    await score.Presence.UpdateRank(_context, stats, score.PlayMode);
+
+                    await score.Presence.GetOrUpdateUserStats(_context, true);
 
                     var presenceAfter = score.Presence;
 

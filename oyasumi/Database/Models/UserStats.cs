@@ -35,5 +35,10 @@ namespace oyasumi.Database.Models
         public int PlaycountTaiko { get; set; } = 0;
         public int PlaycountCtb { get; set; } = 0;
         public int PlaycountMania { get; set; } = 0;
+
+        public int RankOsu { get; set; } = 0;
+        public int RankTaiko { get; set; } = 0;
+        public int RankCtb { get; set; } = 0;
+        public int RankMania { get; set; } = 0;
     }
 }

@@ -2,43 +2,59 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using oyasumi.Enums;
 using oyasumi.Objects;
 
-// TODO: Exist here only for testing, will be replaced by osu!Lazer PP
 namespace oyasumi.Utilities
 {
     public class OppaiProvider : IDisposable
     {
         private IntPtr _handle;
 
-        public static async Task<byte[]> GetBeatmap(string md5)
+        public static async Task<byte[]> GetBeatmap(string md5, int id = 0)
         {
-            using var file = File.OpenRead("./data/beatmaps/" + md5 + ".osu");
-            await using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
-            return ms.ToArray();
+            var file = $"./data/beatmaps/{md5}.osu";
+
+            if (File.Exists(file))
+            {
+                using var fileData = File.OpenRead($"./data/beatmaps/{md5}.osu");
+
+                await using var ms = new MemoryStream();
+                await fileData.CopyToAsync(ms);
+                return ms.ToArray();
+            }
+            else
+            {
+                using var httpClient = new HttpClient();
+                var data = await httpClient.GetByteArrayAsync($"https://osu.ppy.sh/osu/{id}");
+
+                md5 = Crypto.ComputeHash(data); // probably md5 got updated, so re-compute it.
+
+                await File.WriteAllBytesAsync($"./data/beatmaps/{md5}.osu", data);
+                return data;
+            }
         }
 
-        private static void CopyResultsFromHandle(IntPtr handle, ref pp_calc pp)
+        private static void CopyResultsFromHandle(IntPtr handle, ref PerformanceData pp)
         {
-            pp.total = ezpp_pp(handle);
-            pp.aim = ezpp_aim_pp(handle);
-            pp.speed = ezpp_speed_pp(handle);
-            pp.acc = ezpp_acc_pp(handle);
-            pp.accuracy = ezpp_accuracy_percent(handle) / 100.0f;
+            pp.Total = ezpp_pp(handle);
+            pp.Aim = ezpp_aim_pp(handle);
+            pp.Speed = ezpp_speed_pp(handle);
+            pp.Acc = ezpp_acc_pp(handle);
+            pp.Accuracy = ezpp_accuracy_percent(handle) / 100.0f;
         }
 
         public OppaiProvider() => _handle = ezpp_new();
 
-        private pp_calc _ppResult;
+        private PerformanceData _ppResult;
 
-        internal async Task<pp_calc?> GetPP(Score score)
+        public async Task<PerformanceData?> CalculatePerformancePoints(Score score)
         {
-            var beatmapData = await GetBeatmap(score.FileChecksum);
+            var beatmapData = await GetBeatmap(score.FileChecksum, score.Beatmap.Id);
 
             ezpp_set_mods(_handle, (int)score.Mods);
             ezpp_set_mode_override(_handle, (int)score.PlayMode);
@@ -64,33 +80,33 @@ namespace oyasumi.Utilities
             _handle = IntPtr.Zero;
         }
 
-        public struct pp_calc
+        public struct PerformanceData
         {
-            public float total, aim, speed, acc, accuracy;
+            public float Total, Aim, Speed, Acc, Accuracy;
         };
 
         #region oppai P/Invoke
-        [DllImport(@"oppai.dll")] public static extern IntPtr ezpp_new();
-        [DllImport(@"oppai.dll")] public static extern void ezpp_free(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern int ezpp_data(IntPtr handle, byte[] data, int data_size);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_base_cs(IntPtr handle, float cs);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_base_od(IntPtr handle, float cs);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_base_ar(IntPtr handle, float cs);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_base_hp(IntPtr handle, float cs);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_mods(IntPtr handle, int mods);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_accuracy(IntPtr handle, int n100, int n50);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_nmiss(IntPtr handle, int mods);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_combo(IntPtr handle, int combo);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_mode_override(IntPtr handle, int mode);
-        [DllImport(@"oppai.dll")] public static extern void ezpp_set_end(IntPtr ez, int end);
-        [DllImport(@"oppai.dll")] public static extern float ezpp_pp(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern float ezpp_aim_pp(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern float ezpp_speed_pp(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern float ezpp_acc_pp(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern float ezpp_accuracy_percent(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern int ezpp_combo(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern int ezpp_max_combo(IntPtr handle);
-        [DllImport(@"oppai.dll")] public static extern float ezpp_stars(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern IntPtr ezpp_new();
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_free(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern int ezpp_data(IntPtr handle, byte[] data, int data_size);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_base_cs(IntPtr handle, float cs);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_base_od(IntPtr handle, float cs);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_base_ar(IntPtr handle, float cs);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_base_hp(IntPtr handle, float cs);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_mods(IntPtr handle, int mods);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_accuracy(IntPtr handle, int n100, int n50);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_nmiss(IntPtr handle, int mods);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_combo(IntPtr handle, int combo);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_mode_override(IntPtr handle, int mode);
+        [DllImport(@"lib/oppai.dll")] public static extern void ezpp_set_end(IntPtr ez, int end);
+        [DllImport(@"lib/oppai.dll")] public static extern float ezpp_pp(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern float ezpp_aim_pp(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern float ezpp_speed_pp(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern float ezpp_acc_pp(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern float ezpp_accuracy_percent(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern int ezpp_combo(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern int ezpp_max_combo(IntPtr handle);
+        [DllImport(@"lib/oppai.dll")] public static extern float ezpp_stars(IntPtr handle);
         #endregion
 
         #region oppai-ng function
