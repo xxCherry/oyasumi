@@ -76,16 +76,12 @@ namespace oyasumi.Controllers
                     await score.Presence.UpdateAccuracy(_context, stats, score.PlayMode); // update old accuracy
                     await score.Presence.UpdatePerformance(_context, stats, score.PlayMode); // update old performance
 
-                    var oppai = new OppaiProvider();
-
-                    score.PerformancePoints = (await oppai.CalculatePerformancePoints(score)).Value.Total;
-
                     score.Presence.AddPlaycount(stats, score.PlayMode);
 
                     score.Presence.AddScore(stats, score.TotalScore, true, score.PlayMode);
                     score.Presence.AddScore(stats, score.TotalScore, false, score.PlayMode);
 
-                    score.Accuracy = OppaiProvider.CalculateAccuracy(score);
+                    score.Accuracy = (float)Calculator.CalculateAccuracy(score);
 
                     var oldScore = await _context.Scores
                         .AsAsyncEnumerable()
@@ -105,22 +101,26 @@ namespace oyasumi.Controllers
                             score.Completed = CompletedStatus.Submitted;
                     }
 
+                    var replay = Request.Form.Files.GetFile("score");
+
+                    await using (var m = new MemoryStream())
+                    {
+                        await replay.CopyToAsync(m);
+                        m.Position = 0;
+
+                        score.ReplayChecksum = Crypto.ComputeHash(m.ToArray());
+
+                        if (!string.IsNullOrEmpty(score.ReplayChecksum))
+                            await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr", m.ToArray());
+                    }
+
+                    score.PerformancePoints = (float)await Calculator.CalculatePerformancePoints(score);
+
                     var dbScore = score.ToDb();
 
                     await _context.Scores.AddAsync(dbScore);
 
                     score.ScoreId = dbScore.Id;
-
-                    var replay = Request.Form.Files.GetFile("score");
-
-                    await using (var m = new MemoryStream())
-                    {
-                        replay.CopyTo(m);
-                        m.Position = 0;
-                        score.ReplayChecksum = Crypto.ComputeHash(m.ToArray());
-                        if (!string.IsNullOrEmpty(score.ReplayChecksum))
-                            await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr", m.ToArray());
-                    }
 
                     await _context.SaveChangesAsync();
 

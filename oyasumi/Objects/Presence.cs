@@ -314,7 +314,6 @@ namespace oyasumi.Objects
 			return acc;
 		}
 
-		// Not sure how it'll work, i was a bit brain dead when was writing this
 		public async Task<int> UpdateRank(OyasumiDbContext context, UserStats stats, PlayMode mode)
         {
 			var oldRank = mode switch

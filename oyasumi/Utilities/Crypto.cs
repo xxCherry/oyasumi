@@ -24,12 +24,12 @@ namespace oyasumi.Utilities
     {
         public static string GenerateHash(string password)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password, 10);//BCrypt.generate_hash(password, 10);
+            return BCrypt.Net.BCrypt.HashPassword(password, 10); // BCrypt.generate_hash(password, 10);
         }
         
         public static bool VerifyPassword(string plaintext, string hash)
         {
-            return BCrypt.Net.BCrypt.Verify(plaintext, hash);//BCrypt.validate_password(plaintext, hash);
+            return BCrypt.Net.BCrypt.Verify(plaintext, hash); // BCrypt.validate_password(plaintext, hash);
         }
 
         public static string ComputeHash(string str) => ComputeHash(Encoding.UTF8.GetBytes(str));
