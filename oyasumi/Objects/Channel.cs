@@ -13,13 +13,14 @@ namespace oyasumi.Objects
     {
         public ConcurrentDictionary<int, Presence> Presences = new ConcurrentDictionary<int, Presence>();
 
-        public string Name;
+        public string Name => RawName.StartsWith("multi_") ? "#multiplayer" : RawName.StartsWith("spect_") ? "#spectator" : RawName;
+        public string RawName;
         public string Description;
         public int UserCount;
 
         public Channel(string name, string description, int userCount)
         {
-            Name = name;
+            RawName = name;
             Description = description;
             UserCount = userCount;
         }

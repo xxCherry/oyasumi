@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using oyasumi.Enums;
@@ -226,23 +228,23 @@ namespace oyasumi.Layouts
             
             p.PacketEnqueue(packet);
         }
-        
-        public static void FriendList(this Presence p, List<int> friendIds)
+
+        public static void FriendList(this Presence p, int[] friendIds)
         {
             var packet = new Packet
             {
                 Type = PacketType.ServerFriendsList
             };
-            
-            using var writer = new SerializationWriter(new MemoryStream());
-            
-            writer.Write(friendIds.Count);
 
-            foreach (var id in friendIds)
-                writer.Write(id);
-            
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(friendIds.Length);
+
+            for (var i = 0; i < friendIds.Length; i++)
+                writer.Write(friendIds[i]);
+
             packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
-            
+
             p.PacketEnqueue(packet);
         }
 
@@ -517,6 +519,24 @@ namespace oyasumi.Layouts
             writer.Write(message);
             writer.Write(p.Username);
             writer.Write(sender.Id);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+
+        public static void RevokeChannel(this Presence p, string channel)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerChatChannelRevoked
+            };
+
+            using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(channel);
+
+            packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
 
             p.PacketEnqueue(packet);
         }

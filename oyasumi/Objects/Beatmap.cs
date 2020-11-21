@@ -76,7 +76,18 @@ namespace oyasumi.Objects
             [APIRankedStatus.Loved] = RankedStatus.Loved
         };
 
+        public static Dictionary<int, APIRankedStatus> DirectToApiRankedStatus = new()
+        {
+            [0] = APIRankedStatus.Ranked,
+            [2] = APIRankedStatus.LatestPending,
+            [3] = APIRankedStatus.Qualified,
+            [5] = APIRankedStatus.LatestPending,
+            [7] = APIRankedStatus.Ranked,
+            [8] = APIRankedStatus.Loved
+        };
+
         public string FileChecksum;
+        public string FileName;
         public int Id;
         public int SetId;
         public RankedStatus Status;
@@ -86,15 +97,19 @@ namespace oyasumi.Objects
         public int OnlineOffset;
         public int Rating;
 
-        public Dictionary<PlayMode, List<string>> LeaderboardFormatted;
-        public ConcurrentDictionary<PlayMode, ConcurrentDictionary<int, Score>> LeaderboardCache;
+        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, List<string>>> LeaderboardFormatted = new();
+        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, ConcurrentDictionary<int, Score>>> LeaderboardCache = new(); // int is user id
 
         public BeatmapMetadata Metadata;
         public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
-        public Beatmap(string md5, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
-            bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard, PlayMode mode, OyasumiDbContext context)
+        public Beatmap(
+            string md5, string fileName, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
+            bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard, 
+            PlayMode mode, LeaderboardMode lbMode, OyasumiDbContext context
+            )
         {
             FileChecksum = md5;
+            FileName = fileName;
             Id = id;
             SetId = setId;
             Metadata = metadata;
@@ -105,44 +120,40 @@ namespace oyasumi.Objects
             OnlineOffset = onlineOffset;
             Rating = mapRating;
 
-            LeaderboardCache = new() 
-            {
-                [PlayMode.Osu] = new(),
-                [PlayMode.Taiko] = new(),
-                [PlayMode.CatchTheBeat] = new(),
-                [PlayMode.OsuMania] = new()
-            };
-
-            LeaderboardFormatted = new()
-            {
-                [PlayMode.Osu] = new(),
-                [PlayMode.Taiko] = new(),
-                [PlayMode.CatchTheBeat] = new(),
-                [PlayMode.OsuMania] = new()
-            };
-
             if (leaderboard)
             {
                 Task.WaitAll(Task.Run(async () =>
                 {
-                    var scores = await Score.GetRawScores(context, md5, mode);
+                    var scores = await Score.GetRawScores(context, md5, mode, lbMode);
+
+                    for (var i = 0; i < 3; i++)
+                    {
+                        LeaderboardCache.TryAdd((LeaderboardMode)i, new());
+                        LeaderboardFormatted.TryAdd((LeaderboardMode)i, new());
+
+                        for (var j = 0; j < 4; j++)
+                        {
+                            LeaderboardCache[(LeaderboardMode)i].TryAdd((PlayMode)j, new());
+                            LeaderboardFormatted[(LeaderboardMode)i].TryAdd((PlayMode)j, new());
+                        }
+                    }
 
                     foreach (var score in scores)
-                        LeaderboardCache[mode].TryAdd(score.UserId, score);
+                        LeaderboardCache[lbMode][mode].TryAdd(score.UserId, score);
 
-                    LeaderboardFormatted[mode] = Score.FormatScores(scores, mode);
+                    LeaderboardFormatted[lbMode][mode] = Score.FormatScores(scores, mode);
                 }));
             }
         }
-        public static async Task<Beatmap> GetBeatmap(string md5, bool leaderboard, PlayMode mode, OyasumiDbContext context)
+        public static async Task<Beatmap> Get(string md5, string fileName, bool leaderboard, PlayMode mode, LeaderboardMode lbMode, OyasumiDbContext context)
         {
             using var client = new HttpClient();
 
             var resp = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/md5/{md5}");
 
             if (!resp.IsSuccessStatusCode) // if map not found or mirror is down then set status to NotSubmitted
-                return new Beatmap(md5, -1, -1, new BeatmapMetadata(),
-                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, mode, context);
+                return new Beatmap(md5, fileName, -1, -1, new BeatmapMetadata(),
+                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
 
             var beatmap = JsonConvert.DeserializeObject<JsonBeatmap>(await resp.Content.ReadAsStringAsync());
 
@@ -163,13 +174,13 @@ namespace oyasumi.Objects
 
             var status = ApiToOsuRankedStatus[(APIRankedStatus)beatmap.RankedStatus];
 
-            return new Beatmap(md5, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
-                status, false, 0, 0, 0, 0, leaderboard, mode, context);
+            return new Beatmap(md5, fileName, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
+                status, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
         }
 
-        public string ToString(PlayMode mode)
+        public string ToString(PlayMode mode, LeaderboardMode lbMode)
         {
-            return $"{(int)Status}|false|{Id}|{SetId}|{LeaderboardFormatted[mode].Count}\n" +
+            return $"{(int)Status}|false|{Id}|{SetId}|{LeaderboardFormatted[lbMode][mode].Count}\n" +
                    $"{OnlineOffset}\n" +
                    $"{BeatmapName}\n" +
                    $"{Rating}";

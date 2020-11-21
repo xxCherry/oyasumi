@@ -10,6 +10,7 @@ using oyasumi.Utilities;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using oyasumi.Interfaces;
 
 namespace oyasumi.Objects
 {
@@ -23,6 +24,7 @@ namespace oyasumi.Objects
 		public Match CurrentMatch;
 
 		public Presence Spectating;
+		public Channel SpectatorChannel;
 		public List<Presence> Spectators = new ();
 
 		public ConcurrentDictionary<string, Channel> Channels = new ();
@@ -121,22 +123,26 @@ namespace oyasumi.Objects
 			Rank = rank;
 		}
 
-		public async Task GetOrUpdateUserStats(OyasumiDbContext context, bool update)
+		public async Task GetOrUpdateUserStats(OyasumiDbContext context, LeaderboardMode lbMode, bool update)
 		{
-			var exists = Base.UserStatsCache.TryGetValue(User.Id, out var cachedStats);
+			var exists = Base.UserStatsCache[lbMode].TryGetValue(User.Id, out var cachedStats);
 
-			UserStats stats = null;
+			IStats stats = null;
 
 			if (!update && exists) 
 				stats = cachedStats; 
 			else
 			{
-				stats = await context.UsersStats.AsNoTracking().AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == User.Id);
+				stats = lbMode switch
+				{
+					LeaderboardMode.Vanilla => await context.VanillaStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == User.Id),
+					LeaderboardMode.Relax => await context.RelaxStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == User.Id)
+				};
 
 				if (!exists)
-					Base.UserStatsCache.TryAdd(User.Id, stats);
+					Base.UserStatsCache[lbMode].TryAdd(User.Id, stats);
 
-				Base.UserStatsCache.TryUpdate(User.Id, stats, cachedStats);
+				Base.UserStatsCache[lbMode].TryUpdate(User.Id, stats, cachedStats);
 			}
 
 			var performance = Status.CurrentPlayMode switch
@@ -204,7 +210,7 @@ namespace oyasumi.Objects
 			Rank = rank;
 		}
 
-		public void AddScore(UserStats stats, long score, bool ranked, PlayMode mode)
+		public void AddScore(IStats stats, long score, bool ranked, PlayMode mode)
 		{
 			switch (mode)
 			{
@@ -242,7 +248,7 @@ namespace oyasumi.Objects
 			}
 		}
 
-        public void AddPlaycount(UserStats stats, PlayMode mode)
+        public void AddPlaycount(IStats stats, PlayMode mode)
         {
             switch (mode)
             {
@@ -266,7 +272,7 @@ namespace oyasumi.Objects
 
 
         // taken from Sora https://github.com/Chimu-moe/Sora/blob/7bba59c8000b440f7f81d2a487a5109590e37068/src/Sora/Database/Models/DBLeaderboard.cs#L200
-        public async Task<double> UpdateAccuracy(OyasumiDbContext context, UserStats stats, PlayMode mode)
+        public async Task<double> UpdateAccuracy(OyasumiDbContext context, IStats stats, PlayMode mode, LeaderboardMode lbMode)
 		{
 			var totalAcc = 0d;
 			var divideTotal = 0d;
@@ -277,6 +283,7 @@ namespace oyasumi.Objects
 				.ToListAsync())
 				.Where(s => s.PlayMode == mode)
 				.Where(s => s.UserId == Id)
+				.Where(s => s.Relaxing == (lbMode == LeaderboardMode.Relax))
 				.Take(500)
 				.OrderByDescending(s => s.PerformancePoints);
 
@@ -314,7 +321,7 @@ namespace oyasumi.Objects
 			return acc;
 		}
 
-		public async Task<int> UpdateRank(OyasumiDbContext context, UserStats stats, PlayMode mode)
+		public async Task<int> UpdateRank(OyasumiDbContext context, IStats stats, PlayMode mode, LeaderboardMode lbMode)
         {
 			var oldRank = mode switch
 			{
@@ -325,12 +332,16 @@ namespace oyasumi.Objects
 				_ => 0
 			};
 
-			var newRank = await CalculateRank(context, stats, mode);
+			IAsyncEnumerable<IStats> usersStats = lbMode switch
+			{
+				LeaderboardMode.Vanilla => context.VanillaStats.AsAsyncEnumerable(),
+				LeaderboardMode.Relax => context.RelaxStats.AsAsyncEnumerable()
+			};
+
+			var newRank = await CalculateRank(context, stats, usersStats, mode, lbMode);
 
 			if (newRank != oldRank)
 			{
-				var usersStats = context.UsersStats.AsAsyncEnumerable();
-
 				// r = newRank - oldRank (range of users that we sniped)
 				/* for (var i = 0; i < r; i++)
 				 *		currentRank = snipedStats.Rank;
@@ -373,8 +384,8 @@ namespace oyasumi.Objects
 						}
 					}
 
-					if (Base.UserStatsCache.TryGetValue(snipedStats.Id, out var cachedStats))
-						Base.UserStatsCache.TryUpdate(snipedStats.Id, snipedStats, cachedStats);
+					if (Base.UserStatsCache[lbMode].TryGetValue(snipedStats.Id, out var cachedStats))
+						Base.UserStatsCache[lbMode].TryUpdate(snipedStats.Id, snipedStats, cachedStats);
 				}
 
 
@@ -398,28 +409,26 @@ namespace oyasumi.Objects
 			return newRank;
 		}
 
-		public async Task<int> CalculateRank(OyasumiDbContext context, UserStats stats, PlayMode mode)
+		public async Task<int> CalculateRank(OyasumiDbContext context, IStats stats, IAsyncEnumerable<IStats> usersStats, PlayMode mode, LeaderboardMode lbMode)
         {
-			var userStats = context.UsersStats.AsAsyncEnumerable();
-
 			var newRank = mode switch 
 			{
-				PlayMode.Osu => stats.PerformanceOsu > 0 ? await userStats.CountAsync(x => x.PerformanceOsu > stats.PerformanceOsu) : -1,
-				PlayMode.Taiko => stats.PerformanceTaiko > 0 ? await userStats.CountAsync(x => x.PerformanceTaiko > stats.PerformanceTaiko) : -1,
-				PlayMode.CatchTheBeat => stats.PerformanceCtb > 0 ? await userStats.CountAsync(x => x.PerformanceCtb > stats.PerformanceCtb) : -1,
-				PlayMode.OsuMania => stats.PerformanceMania > 0 ? await userStats.CountAsync(x => x.PerformanceMania > stats.PerformanceMania) : -1,
+				PlayMode.Osu => stats.PerformanceOsu > 0 ? await usersStats.CountAsync(x => x.PerformanceOsu > stats.PerformanceOsu) : -1,
+				PlayMode.Taiko => stats.PerformanceTaiko > 0 ? await usersStats.CountAsync(x => x.PerformanceTaiko > stats.PerformanceTaiko) : -1,
+				PlayMode.CatchTheBeat => stats.PerformanceCtb > 0 ? await usersStats.CountAsync(x => x.PerformanceCtb > stats.PerformanceCtb) : -1,
+				PlayMode.OsuMania => stats.PerformanceMania > 0 ? await usersStats.CountAsync(x => x.PerformanceMania > stats.PerformanceMania) : -1,
 				_ => -1
 			} + 1;
 
 			return newRank;
         }
 
-		public async Task<double> UpdatePerformance(OyasumiDbContext context, UserStats stats, PlayMode mode)
+		public async Task<double> UpdatePerformance(OyasumiDbContext context, IStats stats, PlayMode mode, LeaderboardMode lbMode)
 		{
 			var scores = await context
 						.Scores
 						.AsAsyncEnumerable()
-						.Where(x => x.PlayMode == mode && x.Completed == CompletedStatus.Best && x.UserId == Id)
+						.Where(x => x.PlayMode == mode && x.Completed == CompletedStatus.Best && x.UserId == Id && x.Relaxing == (lbMode == LeaderboardMode.Relax))
 						.OrderByDescending(x => x.PerformancePoints)
 						.Take(500)
 						.ToListAsync();

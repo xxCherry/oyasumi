@@ -2,7 +2,9 @@
 using Newtonsoft.Json;
 using oyasumi.Database;
 using oyasumi.Database.Models;
+using oyasumi.Enums;
 using oyasumi.Extensions;
+using oyasumi.Interfaces;
 using oyasumi.Utilities;
 using System;
 using System.Collections.Generic;
@@ -85,15 +87,19 @@ namespace oyasumi.Controllers
                     Country = "XX"
                 };
 
-                var stats = new UserStats();
+                var vanillaStats = new VanillaStats();
+                var relaxStats = new RelaxStats();
 
                 await _context.Users.AddAsync(user);
-                await _context.UsersStats.AddAsync(stats);
+                await _context.VanillaStats.AddAsync(vanillaStats);
+                await _context.RelaxStats.AddAsync(relaxStats);
 
                 await _context.SaveChangesAsync();
 
                 Base.UserCache.Add(username, user.Id, user);
-                Base.UserStatsCache.TryAdd(user.Id, stats);
+                Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanillaStats);
+                Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(user.Id, vanillaStats);
+
             }
 
             return Ok("<>");

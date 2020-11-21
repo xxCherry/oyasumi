@@ -24,6 +24,13 @@ namespace oyasumi.Events
             var message = reader.ReadString();
             var target = reader.ReadString();
 
+            if (target == "#spectator" && pr.Spectating is not null)
+                target = $"spect_{pr.Spectating.Id}";
+            else if (target == "#spectator" && pr.Spectators is not null)
+                target = $"spect_{pr.Id}";
+            else if (target == "#multiplayer" && pr.CurrentMatch is not null)
+                target = $"multi_{pr.CurrentMatch.Id}";
+                
             ChannelManager.SendMessage(pr, message, target, true);
         }
     }
