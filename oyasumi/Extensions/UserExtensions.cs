@@ -32,6 +32,5 @@ namespace oyasumi.Extensions
         {
             return self.Replace(" ", "_").ToLower();
         }
-
     }
 }

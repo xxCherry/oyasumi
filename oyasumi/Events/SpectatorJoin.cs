@@ -1,10 +1,9 @@
-﻿using oyasumi.Enums;
+﻿using System.IO;
+using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
 using oyasumi.Managers;
 using oyasumi.Objects;
-using oyasumi.Utilities;
-using System.IO;
 
 namespace oyasumi.Events
 {
@@ -22,6 +21,18 @@ namespace oyasumi.Events
 
             pr.Spectating = spectatingPresence;
             pr.Spectating.SpectatorJoined(pr.Id);
+
+            if (pr.Spectating.SpectatorChannel is null)
+            {
+                var channel = new Channel($"spect_{pr.Spectating.Id}", "", 1);
+                pr.Spectating.SpectatorChannel = channel;
+
+                ChannelManager.Channels.TryAdd(channel.RawName, channel);
+
+                pr.Spectating.JoinChannel($"spect_{pr.Spectating.Id}");
+            }
+
+            pr.JoinChannel($"spect_{pr.Spectating.Id}");
 
             spectatingPresence.Spectators.Add(pr);
         }

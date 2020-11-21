@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using oyasumi.Extensions;
+
 using oyasumi.Objects;
 
 namespace oyasumi.IO
@@ -36,14 +36,13 @@ namespace oyasumi.IO
 
 		public async Task Write(Packet packet)
 		{
-			await using var ms = new MemoryStream();
-			await using var writer = new SerializationWriter(ms);
+			await using var writer = new SerializationWriter(new MemoryStream());
 			
 			writer.Write((short) packet.Type);
 			writer.Write((byte) 0);
 			writer.Write(packet.Data);
 			
-			ms.WriteTo(_data);
+			((MemoryStream)writer.BaseStream).WriteTo(_data);
 		}
 	}
 }

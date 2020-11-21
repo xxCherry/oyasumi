@@ -17,6 +17,11 @@ namespace oyasumi.Events
             {
                 pr.Spectating.Spectators.Remove(pr);
                 pr.Spectating.SpectatorLeft(pr.Id);
+                pr.LeaveChannel($"spect_{pr.Spectating.Id}", true);
+
+                if (pr.Spectators.Count == 0)
+                    pr.Spectating.LeaveChannel($"spect_{pr.Spectating.Id}", true);
+
                 pr.Spectating = null;
             }
         }

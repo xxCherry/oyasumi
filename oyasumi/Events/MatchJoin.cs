@@ -22,7 +22,10 @@ namespace oyasumi.Events
             var password = reader.ReadString();
 
             if (MatchManager.Matches.TryGetValue(matchId, out var match))
+            {
                 MatchManager.JoinMatch(pr, match, password);
+                pr.JoinChannel($"multi_{match.Id}");
+            }
             else
                 pr.MatchJoinFail();
         }

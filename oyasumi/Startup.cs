@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,10 +19,10 @@ namespace oyasumi
 {
 	public class Startup
 	{
-        public Startup(IConfiguration configuration) => 
+		public Startup(IConfiguration configuration) =>
 			Configuration = configuration;
 
-        public IConfiguration Configuration { get; }
+		public IConfiguration Configuration { get; }
 
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
@@ -32,14 +32,14 @@ namespace oyasumi
 			services.AddControllersWithViews();
 
 			services.Configure<FormOptions>(x =>
-				{
-					x.ValueLengthLimit = int.MaxValue;
-					x.MultipartBodyLengthLimit = int.MaxValue;
-					x.MemoryBufferThreshold = int.MaxValue;
-					x.BufferBodyLengthLimit = int.MaxValue;
-					x.MultipartBoundaryLengthLimit = int.MaxValue;
-					x.MultipartHeadersLengthLimit = int.MaxValue;
-				}
+			{
+				x.ValueLengthLimit = int.MaxValue;
+				x.MultipartBodyLengthLimit = int.MaxValue;
+				x.MemoryBufferThreshold = int.MaxValue;
+				x.BufferBodyLengthLimit = int.MaxValue;
+				x.MultipartBoundaryLengthLimit = int.MaxValue;
+				x.MultipartHeadersLengthLimit = int.MaxValue;
+			}
 			);
 		}
 
@@ -56,30 +56,39 @@ namespace oyasumi
 				// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
 				app.UseHsts();
 			}
-			
 
 			// User cache, speed up inital login by 15x
+
 			var users = context.Users.AsNoTracking().AsEnumerable();
-			var usersStats = context.UsersStats.AsNoTracking().AsEnumerable();
+
+			var vanillaStats = context.VanillaStats.AsNoTracking().AsEnumerable();
+			var relaxStats = context.RelaxStats.AsNoTracking().AsEnumerable();
+
+			var friends = context.Friends.AsNoTracking().AsEnumerable();
 
 			foreach (var u in users)
 				Base.UserCache.Add(u.Username, u.Id, u);
 
-			foreach (var us in usersStats)
-				Base.UserStatsCache.TryAdd(us.Id, us);
+			foreach (var v in vanillaStats)
+				Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(v.Id, v);
 
-			ChannelManager.Channels.Add("#osu", new Channel("#osu", "Default osu! channel", 1));
+			foreach (var r in relaxStats)
+				Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(r.Id, r);
+
+			foreach (var f in friends)
+				Base.FriendCache.TryAdd(f.Friend1, f.Friend2);
+
+			ChannelManager.Channels.TryAdd("#osu", new Channel("#osu", "Default osu! channel", 1));
 
 			foreach (var chan in context.Channels)
-				ChannelManager.Channels.Add(chan.Name,  new Channel(chan.Name, chan.Topic, 1));
+				ChannelManager.Channels.TryAdd(chan.Name, new Channel(chan.Name, chan.Topic, 1));
 
-			var bot = new Presence(1, "oyasumi", 1, 0.01f, 0, -1, -1000, 0);
+			var bot = new Presence(1, "oyasumi", 0, 0f, 0, 0, 0, 0);
 
 			bot.Status.Status = ActionStatuses.Watching;
 			bot.Status.StatusText = "for sneaky gamers";
 
 			PresenceManager.Add(bot);
-
 			//new OyasumiDbContext().Migrate();
 
 			app.UseHttpsRedirection();
@@ -87,9 +96,6 @@ namespace oyasumi
 			app.UseRouting();
 
 			app.UseAuthorization();
-
-			app.UseStaticFiles();
-			app.UseDefaultFiles();
 
 			app.UseEndpoints(endpoints =>
 			{
