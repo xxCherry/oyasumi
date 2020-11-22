@@ -40,6 +40,8 @@ namespace oyasumi.Events
                 Friend2 = id
             });
 
+            Base.FriendCache[pr.Id].Add(friend.Id);
+
             context.SaveChanges();
         }
     }
