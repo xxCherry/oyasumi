@@ -76,7 +76,10 @@ namespace oyasumi
 				Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(r.Id, r);
 
 			foreach (var f in friends)
-				Base.FriendCache.TryAdd(f.Friend1, f.Friend2);
+				Base.FriendCache.TryAdd(f.Friend1, new());
+
+			foreach (var f in friends)
+				Base.FriendCache[f.Friend1].Add(f.Friend2);
 
 			ChannelManager.Channels.TryAdd("#osu", new Channel("#osu", "Default osu! channel", 1));
 

@@ -17,7 +17,7 @@ namespace oyasumi.Events
     public class FriendRemove
     {
         [Packet(PacketType.ClientFriendsRemove)]
-        public static  void Handle(Packet p, Presence pr, OyasumiDbContext context)
+        public static void Handle(Packet p, Presence pr, OyasumiDbContext context)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
@@ -28,6 +28,8 @@ namespace oyasumi.Events
 
             if (friend is not null) {
                 context.Friends.Remove(friend);
+
+                Base.FriendCache.Where(x => x.Key == friend.Friend1).FirstOrDefault().Value.Remove(friend.Friend2);
 
                 context.SaveChanges();
             }

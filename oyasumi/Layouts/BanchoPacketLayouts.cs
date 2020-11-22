@@ -238,13 +238,15 @@ namespace oyasumi.Layouts
 
             using var writer = new SerializationWriter(new MemoryStream());
 
-            writer.Write(friendIds.Length);
+            if (friendIds is null)
+                friendIds = new int[0];
 
-            for (var i = 0; i < friendIds.Length; i++)
+            writer.Write((short)friendIds.Length);
+
+            for (var i = 0; i < friendIds?.Length; i++)
                 writer.Write(friendIds[i]);
 
             packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
-
             p.PacketEnqueue(packet);
         }
 
