@@ -19,8 +19,10 @@ namespace oyasumi.Database
 
         public DbSet<DbScore> Scores { get; set; }
         public DbSet<User> Users { get; set; }
-        public DbSet<UserStats> UsersStats { get; set; }
+        public DbSet<VanillaStats> VanillaStats { get; set; }
+        public DbSet<RelaxStats> RelaxStats { get; set; }
         public DbSet<DbBeatmap> Beatmaps { get; set; }
         public DbSet<DbChannel> Channels { get; set; }
+        public DbSet<Friend> Friends { get; set; }
     }
 }

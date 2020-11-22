@@ -1,4 +1,6 @@
-﻿using oyasumi.Database;
+﻿using Microsoft.EntityFrameworkCore;
+using oyasumi.Database;
+using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Managers;
 using oyasumi.Objects;
@@ -31,7 +33,7 @@ namespace oyasumi.Extensions
             var isRelax = (mods & Mods.Relax) > 0;
             var isAutopilot = (mods & Mods.Relax2) > 0;
 
-            var beatmap = await BeatmapManager.Get(split[0], context, false);
+            var beatmap = await BeatmapManager.Get(split[0], "", 0, context, false);
 
             var osuVersionUnformatted = split[17];
             var osuVersion = osuVersionUnformatted.Trim();
@@ -39,6 +41,9 @@ namespace oyasumi.Extensions
             var flags = (osuVersionUnformatted.Length - osuVersion.Length) & ~4;
 
             var presence = PresenceManager.GetPresenceByName(split[1].TrimEnd()); // TrimEnd() because osu! adds extra space if user is supporter
+
+            if (presence is null)
+                return new Score();
 
             return new Score
             {
@@ -59,7 +64,7 @@ namespace oyasumi.Extensions
                 Autopiloting = isAutopilot,
                 Passed = bool.Parse(split[14]),
                 PlayMode = (PlayMode)uint.Parse(split[15]),
-                Date = DateTime.Now,
+                Date = DateTime.UtcNow,
                 Beatmap = beatmap.Item2,
                 OsuVersion = int.Parse(osuVersion),
                 Flags = (BadFlags)flags

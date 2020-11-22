@@ -60,14 +60,18 @@ namespace oyasumi.Managers
             }
 
             match.Presences.Remove(pr);
-
-            pr.CurrentMatch = null;
+            pr.LeaveChannel($"multi_{pr.CurrentMatch.Id}", true);
 
             if (match.Presences.Count == 0)
+            {
                 Matches.Remove(match.Id);
+                ChannelManager.Channels.TryRemove($"multi_{pr.CurrentMatch.Id}", out _);
+            }
             else
                 foreach (var presence in match.Presences)
                     presence.MatchUpdate(match);
+
+            pr.CurrentMatch = null;
         }
     }
 }

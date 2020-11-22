@@ -32,15 +32,8 @@ namespace oyasumi.Controllers
 			_context = context;
 		}
 
-		public static List<PacketType> PacketsWithContext = new()
-		{
-			PacketType.ClientMultiSettingsChange,
-			PacketType.ClientMultiMatchCreate,
-			PacketType.ClientMultiChangePassword
-		};
-
 		public async Task<FileContentResult> WrongCredentials()
-        {
+		{
 			Response.Headers["cho-token"] = "no-token";
 			return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
 				"application/octet-stream");
@@ -57,7 +50,7 @@ namespace oyasumi.Controllers
 
 			if (string.IsNullOrEmpty(token))
 			{
-				var (username, password) = await Request.Body.ParseLoginDataAsync();
+				var (username, password, timezone) = await Request.Body.ParseLoginDataAsync();
 
 				var dbUser = Base.UserCache[username];
 
@@ -79,24 +72,37 @@ namespace oyasumi.Controllers
 					Base.PasswordCache.TryAdd(password, dbUser.Password);
 				}
 
-				var presence = new Presence(dbUser);
+				var ip = Request.Headers["X-Real-IP"];
+
+				if (dbUser.Country == "XX")
+				{
+					var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe()); // cached user can't be used
+
+					var geoData = await NetUtils.FetchGeoLocation(ip);
+
+					user.Country = geoData.countryCode;
+
+					await _context.SaveChangesAsync();
+				}
+
+				var presence = new Presence(dbUser, timezone);
 
 				PresenceManager.Add(presence);
 
-				await presence.GetOrUpdateUserStats(_context, false);
+				await presence.GetOrUpdateUserStats(_context, LeaderboardMode.Vanilla, false);
 
 				presence.ProtocolVersion(19);
 				presence.LoginReply(presence.Id);
 
 				presence.Notification("Welcome to oyasumi.");
 
-				presence.UserPresence(); 
+				presence.UserPresence();
 				presence.UserStats();
-				presence.UserPermissions(BanchoPermissions.Peppy);
-
-				presence.FriendList(new List<int> { presence.Id });
+				presence.UserPermissions(BanchoPermissions.Peppy | BanchoPermissions.Supporter);
 
 				presence.UserPresenceSingle(presence.Id);
+
+				presence.FriendList(Base.FriendCache.Where(x => x.Key == presence.Id).FirstOrDefault().Value?.ToArray());
 
 				// Default channel
 				presence.ChatChannelListingComplete(0);
@@ -135,7 +141,7 @@ namespace oyasumi.Controllers
 				}
 
 				await using var ms = new MemoryStream();
-				await Request.Body.CopyToAsync(ms);            
+				await Request.Body.CopyToAsync(ms);
 				ms.Position = 0;
 
 				var packets = PacketReader.Parse(ms);
@@ -144,14 +150,9 @@ namespace oyasumi.Controllers
 				{
 					if (!Base.PacketImplCache.TryGetValue(packet.Type, out var handle))
 					{
-						MethodInfo meth = null;
-						if (!Base.MethodCache.TryGetValue(packet.Type, out var packetImpl))
-						{
-							meth = Base.Types.SelectMany(type => type.GetMethods()).FirstOrDefault(m => m?.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
-							Base.MethodCache.TryAdd(packet.Type, meth);
-						}
-						else
-							meth = packetImpl;
+						var meth = Base.Types
+								.SelectMany(type => type.GetMethods())
+								.FirstOrDefault(m => m?.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
 
 						if (meth is null)
 						{
@@ -163,11 +164,9 @@ namespace oyasumi.Controllers
 						handle = ReflectionUtils.CompilePacketHandler(meth);
 
 						Base.PacketImplCache.TryAdd(packet.Type, handle);
-
-						handle(packet, presence, _context);
 					}
-					else
-						handle(packet, presence, _context);
+
+					handle(packet, presence, _context);
 				}
 
 				var bytes = await presence.WritePackets();

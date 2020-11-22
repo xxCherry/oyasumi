@@ -42,12 +42,13 @@ namespace oyasumi.Objects
         public int Rank { get; set; }
         public CompletedStatus Completed { get; set; }
 
-        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode)
+        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode, LeaderboardMode lbMode)
         {
             var leaderboardData = new List<Score>();
+
             var scores = await context.Scores
                 .AsQueryable()
-                .Where(x => x.FileChecksum == beatmapMd5 && x.Completed == CompletedStatus.Best && x.PlayMode == mode)
+                .Where(x => x.FileChecksum == beatmapMd5 && x.Completed == CompletedStatus.Best && x.PlayMode == mode && x.Relaxing == (lbMode == LeaderboardMode.Relax))
                 .Take(50)
                 .ToArrayAsync();
 
@@ -70,10 +71,10 @@ namespace oyasumi.Objects
             return scoreList;
         }
 
-        public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode)
+        public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode, LeaderboardMode lbMode)
         {
             var sb = new StringBuilder();
-            var scores = await GetRawScores(context, beatmapMd5, mode);
+            var scores = await GetRawScores(context, beatmapMd5, mode, lbMode);
 
             foreach (var score in scores)
                 sb.AppendLine(score.ToString());
@@ -148,6 +149,6 @@ namespace oyasumi.Objects
 
         public override string ToString() =>
              $"{ScoreId}|{User.Username}|{TotalScore}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
-             $"|{CountGeki}|{Perfect}|{(int)Mods}|{User.Id}|{Rank}|{Date.ToUnixTimestamp()}|{!string.IsNullOrEmpty(ReplayChecksum)}";
+             $"|{CountGeki}|{Perfect}|{(int)Mods}|{User.Id}|{Rank}|{Date.ToUnixTimestamp()}|{(string.IsNullOrEmpty(ReplayChecksum) ? "0" : "1")}";
     }
 }

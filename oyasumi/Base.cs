@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
+using oyasumi.Interfaces;
 using oyasumi.Objects;
 using oyasumi.Utilities;
 
@@ -24,12 +25,18 @@ namespace oyasumi
 		private static Assembly Assembly;
 		public static Type[] Types;
 
-		// ConcurrentDictonary here for prevent using locks and because I'm too lazy to write them
-		public static readonly ConcurrentDictionary<PacketType, MethodInfo> MethodCache = new ConcurrentDictionary<PacketType, MethodInfo>();
-		public static readonly ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>> PacketImplCache = new ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>>();
-		public static readonly ConcurrentDictionary<int, UserStats> UserStatsCache = new ConcurrentDictionary<int, UserStats>();
-		public static readonly ConcurrentDictionary<string, string> PasswordCache = new ConcurrentDictionary<string, string>();
-		public static readonly TwoKeyDictionary<string, int, User> UserCache = new TwoKeyDictionary<string, int, User>();
+		// Rework this pls
+		public static readonly ConcurrentDictionary<PacketType, MethodInfo> MethodCache = new();
+		public static readonly ConcurrentDictionary<int, List<int>> FriendCache = new();
+		public static readonly ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>> PacketImplCache = new();
+		public static readonly ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<int, IStats>> UserStatsCache = new()
+		{
+			[LeaderboardMode.Vanilla] = new(),
+			[LeaderboardMode.Relax] = new()
+		};
+		public static readonly ConcurrentDictionary<string, string> PasswordCache = new();
+		public static readonly TwoKeyDictionary<string, int, User> UserCache = new();
+
 		public static void Main(string[] args)
 		{
 			Assembly = Assembly.GetEntryAssembly();
@@ -40,10 +47,10 @@ namespace oyasumi
 
 		public static IHostBuilder CreateHostBuilder(string[] args) =>
 			Host.CreateDefaultBuilder(args)
-				.ConfigureLogging(logging =>
+				/*.ConfigureLogging(logging =>
 				{
 					logging.ClearProviders();
-				})
+				})*/
 				.ConfigureWebHostDefaults(webBuilder =>
 				{
 					webBuilder.UseStartup<Startup>();

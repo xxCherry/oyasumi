@@ -35,8 +35,9 @@ namespace oyasumi.Objects
         public Presence Host;
         public int Seed;
 
-        public int NeedLoad; 
+        public int NeedLoad;
 
+        public Channel Channel;
         public List<Presence> Presences = new List<Presence>();
 
         public MatchTypes Type;

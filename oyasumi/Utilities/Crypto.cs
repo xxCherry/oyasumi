@@ -11,25 +11,25 @@ using System.Threading.Tasks;
 
 namespace oyasumi.Utilities
 {
-    public static class BCrypt
+    /*public static class BCrypt
     {
         [DllImport(@"lib/BCrypt")]
         public static extern string generate_hash(string password, int rounds = 10);
 
         [DllImport(@"lib/BCrypt")]
         public static extern bool validate_password(string password, string hash);
-    }
+    } */
 
     public class Crypto
     {
         public static string GenerateHash(string password)
         {
-            return BCrypt.generate_hash(password, 10);
+            return BCrypt.Net.BCrypt.HashPassword(password, 10); // BCrypt.generate_hash(password, 10);
         }
         
         public static bool VerifyPassword(string plaintext, string hash)
         {
-            return BCrypt.validate_password(plaintext, hash);
+            return BCrypt.Net.BCrypt.Verify(plaintext, hash); // BCrypt.validate_password(plaintext, hash);
         }
 
         public static string ComputeHash(string str) => ComputeHash(Encoding.UTF8.GetBytes(str));

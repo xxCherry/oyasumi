@@ -19,6 +19,7 @@ namespace oyasumi.Events
             using var reader = new SerializationReader(ms);
 
             var presenceIds = new List<int>();
+
             int length = reader.ReadInt16();
             for (var i = 0; i < length; i++) 
                 presenceIds.Add(reader.ReadInt32());
