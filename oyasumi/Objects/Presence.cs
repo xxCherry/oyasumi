@@ -43,7 +43,7 @@ namespace oyasumi.Objects
 		// --- User Stats
 		public PresenceStatus Status;
 		public long RankedScore;
-        public float Accuracy;
+        public double Accuracy;
 		public int PlayCount;
 		public long TotalScore;
 		public short Performance;
@@ -304,16 +304,16 @@ namespace oyasumi.Objects
 			switch (mode)
             {
 				case PlayMode.Osu:
-					stats.AccuracyOsu = Accuracy;
+					stats.AccuracyOsu = (float)Accuracy;
 					break;
 				case PlayMode.CatchTheBeat:
-					stats.AccuracyCtb = Accuracy;
+					stats.AccuracyCtb = (float)Accuracy;
 					break;
 				case PlayMode.Taiko:
-					stats.AccuracyTaiko = Accuracy;
+					stats.AccuracyTaiko = (float)Accuracy;
 					break;
 				case PlayMode.OsuMania:
-					stats.AccuracyMania = Accuracy;
+					stats.AccuracyMania = (float)Accuracy;
 					break;
 			}
 
@@ -462,15 +462,9 @@ namespace oyasumi.Objects
 			return totalPerformance;
 		}
 
-		public async Task Apply(OyasumiDbContext context)
-        {
-			await context.SaveChangesAsync();
-        }
+		public async Task Apply(OyasumiDbContext context) => await context.SaveChangesAsync();
 
-		public void PacketEnqueue(Packet p)
-		{
-			_packetQueue.Enqueue(p);
-		}
+		public void PacketEnqueue(Packet p) => _packetQueue.Enqueue(p);
 		
 		public async Task<byte[]> WritePackets()
 		{

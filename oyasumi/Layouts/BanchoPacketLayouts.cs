@@ -176,7 +176,7 @@ namespace oyasumi.Layouts
             writer.Write((byte)other.Status.CurrentPlayMode);
             writer.Write(other.Status.BeatmapId);
             writer.Write(other.RankedScore);
-            writer.Write(other.Accuracy);
+            writer.Write((float)other.Accuracy);
             writer.Write(other.PlayCount);
             writer.Write(other.TotalScore);
             writer.Write(other.Rank);
@@ -203,7 +203,7 @@ namespace oyasumi.Layouts
             writer.Write((byte)p.Status.CurrentPlayMode);
             writer.Write(p.Status.BeatmapId);
             writer.Write(p.RankedScore);
-            writer.Write(p.Accuracy);
+            writer.Write((float)p.Accuracy);
             writer.Write(p.PlayCount);
             writer.Write(p.TotalScore);
             writer.Write(p.Rank);
@@ -239,7 +239,7 @@ namespace oyasumi.Layouts
             using var writer = new SerializationWriter(new MemoryStream());
 
             if (friendIds is null)
-                friendIds = new int[0];
+                friendIds = Array.Empty<int>();
 
             writer.Write((short)friendIds.Length);
 

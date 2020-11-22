@@ -28,7 +28,7 @@ namespace oyasumi.Events
 
             MatchManager.JoinMatch(pr, match, match.GamePassword);
 
-            var channel = new Channel($"multi_{match.Id}", "", 1);
+            var channel = new Channel($"multi_{match.Id}", "", 1, true);
             match.Channel = channel;
             ChannelManager.Channels.TryAdd(channel.RawName, channel);
 

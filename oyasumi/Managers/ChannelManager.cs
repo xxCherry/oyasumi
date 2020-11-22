@@ -78,6 +78,9 @@ namespace oyasumi.Managers
                 if (!channel.Presences.Values.Contains(sender)) // Presence tried to send message but they aren't in that channel
                     return;
 
+                if (!channel.PublicWrite)
+                    return;
+
                 foreach (var pr in channel.Presences.Values)
                 {
                     if (pr != sender)
