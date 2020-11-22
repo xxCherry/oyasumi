@@ -17,8 +17,12 @@ namespace oyasumi.Events
         [Packet(PacketType.ClientLobbyJoin)]
         public static void Handle(Packet p, Presence pr)
         {
-            foreach (var match in MatchManager.Matches.Values) 
+            foreach (var match in MatchManager.Matches.Values)
+            {
+                if (match.PasswordRequired)
+                    match.GamePassword = " "; 
                 pr.NewMatch(match);
+            }
         }
     }
 }

@@ -24,11 +24,15 @@ namespace oyasumi.Events
             if (string.IsNullOrEmpty(match.GamePassword))
                 match.GamePassword = null;
 
-            match.Id = -1;
-
             match.Host = pr;
 
             MatchManager.JoinMatch(pr, match, match.GamePassword);
+
+            var channel = new Channel($"multi_{match.Id}", "", 1);
+            match.Channel = channel;
+            ChannelManager.Channels.TryAdd(channel.RawName, channel);
+
+            pr.JoinChannel($"multi_{match.Id}");
         }
     }
 }

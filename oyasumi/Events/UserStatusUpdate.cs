@@ -26,9 +26,15 @@ namespace oyasumi.Events
                 BeatmapId = reader.ReadInt32()
             };
 
+            var lbMode = pr.Status.CurrentMods switch
+            {
+                Mods mod when (mod & Mods.Relax) > 0 => LeaderboardMode.Relax,
+                _ => LeaderboardMode.Vanilla,
+            };
+
             // We just want to update our stats from cache, so we don't
             // use context here
-            await pr.GetOrUpdateUserStats(null, false); 
+            await pr.GetOrUpdateUserStats(null, lbMode, false); 
             
             pr.UserStats();
         }

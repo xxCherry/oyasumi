@@ -2,15 +2,17 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using oyasumi.Database;
 
 namespace oyasumi.Migrations
 {
     [DbContext(typeof(OyasumiDbContext))]
-    partial class OyasumiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20201103171051_Ranks")]
+    partial class Ranks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,9 +50,6 @@ namespace oyasumi.Migrations
                         .HasColumnType("longtext CHARACTER SET utf8mb4");
 
                     b.Property<string>("DifficultyName")
-                        .HasColumnType("longtext CHARACTER SET utf8mb4");
-
-                    b.Property<string>("FileName")
                         .HasColumnType("longtext CHARACTER SET utf8mb4");
 
                     b.Property<bool>("Frozen")
@@ -180,23 +179,6 @@ namespace oyasumi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Scores");
-                });
-
-            modelBuilder.Entity("oyasumi.Database.Models.Friend", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<int>("Friend1")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Friend2")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Friends");
                 });
 
             modelBuilder.Entity("oyasumi.Database.Models.User", b =>

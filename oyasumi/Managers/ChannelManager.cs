@@ -1,17 +1,12 @@
-﻿using oyasumi.Objects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Collections;
+﻿using System.Collections.Concurrent;
+using oyasumi.Objects;
 using oyasumi.Layouts;
 
 namespace oyasumi.Managers
 {
     public static class ChannelManager
     {
-        public static Dictionary<string, Channel> Channels = new Dictionary<string, Channel>();
+        public static ConcurrentDictionary<string, Channel> Channels = new ConcurrentDictionary<string, Channel>();
 
         public static void JoinChannel(this Presence pr, string channelName)
         {
@@ -24,11 +19,11 @@ namespace oyasumi.Managers
             pr.ChatChannelJoinSuccess(channel.Name);
 
             channel.UserCount++;
-            pr.Channels.Add(channel);
-            channel.Presences.Add(pr);
+            pr.Channels.TryAdd(channel.RawName, channel);
+            channel.Presences.TryAdd(pr.Id, pr);
         }
 
-        public static void LeaveChannel(this Presence pr, string channelName)
+        public static void LeaveChannel(this Presence pr, string channelName, bool force = false)
         {
             if (!Channels.TryGetValue(channelName, out var channel)) // Presence tried to join non-existent channel
                 return;
@@ -37,8 +32,11 @@ namespace oyasumi.Managers
                 return;
 
             channel.UserCount--;
-            pr.Channels.Remove(channel);
-            channel.Presences.Remove(pr);
+            pr.Channels.TryRemove(channel.RawName, out _);
+            channel.Presences.TryRemove(pr.Id, out _);
+
+            if (force)
+                pr.RevokeChannel(channel.Name);
         }
 
         public static void SendMessage(string sender, string message, string rawTarget, int id, bool isPublic) // Mostly used for dummy presences
@@ -55,9 +53,8 @@ namespace oyasumi.Managers
                 if (!Channels.TryGetValue(rawTarget, out var channel)) // Presence tried to send message to non-existent channel
                     return;
 
-                foreach (var prRaw in channel.Presences)
+                foreach (var pr in channel.Presences.Values)
                 {
-                    var pr = (Presence)prRaw;
                     if (pr.Id != id)
                         pr.ChatMessage(sender, message, rawTarget, id);
                 }
@@ -78,14 +75,13 @@ namespace oyasumi.Managers
                 if (!Channels.TryGetValue(rawTarget, out var channel)) // Presence tried to send message to non-existent channel
                     return;
 
-                if (!channel.Presences.Contains(sender)) // Presence tried to send message but they aren't in that channel
+                if (!channel.Presences.Values.Contains(sender)) // Presence tried to send message but they aren't in that channel
                     return;
 
-                foreach (var prRaw in channel.Presences)
+                foreach (var pr in channel.Presences.Values)
                 {
-                    var pr = (Presence)prRaw;
                     if (pr != sender)
-                        pr.ChatMessage(sender, message, rawTarget);
+                        pr.ChatMessage(sender, message, channel.Name);
                 }
             }
         }
