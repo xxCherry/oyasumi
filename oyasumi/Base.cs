@@ -27,7 +27,7 @@ namespace oyasumi
 
 		// Rework this pls
 		public static readonly ConcurrentDictionary<PacketType, MethodInfo> MethodCache = new();
-		public static readonly ConcurrentDictionary<int, int> FriendCache = new();
+		public static readonly ConcurrentDictionary<int, List<int>> FriendCache = new();
 		public static readonly ConcurrentDictionary<PacketType, Action<Packet, Presence, OyasumiDbContext>> PacketImplCache = new();
 		public static readonly ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<int, IStats>> UserStatsCache = new()
 		{

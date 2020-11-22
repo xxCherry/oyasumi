@@ -102,7 +102,7 @@ namespace oyasumi.Controllers
 
 				presence.UserPresenceSingle(presence.Id);
 
-				presence.FriendList(Base.FriendCache.Where(x => x.Key == presence.Id).Select(x => x.Value).ToArray());
+				presence.FriendList(Base.FriendCache.Where(x => x.Key == presence.Id).FirstOrDefault().Value?.ToArray());
 
 				// Default channel
 				presence.ChatChannelListingComplete(0);
