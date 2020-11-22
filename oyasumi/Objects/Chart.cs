@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,6 +9,8 @@ namespace oyasumi.Objects
 {
     public struct Chart
     {
+        private static NumberFormatInfo _nfi = new CultureInfo("en-US", false).NumberFormat;
+
         private readonly string _chartId;
         private readonly string _chartUrl;
         private readonly string _chartName;
@@ -44,14 +47,14 @@ namespace oyasumi.Objects
                $"|rankAfter:{(_sBefore == null ? _pAfter.Rank : _sAfter.Rank)}" +
                $"|maxComboBefore:0" +
                $"|maxComboAfter:0" +
-               $"|accuracyBefore:{(_sBefore == null ? _pBefore.Accuracy : _sBefore.Accuracy)}" +
-               $"|accuracyAfter:{(_sBefore == null ? _pAfter.Accuracy : _sAfter.Accuracy)}" +
+               $"|accuracyBefore:{(_sBefore == null ? (_pBefore.Accuracy * 100).ToString(_nfi) : (_sBefore.Accuracy * 100).ToString(_nfi))}" +
+               $"|accuracyAfter:{(_sBefore == null ? (_pAfter.Accuracy * 100).ToString(_nfi) : (_sAfter.Accuracy * 100).ToString(_nfi))}" +
                $"|rankedScoreBefore:{(_sBefore == null ? _pBefore.RankedScore : _sBefore.TotalScore)}" +
                $"|rankedScoreAfter:{(_sBefore == null ? _pAfter.RankedScore : _sAfter.TotalScore)}" +
                $"|totalScoreBefore:{(_sBefore == null ? _pBefore.TotalScore : _sBefore.TotalScore)}" +
                $"|totalScoreAfter:{(_sBefore == null ? _pAfter.TotalScore : _sAfter.TotalScore)}" +
-               $"|ppBefore:{(_sBefore == null ? _pBefore.Performance : _sBefore.PerformancePoints)}" +
-               $"|ppAfter:{(_sBefore == null ? _pAfter.Performance : _sAfter.PerformancePoints)}" +
+               $"|ppBefore:{(_sBefore == null ? _pBefore.Performance : _sBefore.PerformancePoints.ToString(_nfi))}" +
+               $"|ppAfter:{(_sBefore == null ? _pAfter.Performance : _sAfter.PerformancePoints.ToString(_nfi))}" +
                (_achievements == null ? "" : "|achievements-new:" + _achievements) +
                $"|onlineScoreId:{_scoreId}";
     }
