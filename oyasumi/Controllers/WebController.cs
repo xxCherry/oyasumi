@@ -214,7 +214,7 @@ namespace oyasumi.Controllers
                             await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr", m.ToArray());
                     }
 
-                    score.PerformancePoints = (float)await Calculator.CalculatePerformancePoints(score);
+                    score.PerformancePoints = await Calculator.CalculatePerformancePoints(score);
 
                     var dbScore = score.ToDb();
 
@@ -249,7 +249,12 @@ namespace oyasumi.Controllers
                     score.Beatmap.LeaderboardCache[lbMode][score.PlayMode].Clear(); // Clear the cache
 
                     foreach (var bScore in scores)
+                    {
                         score.Beatmap.LeaderboardCache[lbMode][score.PlayMode].TryAdd(bScore.UserId, bScore);
+
+                        if (bScore.Rank == 1 && oldScore?.Rank != 1)
+                            ChannelManager.SendMessage("oyasumi", $"[{lbMode}] [https://astellia.club/{bScore.UserId} {presenceAfter.Username}] achieved #1 on https://osu.ppy.sh/b/{score.Beatmap.Id}", "#announce", 1, true);
+                    }
 
                     score.Beatmap.LeaderboardFormatted[lbMode][score.PlayMode] = Score.FormatScores(scores, score.PlayMode);
 

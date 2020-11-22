@@ -24,7 +24,7 @@ namespace oyasumi.Events
 
             if (pr.Spectating.SpectatorChannel is null)
             {
-                var channel = new Channel($"spect_{pr.Spectating.Id}", "", 1);
+                var channel = new Channel($"spect_{pr.Spectating.Id}", "", 1, true);
                 pr.Spectating.SpectatorChannel = channel;
 
                 ChannelManager.Channels.TryAdd(channel.RawName, channel);

@@ -158,7 +158,7 @@ namespace oyasumi.Controllers
 						{
 							// not handled
 							Console.WriteLine(packet.Type.ToString());
-							return Ok();
+							continue;
 						}
 
 						handle = ReflectionUtils.CompilePacketHandler(meth);
@@ -167,6 +167,8 @@ namespace oyasumi.Controllers
 					}
 
 					handle(packet, presence, _context);
+
+					Console.WriteLine(packet.Type.ToString());
 				}
 
 				var bytes = await presence.WritePackets();

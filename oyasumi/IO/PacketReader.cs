@@ -13,7 +13,7 @@ namespace oyasumi.IO
 	public class PacketReader
 	{
 		private static readonly ConcurrentDictionary<PacketType, Packet> _packetCache = new ConcurrentDictionary<PacketType, Packet>();
-		public static List<Packet> Parse(MemoryStream data)
+		public static IEnumerable<Packet> Parse(MemoryStream data)
 		{
 			using var reader = new SerializationReader(data);
 
@@ -22,7 +22,7 @@ namespace oyasumi.IO
 			while (data.Position != data.Length)
 				packets.Add(Read(reader));
 
-			return packets;
+			return packets.AsEnumerable();
 		}
 
 		private static Packet Read(BinaryReader reader)
@@ -42,6 +42,5 @@ namespace oyasumi.IO
 
 			return packet;
 		}
-		
 	}
 }

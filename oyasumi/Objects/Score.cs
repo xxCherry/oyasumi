@@ -26,8 +26,8 @@ namespace oyasumi.Objects
         public int TotalScore { get; set; }
         public string FileChecksum { get; set; }
         public string ReplayChecksum { get; set; }
-        public float PerformancePoints { get; set; }
-        public float Accuracy { get; set; }
+        public double PerformancePoints { get; set; }
+        public double Accuracy { get; set; }
         public int MaxCombo { get; set; }
         public bool Passed { get; set; }
         public bool Perfect { get; set; }
