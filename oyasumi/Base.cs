@@ -47,10 +47,10 @@ namespace oyasumi
 
 		public static IHostBuilder CreateHostBuilder(string[] args) =>
 			Host.CreateDefaultBuilder(args)
-				/*.ConfigureLogging(logging =>
+				.ConfigureLogging(logging =>
 				{
 					logging.ClearProviders();
-				})*/
+				}) 
 				.ConfigureWebHostDefaults(webBuilder =>
 				{
 					webBuilder.UseStartup<Startup>();

@@ -124,7 +124,8 @@ namespace oyasumi.Objects
             {
                 Task.WaitAll(Task.Run(async () =>
                 {
-                    var scores = await Score.GetRawScores(context, md5, mode, lbMode);
+                    var vanillaScores = await Score.GetRawScores(context, md5, mode, LeaderboardMode.Vanilla);
+                    var relaxScores = await Score.GetRawScores(context, md5, mode, LeaderboardMode.Relax);
 
                     for (var i = 0; i < 3; i++)
                     {
@@ -138,10 +139,14 @@ namespace oyasumi.Objects
                         }
                     }
 
-                    foreach (var score in scores)
-                        LeaderboardCache[lbMode][mode].TryAdd(score.UserId, score);
+                    foreach (var score in vanillaScores)
+                        LeaderboardCache[LeaderboardMode.Vanilla][mode].TryAdd(score.UserId, score);
+                    foreach (var score in relaxScores)
+                        LeaderboardCache[LeaderboardMode.Relax][mode].TryAdd(score.UserId, score);
 
-                    LeaderboardFormatted[lbMode][mode] = Score.FormatScores(scores, mode);
+                    LeaderboardFormatted[LeaderboardMode.Vanilla][mode] = Score.FormatScores(vanillaScores, mode);
+                    LeaderboardFormatted[LeaderboardMode.Relax][mode] = Score.FormatScores(relaxScores, mode);
+
                 }));
             }
         }

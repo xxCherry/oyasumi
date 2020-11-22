@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using Org.BouncyCastle.Asn1.Cms;
 using oyasumi.Database;
 using oyasumi.Enums;
 using oyasumi.IO;
@@ -22,7 +23,7 @@ namespace oyasumi.Events
                 StatusText = reader.ReadString(),
                 BeatmapChecksum = reader.ReadString(),
                 CurrentMods = (Mods) reader.ReadUInt32(),
-                CurrentPlayMode = (PlayMode)reader.ReadByte(),
+                CurrentPlayMode = (PlayMode) reader.ReadByte(),
                 BeatmapId = reader.ReadInt32()
             };
 

@@ -20,6 +20,7 @@ namespace oyasumi.Events
             };
 
             pr.Spectating.PacketEnqueue(cantSpectatePacket);
+
             foreach (var presence in pr.Spectators)
             {
                 presence.PacketEnqueue(cantSpectatePacket);

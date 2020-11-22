@@ -17,12 +17,14 @@ namespace oyasumi.Objects
         public string RawName;
         public string Description;
         public int UserCount;
+        public bool PublicWrite;
 
-        public Channel(string name, string description, int userCount)
+        public Channel(string name, string description, int userCount, bool publicWrite)
         {
             RawName = name;
             Description = description;
             UserCount = userCount;
+            PublicWrite = publicWrite;
         }
     }
 }

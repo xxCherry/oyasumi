@@ -23,7 +23,7 @@ namespace oyasumi.Database.Models
         public int CountKatu { get; set; }
         public int CountMiss { get; set; }
         public int TotalScore { get; set; }
-        public float Accuracy { get; set; }
+        public double Accuracy { get; set; }
         public string FileChecksum { get; set; }
         public int MaxCombo { get; set; }
         public bool Passed { get; set; }
@@ -37,7 +37,7 @@ namespace oyasumi.Database.Models
         public string ReplayChecksum { get; set; }
         public bool Relaxing { get; set; }
         public bool AutoPiloting { get; set; }
-        public float PerformancePoints { get; set; }
+        public double PerformancePoints { get; set; }
         public CompletedStatus Completed { get; set; }
     }
 }

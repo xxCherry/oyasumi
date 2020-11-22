@@ -81,10 +81,10 @@ namespace oyasumi
 			foreach (var f in friends)
 				Base.FriendCache[f.Friend1].Add(f.Friend2);
 
-			ChannelManager.Channels.TryAdd("#osu", new Channel("#osu", "Default osu! channel", 1));
+			ChannelManager.Channels.TryAdd("#osu", new Channel("#osu", "Default osu! channel", 1, true));
 
 			foreach (var chan in context.Channels)
-				ChannelManager.Channels.TryAdd(chan.Name, new Channel(chan.Name, chan.Topic, 1));
+				ChannelManager.Channels.TryAdd(chan.Name, new Channel(chan.Name, chan.Topic, 1, chan.Public));
 
 			var bot = new Presence(1, "oyasumi", 0, 0f, 0, 0, 0, 0);
 
