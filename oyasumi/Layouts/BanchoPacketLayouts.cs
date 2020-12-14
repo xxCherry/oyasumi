@@ -84,6 +84,19 @@ namespace oyasumi.Layouts
             return pWriter.ToBytes();
         }
 
+        public static async Task<byte[]> BannedError()
+        {
+            var notificationBytes = await NotificationAsync("You're banned from the server.");
+            var wrongCredsBytes = await LoginReplyAsync(LoginReplies.WrongCredentials);
+            
+            var pWriter = new PacketWriter();
+
+            await pWriter.Write(notificationBytes);
+            await pWriter.Write(wrongCredsBytes);
+
+            return pWriter.ToBytes();
+        }
+        
         public static async Task Notification(this Presence p, string notification)
         {
             var packet = new Packet

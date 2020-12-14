@@ -44,5 +44,12 @@ namespace oyasumi.IO
 			
 			((MemoryStream)writer.BaseStream).WriteTo(_data);
 		}
+
+		public async Task Write(byte[] packet)
+		{
+			await using var ms = new MemoryStream(packet);
+
+			ms.WriteTo(_data);
+		}
 	}
 }
