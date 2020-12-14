@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
@@ -9,7 +10,7 @@ namespace oyasumi.Events
     public class UserStatusRequestOwn
     {
         [Packet(PacketType.ClientStatusRequestOwn)]
-        public static void Handle(Packet p, Presence pr) =>
-            pr.UserStats();
+        public static async Task Handle(Packet p, Presence pr) =>
+            await pr.UserStats();
     }
 }

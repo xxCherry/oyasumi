@@ -5,22 +5,23 @@ using oyasumi.Managers;
 using oyasumi.Objects;
 using oyasumi.Utilities;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace oyasumi.Events
 {
     public class SpectatorLeft
     {
         [Packet(PacketType.ClientSpectateStop)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             if (pr.Spectating is not null)
             {
                 pr.Spectating.Spectators.Remove(pr);
-                pr.Spectating.SpectatorLeft(pr.Id);
-                pr.LeaveChannel($"spect_{pr.Spectating.Id}", true);
+                await pr.Spectating.SpectatorLeft(pr.Id);
+                await pr.LeaveChannel($"spect_{pr.Spectating.Id}", true);
 
                 if (pr.Spectators.Count == 0)
-                    pr.Spectating.LeaveChannel($"spect_{pr.Spectating.Id}", true);
+                    await pr.Spectating.LeaveChannel($"spect_{pr.Spectating.Id}", true);
 
                 pr.Spectating = null;
             }

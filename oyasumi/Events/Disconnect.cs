@@ -2,18 +2,19 @@
 using oyasumi.Managers;
 using oyasumi.Objects;
 using oyasumi.Utilities;
+using System.Threading.Tasks;
 
 namespace oyasumi.Events
 {
     public class Disconnect
     {
         [Packet(PacketType.ClientDisconnect)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
-            if (Time.CurrentUnixTimestamp - pr.LoginTime < 5)
+            if (Time.CurrentUnixTimestamp - pr.LoginTime < 2)
                 return;
             
-            PresenceManager.Remove(pr);
+            await PresenceManager.Remove(pr);
         }
     }
 }

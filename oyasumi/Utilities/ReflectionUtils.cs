@@ -7,6 +7,10 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using FastExpressionCompiler;
+using Microsoft.Extensions.Internal;
+using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 
 namespace oyasumi.Utilities
 {
@@ -17,7 +21,7 @@ namespace oyasumi.Utilities
         {
             var dynMethod = new DynamicMethod("Handle",
                 typeof(void),
-                new Type[] { 
+                new Type[] {
                     typeof(Packet),
                     typeof(Presence),
                     typeof(OyasumiDbContext)
@@ -43,6 +47,11 @@ namespace oyasumi.Utilities
             }
 
             return (Action<Packet, Presence, OyasumiDbContext>)dynMethod.CreateDelegate(typeof(Action<Packet, Presence, OyasumiDbContext>));
+        }
+
+        public static ObjectMethodExecutorCompiledFast GetExecutor(MethodInfo meth)
+        {
+            return ObjectMethodExecutorCompiledFast.Create(meth, meth.DeclaringType.GetTypeInfo());
         }
     }
 }

@@ -12,16 +12,16 @@ namespace oyasumi.Objects
 {
     public struct BeatmapMetadata
     {
-        public string Artist { get; set; }
-        public string Title { get; set; }
-        public string DifficultyName { get; set; }
-        public string Creator { get; set; }
-        public float BPM { get; set; }
-        public float CircleSize { get; set; }
-        public float OverallDifficulty { get; set; }
-        public float ApproachRate { get; set; }
-        public float HPDrainRate { get; set; }
-        public float Stars { get; set; }
+        [JsonProperty("artist")] public string Artist { get; set; }
+        [JsonProperty("title")] public string Title { get; set; }
+        [JsonProperty("difficulty_name")] public string DifficultyName { get; set; }
+        [JsonProperty("creator")] public string Creator { get; set; }
+        [JsonProperty("bpm")] public float BPM { get; set; }
+        [JsonProperty("cs")] public float CircleSize { get; set; }
+        [JsonProperty("od")]public float OverallDifficulty { get; set; }
+        [JsonProperty("ar")] public float ApproachRate { get; set; }
+        [JsonProperty("hp")] public float HPDrainRate { get; set; }
+        [JsonProperty("stars")] public float Stars { get; set; }
     }
 
     public struct JsonBeatmap
@@ -86,27 +86,32 @@ namespace oyasumi.Objects
             [8] = APIRankedStatus.Loved
         };
 
-        public string FileChecksum;
-        public string FileName;
-        public int Id;
-        public int SetId;
-        public RankedStatus Status;
-        public bool Frozen;
-        public int PlayCount;
-        public int PassCount;
-        public int OnlineOffset;
-        public int Rating;
-
+        [JsonProperty("file_checksum")] public string FileChecksum;
+        [JsonProperty("file_name")] public string FileName;
+        [JsonProperty("id")] public int Id { get; set; }
+        [JsonProperty("set_id")] public int SetId { get; set; }
+        [JsonProperty("status")] public RankedStatus Status { get; set; }
+        [JsonProperty("frozen")] public bool Frozen;
+        [JsonProperty("play_count")] public int PlayCount;
+        
+        [JsonProperty("pass_count")] public int PassCount;
+        [JsonProperty("online_offset")] public int OnlineOffset;
+        [JsonProperty("rating")] public int Rating;
+        
+        [JsonIgnore]
         public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, List<string>>> LeaderboardFormatted = new();
+        
+        [JsonIgnore]
         public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, ConcurrentDictionary<int, Score>>> LeaderboardCache = new(); // int is user id
 
-        public BeatmapMetadata Metadata;
-        public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
-        public Beatmap(
+        [JsonProperty("metadata")] public BeatmapMetadata Metadata { get; set; }
+        public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]" ;
+        public Beatmap
+        (
             string md5, string fileName, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
             bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard, 
             PlayMode mode, LeaderboardMode lbMode, OyasumiDbContext context
-            )
+        )
         {
             FileChecksum = md5;
             FileName = fileName;
@@ -181,6 +186,21 @@ namespace oyasumi.Objects
 
             return new Beatmap(md5, fileName, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
                 status, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
+        }
+
+        public void ClearLeaderboard()
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                LeaderboardCache[(LeaderboardMode)i] = new();
+                LeaderboardFormatted[(LeaderboardMode)i] = new();
+
+                for (var j = 0; j < 4; j++)
+                {
+                    LeaderboardCache[(LeaderboardMode)i][(PlayMode)j] = new();
+                    LeaderboardFormatted[(LeaderboardMode)i][(PlayMode)j] = new();
+                }
+            }
         }
 
         public string ToString(PlayMode mode, LeaderboardMode lbMode)

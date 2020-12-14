@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class MatchTransferHost
     {
         [Packet(PacketType.ClientMultiTransferHost)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -35,11 +35,11 @@ namespace oyasumi.Events
                 return;
 
             match.Host = newHost.Presence;
-            match.Host.MatchTransferHost();
+            await match.Host.MatchTransferHost();
 
 
             foreach (var presence in match.Presences)
-                presence.MatchUpdate(match);
+                await presence.MatchUpdate(match);
         }
     }
 }

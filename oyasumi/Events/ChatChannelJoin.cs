@@ -14,14 +14,14 @@ namespace oyasumi.Events
     public class ChatChannelJoin
     {
         [Packet(PacketType.ClientChatChannelJoin)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
 
             var channel = reader.ReadString();
 
-            pr.JoinChannel(channel);
+            await pr.JoinChannel(channel);
         }
     }
 }

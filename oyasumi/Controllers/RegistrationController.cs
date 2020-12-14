@@ -30,7 +30,7 @@ namespace oyasumi.Controllers
         {
             var username = (string)Request.Form["user[username]"];
             var email = (string)Request.Form["user[user_email]"];
-            var password_plain = (string)Request.Form["user[password]"]; // plain text
+            var plainPassword = (string)Request.Form["user[password]"]; // plain text
 
             var errors = new Dictionary<string, List<string>>() 
             { 
@@ -55,11 +55,11 @@ namespace oyasumi.Controllers
             if (await _context.Users.AnyAsync(x => x.Email == email))
                 errors["user_email"].Add("Email already taken by another player.");
             */
-            var passwordLength = password_plain.Length;
+            var passwordLength = plainPassword.Length;
             if (!(passwordLength >= 8 && passwordLength <= 32))
                 errors["password"].Add("Must be 8-32 characters in length.");
 
-            var uniqueCharsCount = password_plain.Distinct().Count();
+            var uniqueCharsCount = plainPassword.Distinct().Count();
             if (uniqueCharsCount <= 3)
                 errors["password"].Add("Must have more than 3 unique characters.");
 
@@ -71,36 +71,36 @@ namespace oyasumi.Controllers
                 return NetUtils.Content(compiledJson, 422);
             }
 
-            if (Request.Form["check"] == "0")
+            if (Request.Form["check"] != "0") 
+                return Ok("<>");
+            
+            var passwordMd5 = Crypto.ComputeHash(plainPassword);
+            var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
+
+            if (!Base.PasswordCache.TryGetValue(passwordMd5, out var _))
+                Base.PasswordCache.TryAdd(passwordMd5, passwordBcrypt);
+
+            var user = new User
             {
-                var passwordMd5 = Crypto.ComputeHash(password_plain);
-                var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
+                Username = username,
+                UsernameSafe = username.ToSafe(),
+                Password = passwordBcrypt,
+                Country = "XX",
+                Privileges = Privileges.Normal
+            };
 
-                if (!Base.PasswordCache.TryGetValue(passwordMd5, out var _))
-                    Base.PasswordCache.TryAdd(passwordMd5, passwordBcrypt);
+            var vanillaStats = new VanillaStats();
+            var relaxStats = new RelaxStats();
 
-                var user = new User
-                {
-                    Username = username,
-                    UsernameSafe = (username).ToSafe(),
-                    Password = passwordBcrypt,
-                    Country = "XX"
-                };
+            await _context.Users.AddAsync(user);
+            await _context.VanillaStats.AddAsync(vanillaStats);
+            await _context.RelaxStats.AddAsync(relaxStats);
 
-                var vanillaStats = new VanillaStats();
-                var relaxStats = new RelaxStats();
+            await _context.SaveChangesAsync();
 
-                await _context.Users.AddAsync(user);
-                await _context.VanillaStats.AddAsync(vanillaStats);
-                await _context.RelaxStats.AddAsync(relaxStats);
-
-                await _context.SaveChangesAsync();
-
-                Base.UserCache.Add(username, user.Id, user);
-                Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanillaStats);
-                Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(user.Id, vanillaStats);
-
-            }
+            Base.UserCache.Add(username, user.Id, user);
+            Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanillaStats);
+            Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(user.Id, vanillaStats);
 
             return Ok("<>");
         }

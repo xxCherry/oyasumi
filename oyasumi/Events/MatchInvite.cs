@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class MatchInvite
     {
         [Packet(PacketType.ClientMultiInvite)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -29,7 +29,7 @@ namespace oyasumi.Events
             if (target is null)
                 return;
 
-            target.MatchInvite(pr, $"Come join to my game: [osump://{match.Id}/{match.GamePassword} {match.GameName}]");
+            await target.MatchInvite(pr, $"Come join to my game: [osump://{match.Id}/{match.GamePassword} {match.GameName}]");
         }
     }
 }

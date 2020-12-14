@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using net.r_eg.Conari;
 
 namespace oyasumi.Utilities
 {
@@ -20,30 +21,25 @@ namespace oyasumi.Utilities
         public static extern bool validate_password(string password, string hash);
     } */
 
-    public class Crypto
+    public static class Crypto
     {
-        public static string GenerateHash(string password)
-        {
-            return BCrypt.Net.BCrypt.HashPassword(password, 10); // BCrypt.generate_hash(password, 10);
-        }
-        
-        public static bool VerifyPassword(string plaintext, string hash)
-        {
-            return BCrypt.Net.BCrypt.Verify(plaintext, hash); // BCrypt.validate_password(plaintext, hash);
-        }
+        public static string GenerateHash(string password) =>
+            BCrypt.Net.BCrypt.HashPassword(password, 10); // BCrypt.generate_hash(password, 10);
+
+        public static bool VerifyPassword(string plaintext, string hash) => 
+            BCrypt.Net.BCrypt.Verify(plaintext, hash); // BCrypt.validate_password(plaintext, hash);
+
 
         public static string ComputeHash(string str) => ComputeHash(Encoding.UTF8.GetBytes(str));
 
         public static string ComputeHash(byte[] buffer)
         {
-            MD5 md5 = MD5.Create();
+            var md5 = MD5.Create();
+            var data = md5.ComputeHash(buffer);
+            var sb = new StringBuilder();
 
-            byte[] data = md5.ComputeHash(buffer);
-
-            StringBuilder sb = new StringBuilder();
-
-            for (int i = 0; i < data.Length; i++)
-                sb.Append(data[i].ToString("x2"));
+            foreach (var b in data)
+                sb.Append(b.ToString("x2"));
 
             return sb.ToString();
         }
