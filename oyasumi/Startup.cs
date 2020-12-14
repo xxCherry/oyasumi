@@ -67,6 +67,7 @@ namespace oyasumi
 			var relaxStats = context.RelaxStats.AsNoTracking().AsEnumerable();
 
 			var friends = context.Friends.AsNoTracking().AsEnumerable();
+			var tokens = context.Tokens.AsNoTracking().AsEnumerable();
 
 			foreach (var u in users)
 				Base.UserCache.Add(u.Username, u.Id, u);
@@ -82,6 +83,9 @@ namespace oyasumi
 
 			foreach (var f in friends)
 				Base.FriendCache[f.Friend1].Add(f.Friend2);
+
+			foreach (var t in tokens)
+				Base.TokenCache.Add(t.UserToken, t.UserId, t);
 
 			ChannelManager.Channels.TryAdd("#osu", new Channel("#osu", "Default osu! channel", 1, true));
 
@@ -103,6 +107,7 @@ namespace oyasumi
 				var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
 				    $"server=localhost;database={Config.Properties.Database};" +
 					$"user={Config.Properties.Username};password={Config.Properties.Password};");
+				
 				var _context = new OyasumiDbContext(builder.Options);
 				
 				while (true)
@@ -118,8 +123,12 @@ namespace oyasumi
 					if (Base.UserDbUpdate.Any())
 					{
 						while (Base.UserDbUpdate.TryDequeue(out var u))
-							_context.Users.FirstOrDefault(x => x.Id == u.Id).Privileges = u.Privileges;
-							
+						{
+							var user = _context.Users.FirstOrDefault(x => x.Id == u.Id);
+							user.Privileges = u.Privileges;
+							user.Password = u.Password;
+						}
+
 						_context.SaveChanges();
 					}
 					

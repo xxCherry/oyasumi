@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Interfaces;
 
@@ -29,6 +30,9 @@ namespace oyasumi.Extensions
 
         public static string ToSafe(this string self) =>
             self.Replace(" ", "_").ToLower();
+
+        public static bool Banned(this User self) => 
+            !((self.Privileges & Privileges.Normal) > 0);
 
         public static long TotalScore(this IStats stats, PlayMode mode)
         {

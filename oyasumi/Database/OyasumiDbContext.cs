@@ -24,5 +24,6 @@ namespace oyasumi.Database
         public DbSet<DbBeatmap> Beatmaps { get; set; }
         public DbSet<DbChannel> Channels { get; set; }
         public DbSet<Friend> Friends { get; set; }
+        public DbSet<Token> Tokens { get; set; }
     }
 }

@@ -22,6 +22,40 @@ namespace oyasumi.Utilities
             return result;
         }
 
+        public static ContentResult StatusCode(object message, int code)
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["result"] = message
+            };
+            
+            var result = new ContentResult
+            {
+                ContentType = "application/json", 
+                StatusCode = code, 
+                Content = JsonConvert.SerializeObject(dict)
+            };
+            
+            return result;
+        }
+        
+        public static ContentResult Error(object message)
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["result"] = message
+            };
+            
+            var result = new ContentResult
+            {
+                ContentType = "application/json", 
+                StatusCode = 401, 
+                Content = JsonConvert.SerializeObject(dict)
+            };
+            
+            return result;
+        }
+        
         public static async Task<(string countryCode, float latitude, float longitude)> FetchGeoLocation(string ip)
         {
             using var httpClient = new HttpClient();

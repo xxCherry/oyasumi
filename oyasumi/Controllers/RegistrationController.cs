@@ -50,11 +50,10 @@ namespace oyasumi.Controllers
                     @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
                     RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250))) 
                 errors["user_email"].Add("Invalid email syntax.");
-
-            /* no email yet
+            
             if (await _context.Users.AnyAsync(x => x.Email == email))
                 errors["user_email"].Add("Email already taken by another player.");
-            */
+            
             var passwordLength = plainPassword.Length;
             if (!(passwordLength >= 8 && passwordLength <= 32))
                 errors["password"].Add("Must be 8-32 characters in length.");
@@ -96,9 +95,19 @@ namespace oyasumi.Controllers
             await _context.VanillaStats.AddAsync(vanillaStats);
             await _context.RelaxStats.AddAsync(relaxStats);
 
+            var token = new Token
+            {
+                UserId = user.Id,
+                UserToken = Guid.NewGuid().ToString()
+            };
+
+            await _context.Tokens.AddAsync(token);
+            
             await _context.SaveChangesAsync();
 
             Base.UserCache.Add(username, user.Id, user);
+            Base.TokenCache.Add(token.UserToken, token.UserId, token);
+            
             Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanillaStats);
             Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(user.Id, vanillaStats);
 
