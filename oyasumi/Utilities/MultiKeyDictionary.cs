@@ -47,7 +47,20 @@ namespace oyasumi.Utilities
         private readonly ConcurrentDictionary<P, S> _gateDictionary = new(); // used to get secondary key from primary
         private readonly ConcurrentDictionary<S, V> _secondaryDictionary = new();
 
-        public V this[P primary] => _primaryDictionary.TryGetValue(primary, out var item) ? item : default;
+        public V this[P primary]
+        {
+
+            get => _primaryDictionary.TryGetValue(primary, out var item) ? item : default;
+            set
+            {
+                _gateDictionary.TryGetValue(primary, out var secondary);
+                _primaryDictionary.TryUpdate(primary, value,
+                    _primaryDictionary.TryGetValue(primary, out var item1) ? item1 : default);
+                _secondaryDictionary.TryUpdate(secondary, value,
+                    _primaryDictionary.TryGetValue(primary, out var item2) ? item2 : default);
+            }
+        }
+
         public V this[S secondary] => _secondaryDictionary.TryGetValue(secondary, out var item) ? item : default;
         public IEnumerable<V> Values => _primaryDictionary.Values;
 

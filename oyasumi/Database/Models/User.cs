@@ -17,9 +17,12 @@ namespace oyasumi.Database.Models
         [Required]
         public string Username { get; set; }
         public string UsernameAka { get; set; }
-        public string UsernameSafe { get; set; }
-        public string Country { get; set; }
         [Required]
         public string Password { get; set; }
+        public string Email { get; set; }
+        public string UsernameSafe { get; set; }
+        public string Country { get; set; }
+        public string UserpageContent { get; set; }
+        public bool PreferNightcore { get; set; }
     }
 }

@@ -9,6 +9,7 @@ namespace oyasumi.Objects
         public string Username { get; set; }
         public string Password { get; set; }
         public string BeatmapMirror { get; set; }
+        public string RecaptchaPrivate { get; set; }
     }
 
     public class Config

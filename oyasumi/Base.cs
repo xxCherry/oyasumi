@@ -49,11 +49,11 @@ namespace oyasumi
 			[LeaderboardMode.Vanilla] = new(),
 			[LeaderboardMode.Relax] = new()
 		};
-		
-		
 		public static readonly ConcurrentDictionary<string, string> PasswordCache = new();
 		public static readonly TwoKeyDictionary<string, int, User> UserCache = new();
 		public static readonly ConcurrentDictionary<string, CommandItem> CommandCache = new();
+		public static readonly TwoKeyDictionary<string, int, Token> TokenCache = new();
+		
 		public static readonly ConcurrentQueue<Beatmap> BeatmapDbStatusUpdate = new();
 		public static readonly ConcurrentQueue<User> UserDbUpdate = new();
 		public static void Main(string[] args)
