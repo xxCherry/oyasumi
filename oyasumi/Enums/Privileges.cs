@@ -11,9 +11,9 @@ namespace oyasumi.Enums
     {
         Banned = 1 << 0,
         Restricted = 1 << 1,
-        Normal = 2 << 1,
-        Verified = 3 << 1,
-        ManageBeatmaps = 4 << 1,
-        ManageUsers = 5 << 1
+        Normal = 1 << 2,
+        Verified = 1 << 3,
+        ManageBeatmaps = 1 << 4,
+        ManageUsers = 1 << 5
     }
 }

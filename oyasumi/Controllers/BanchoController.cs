@@ -40,23 +40,15 @@ namespace oyasumi.Controllers
 		public async Task<FileContentResult> Notification(string message)
 		{
 			Response.Headers["cho-token"] = "no-token";
-			return File(await BanchoPacketLayouts.NotificationAsync(message),
+			return File(await BanchoPacketLayouts.NotificationAsync(message), 
 				"application/octet-stream");
 		}
 
-		/*public async Task<FileContentResult> BannedError()
+		public async Task<FileContentResult> BannedError()
 		{
-			var notif = await Notification("hello");
-			var notifBytes = notif.FileContents;
-			
-			var wrongCreds = await WrongCredentials();
-			var wrongCredsBytes = wrongCreds.FileContents;
-
-			var array = new byte[notifBytes.Length + wrongCredsBytes.Length];
-			notifBytes.
-			
-			return File(notifBytes. "application/octet-stream");
-		} */
+			Response.Headers["cho-token"] = "no-token";
+			return File(await BanchoPacketLayouts.BannedError(), "application/octet-stream");
+		} 
 
 		[Route("/")]
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
@@ -102,10 +94,7 @@ namespace oyasumi.Controllers
 				}
 				
 				if (!((dbUser.Privileges & Privileges.Normal) > 0))
-				{
-					
-					return await WrongCredentials();
-				}
+					return await BannedError();
 
 				var presence = new Presence(dbUser, timezone);
 
