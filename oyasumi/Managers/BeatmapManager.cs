@@ -22,24 +22,22 @@ namespace oyasumi.Managers
     public static class BeatmapManager
     {
         // Beatmap local cache
-        public static TwoKeyDictionary<int, string, Beatmap> Beatmaps = new TwoKeyDictionary<int, string, Beatmap>();
+        public static TwoKeyDictionary<int, string, Beatmap> Beatmaps = new ();
         
         /// <summary>
         ///  Getting beatmap by fastest method available
         /// </summary>
         /// <param name="checksum">MD5 checksum of beatmap</param>
-        /// <param name="title">Beatmap title object</param>
+        /// <param name="fileName">Name of osu beatmap file</param>
+        /// <param name="setId">Beatmap set id</param>
+        /// <param name="context">Database instance</param>
         public static async Task<(RankedStatus, Beatmap)> Get(string checksum, string fileName, int setId, OyasumiDbContext context, bool leaderboard = true, PlayMode mode = PlayMode.Osu, LeaderboardMode lbMode = LeaderboardMode.Vanilla)
         {
             var beatmap = Beatmaps[checksum]; // try get beatmap from local cache
 
             if (beatmap is not null)
-            {  
-                if (beatmap.Id == -1)
-                    return (RankedStatus.NotSubmitted, beatmap);
-                else
-                    return (RankedStatus.Approved, beatmap);                  // Approved is not actual ranked status
-                                                                              // just for handling them after calling Get()
+            {
+                return beatmap.Id == -1 ? (RankedStatus.NotSubmitted, beatmap) : (RankedStatus.Approved, beatmap);
             }
 
             var dbBeatmap = context.Beatmaps.AsNoTracking().FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db

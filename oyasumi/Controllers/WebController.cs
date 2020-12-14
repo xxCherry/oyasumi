@@ -141,7 +141,7 @@ namespace oyasumi.Controllers
 
             var lbMode = score.Mods switch
             {
-                Mods mod when (mod & Mods.Relax) > 0 => LeaderboardMode.Relax,
+                var mod when (mod & Mods.Relax) > 0 => LeaderboardMode.Relax,
                 _ => LeaderboardMode.Vanilla
             };
 
@@ -158,7 +158,7 @@ namespace oyasumi.Controllers
                     if (failed || !score.Passed)
                     {
                         foreach (var otherPresence in PresenceManager.Presences.Values)
-                            score.Presence.UserStats(otherPresence);
+                            await score.Presence.UserStats(otherPresence);
 
                         score.Completed = CompletedStatus.Failed;
                         return Ok("error: no");
@@ -236,7 +236,7 @@ namespace oyasumi.Controllers
                     var presenceAfter = score.Presence;
 
                     foreach (var otherPresence in PresenceManager.Presences.Values)
-                        score.Presence.UserStats(otherPresence);
+                        await score.Presence.UserStats(otherPresence);
 
                     Score oldScore = null;
                     var oldScoreFound = false;
@@ -252,12 +252,14 @@ namespace oyasumi.Controllers
                     {
                         score.Beatmap.LeaderboardCache[lbMode][score.PlayMode].TryAdd(bScore.UserId, bScore);
 
-                        if (bScore.Rank == 1 && oldScore?.Rank != 1)
-                            ChannelManager.SendMessage("oyasumi", $"[{lbMode}] [https://astellia.club/{bScore.UserId} {presenceAfter.Username}] achieved #1 on https://osu.ppy.sh/b/{score.Beatmap.Id}", "#announce", 1, true);
+                        if (bScore.Rank == 1 && bScore.UserId == score.UserId && oldScore?.Rank != 1)
+                            await ChannelManager.SendMessage("oyasumi", $"[{lbMode}] [https://astellia.club/{bScore.UserId} {presenceAfter.Username}] achieved #1 on https://osu.ppy.sh/b/{score.Beatmap.Id}", "#announce", 1, true);
                     }
 
                     score.Beatmap.LeaderboardFormatted[lbMode][score.PlayMode] = Score.FormatScores(scores, score.PlayMode);
 
+                    score.Presence.LastScore = score;
+                    
                     var bmChart = new Chart("beatmap", "astellia.club", "Beatmap Ranking", score.ScoreId, "", !oldScoreFound ? score : oldScore, score, null, null);
                     var oaChart = new Chart("overall", "astellia.club", "Overall Ranking", score.ScoreId, "", null, null, presenceBefore, presenceAfter);
 
@@ -277,7 +279,7 @@ namespace oyasumi.Controllers
                     await score.Presence.Apply(_context);
 
                     foreach (var otherPresence in PresenceManager.Presences.Values)
-                        score.Presence.UserStats(otherPresence);
+                        await score.Presence.UserStats(otherPresence);
 
                     return Ok("error: no");
             }
@@ -340,7 +342,7 @@ namespace oyasumi.Controllers
                 presence.Status.CurrentMods &= ~Mods.Relax;
 
             await presence.GetOrUpdateUserStats(null, lbMode, false);
-            presence.UserStats();
+            await presence.UserStats();
 
             var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, fileName, setId, _context);
 

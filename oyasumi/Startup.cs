@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -14,11 +15,13 @@ using oyasumi.Database;
 using oyasumi.Enums;
 using oyasumi.Managers;
 using oyasumi.Objects;
+using oyasumi.Utilities;
 
 namespace oyasumi
 {
 	public class Startup
 	{
+		private const int PING_TIMEOUT = 120000;
 		public Startup(IConfiguration configuration) =>
 			Configuration = configuration;
 
@@ -58,7 +61,6 @@ namespace oyasumi
 			}
 
 			// User cache, speed up inital login by 15x
-
 			var users = context.Users.AsNoTracking().AsEnumerable();
 
 			var vanillaStats = context.VanillaStats.AsNoTracking().AsEnumerable();
@@ -86,13 +88,59 @@ namespace oyasumi
 			foreach (var chan in context.Channels)
 				ChannelManager.Channels.TryAdd(chan.Name, new Channel(chan.Name, chan.Topic, 1, chan.Public));
 
-			var bot = new Presence(1, "oyasumi", 0, 0f, 0, 0, 0, 0);
+			var bot = new Presence(int.MaxValue, "oyasumi", 0, 0f, 0, 0, 0, 0);
 
 			bot.Status.Status = ActionStatuses.Watching;
 			bot.Status.StatusText = "for sneaky gamers";
 
 			PresenceManager.Add(bot);
 			//new OyasumiDbContext().Migrate();
+
+			
+			// Disconnect inactive users and other stuff
+			new Thread(() =>
+			{
+				var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
+				    $"server=localhost;database={Config.Properties.Database};" +
+					$"user={Config.Properties.Username};password={Config.Properties.Password};");
+				var _context = new OyasumiDbContext(builder.Options);
+				
+				while (true)
+				{
+					if (Base.BeatmapDbStatusUpdate.Any())
+					{
+						while (Base.BeatmapDbStatusUpdate.TryDequeue(out var b))
+							_context.Beatmaps.FirstOrDefault(x => x.BeatmapId == b.Id).Status = b.Status;
+
+						_context.SaveChanges();
+					}
+					
+					if (Base.UserDbUpdate.Any())
+					{
+						while (Base.UserDbUpdate.TryDequeue(out var u))
+							_context.Users.FirstOrDefault(x => x.Id == u.Id).Privileges = u.Privileges;
+							
+						_context.SaveChanges();
+					}
+					
+					var currentTime = Time.CurrentUnixTimestamp;
+					var presences = PresenceManager.Presences.Values;
+					
+					if (!presences.Any()) continue;
+					
+					foreach (var pr in presences)
+					{
+						if (pr.Username == "oyasumi") continue;
+
+						if (currentTime - pr.LastPing <= 60 || pr.LastPing == 0)
+							continue;
+
+						PresenceManager.Remove(pr).Wait();
+						Console.WriteLine($"Remove {pr.Username}");
+					}
+					Thread.Sleep(30);
+				}
+			}).Start();
 
 			app.UseHttpsRedirection();
 

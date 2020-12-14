@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
@@ -10,7 +11,7 @@ namespace oyasumi.Events
     public class SpectatorJoin
     {
         [Packet(PacketType.ClientSpectateStart)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
@@ -20,7 +21,7 @@ namespace oyasumi.Events
             var spectatingPresence = PresenceManager.GetPresenceById(userId);
 
             pr.Spectating = spectatingPresence;
-            pr.Spectating.SpectatorJoined(pr.Id);
+            await pr.Spectating.SpectatorJoined(pr.Id);
 
             if (pr.Spectating.SpectatorChannel is null)
             {
@@ -29,10 +30,10 @@ namespace oyasumi.Events
 
                 ChannelManager.Channels.TryAdd(channel.RawName, channel);
 
-                pr.Spectating.JoinChannel($"spect_{pr.Spectating.Id}");
+                await pr.Spectating.JoinChannel($"spect_{pr.Spectating.Id}");
             }
 
-            pr.JoinChannel($"spect_{pr.Spectating.Id}");
+            await pr.JoinChannel($"spect_{pr.Spectating.Id}");
 
             spectatingPresence.Spectators.Add(pr);
         }

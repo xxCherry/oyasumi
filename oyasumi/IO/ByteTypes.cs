@@ -1,6 +1,6 @@
 ﻿namespace oyasumi.IO
 {
-    internal enum TypeBytes : byte
+    internal enum ByteTypes : byte
     {
         Null,
         Bool,

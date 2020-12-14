@@ -16,13 +16,9 @@ namespace oyasumi.IO
 		public static IEnumerable<Packet> Parse(MemoryStream data)
 		{
 			using var reader = new SerializationReader(data);
-
-			var packets = new List<Packet>();
-
+			
 			while (data.Position != data.Length)
-				packets.Add(Read(reader));
-
-			return packets.AsEnumerable();
+				yield return Read(reader);
 		}
 
 		private static Packet Read(BinaryReader reader)

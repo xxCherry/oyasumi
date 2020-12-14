@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using Org.BouncyCastle.Asn1.Cms;
 using oyasumi.Database;
 using oyasumi.Enums;
@@ -12,7 +13,7 @@ namespace oyasumi.Events
     public class UserStatusUpdate
     {
         [Packet(PacketType.ClientUserStatus)]
-        public static async void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
@@ -37,7 +38,7 @@ namespace oyasumi.Events
             // use context here
             await pr.GetOrUpdateUserStats(null, lbMode, false); 
             
-            pr.UserStats();
+            await pr.UserStats();
         }
     }
 }

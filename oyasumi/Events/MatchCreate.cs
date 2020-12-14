@@ -16,7 +16,7 @@ namespace oyasumi.Events
     public class MatchCreate
     {
         [Packet(PacketType.ClientMultiMatchCreate)]
-        public static void Handle(Packet p, Presence pr, OyasumiDbContext context)
+        public static async Task Handle(Packet p, Presence pr, OyasumiDbContext context)
         {
             var reader = new SerializationReader(new MemoryStream(p.Data));
             var match = reader.ReadMatch(context);
@@ -26,13 +26,13 @@ namespace oyasumi.Events
 
             match.Host = pr;
 
-            MatchManager.JoinMatch(pr, match, match.GamePassword);
+            await MatchManager.JoinMatch(pr, match, match.GamePassword);
 
             var channel = new Channel($"multi_{match.Id}", "", 1, true);
             match.Channel = channel;
             ChannelManager.Channels.TryAdd(channel.RawName, channel);
 
-            pr.JoinChannel($"multi_{match.Id}");
+            await pr.JoinChannel($"multi_{match.Id}");
         }
     }
 }

@@ -16,7 +16,7 @@ namespace oyasumi.Events
     public class MatchChangePassword
     {
         [Packet(PacketType.ClientMultiChangePassword)]
-        public static void Handle(Packet p, Presence pr, OyasumiDbContext context)
+        public static async Task Handle(Packet p, Presence pr, OyasumiDbContext context)
         {
             var match = pr.CurrentMatch;
 
@@ -33,7 +33,7 @@ namespace oyasumi.Events
             match.GamePassword = newMatch.GamePassword;
 
             foreach (var presence in match.Presences)
-                presence.MatchUpdate(match);
+                await presence.MatchUpdate(match);
         }
     }
 }

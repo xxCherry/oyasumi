@@ -27,10 +27,8 @@ namespace oyasumi.Controllers
 	{
 		private readonly OyasumiDbContext _context;
 
-		public BanchoController(OyasumiDbContext context)
-		{
+		public BanchoController(OyasumiDbContext context) =>
 			_context = context;
-		}
 
 		public async Task<FileContentResult> WrongCredentials()
 		{
@@ -38,6 +36,27 @@ namespace oyasumi.Controllers
 			return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
 				"application/octet-stream");
 		}
+		
+		public async Task<FileContentResult> Notification(string message)
+		{
+			Response.Headers["cho-token"] = "no-token";
+			return File(await BanchoPacketLayouts.NotificationAsync(message),
+				"application/octet-stream");
+		}
+
+		/*public async Task<FileContentResult> BannedError()
+		{
+			var notif = await Notification("hello");
+			var notifBytes = notif.FileContents;
+			
+			var wrongCreds = await WrongCredentials();
+			var wrongCredsBytes = wrongCreds.FileContents;
+
+			var array = new byte[notifBytes.Length + wrongCredsBytes.Length];
+			notifBytes.
+			
+			return File(notifBytes. "application/octet-stream");
+		} */
 
 		[Route("/")]
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
@@ -76,47 +95,52 @@ namespace oyasumi.Controllers
 
 				if (dbUser.Country == "XX")
 				{
-					var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe()); // cached user can't be used
-
-					var geoData = await NetUtils.FetchGeoLocation(ip);
-
-					user.Country = geoData.countryCode;
+					var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe()); // cached user can't be used to update something
+					user.Country = (await NetUtils.FetchGeoLocation(ip)).countryCode;
 
 					await _context.SaveChangesAsync();
+				}
+				
+				if (!((dbUser.Privileges & Privileges.Normal) > 0))
+				{
+					
+					return await WrongCredentials();
 				}
 
 				var presence = new Presence(dbUser, timezone);
 
 				PresenceManager.Add(presence);
-
+				
 				await presence.GetOrUpdateUserStats(_context, LeaderboardMode.Vanilla, false);
 
-				presence.ProtocolVersion(19);
-				presence.LoginReply(presence.Id);
+				await presence.ProtocolVersion(19);
+				await presence.LoginReply(presence.Id);
 
-				presence.Notification("Welcome to oyasumi.");
+				await presence.Notification("Welcome to oyasumi.");
 
-				presence.UserPresence();
-				presence.UserStats();
-				presence.UserPermissions(BanchoPermissions.Peppy | BanchoPermissions.Supporter);
+				await presence.UserPresence();
+				await presence.UserStats();
+				await presence.UserPermissions(BanchoPermissions.Peppy | BanchoPermissions.Supporter);
 
-				presence.UserPresenceSingle(presence.Id);
+				await presence.UserPresenceSingle(presence.Id);
 
-				presence.FriendList(Base.FriendCache.Where(x => x.Key == presence.Id).FirstOrDefault().Value?.ToArray());
+				Base.FriendCache.TryGetValue(presence.Id, out var friends);
+
+				await presence.FriendList(friends?.ToArray());
 
 				// Default channel
-				presence.ChatChannelListingComplete(0);
-				presence.JoinChannel("#osu");
-				presence.ChatChannelAvailable("#osu", "Default osu! channel", 1);
+				await presence.ChatChannelListingComplete(0);
+			    await presence.JoinChannel("#osu");
+				await presence.ChatChannelAvailable("#osu", "Default osu! channel", 1);
 
 				// TODO: user count
 				foreach (var chan in ChannelManager.Channels.Values)
-					presence.ChatChannelAvailable(chan.Name, chan.Description, (short)chan.UserCount);
+					await presence.ChatChannelAvailable(chan.Name, chan.Description, (short)chan.UserCount);
 
 				foreach (var pr in PresenceManager.Presences.Values) // go for each presence
 				{
-					pr.UserPresence(presence); // send us to users
-					presence.UserPresence(pr); // send users to us
+					await pr.UserPresence(presence); // send us to users
+					await presence.UserPresence(pr); // send users to us
 				}
 
 				var bytes = await presence.WritePackets();
@@ -124,7 +148,7 @@ namespace oyasumi.Controllers
 				Response.Headers["cho-token"] = presence.Token;
 				Response.Headers["cho-protocol"] = "19";
 
-				presence.Notification("Login took: " + stopwatch.Elapsed.TotalMilliseconds + "ms");
+				await presence.Notification("Login took: " + stopwatch.Elapsed.TotalMilliseconds + "ms");
 
 				stopwatch.Stop();
 
@@ -148,27 +172,30 @@ namespace oyasumi.Controllers
 
 				foreach (var packet in packets)
 				{
-					if (!Base.PacketImplCache.TryGetValue(packet.Type, out var handle))
+					if (!Base.PacketImplCache.TryGetValue(packet.Type, out var pItem))
 					{
 						var meth = Base.Types
 								.SelectMany(type => type.GetMethods())
-								.FirstOrDefault(m => m?.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
+								.FirstOrDefault(m => m.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
 
 						if (meth is null)
+							continue; // no handler found for this packet, skipping...
+
+						pItem = new()
 						{
-							// not handled
-							Console.WriteLine(packet.Type.ToString());
-							continue;
-						}
+							Executor = ReflectionUtils.GetExecutor(meth),
+							IsDbContextRequired = meth.GetParameters().Length > 2
+						};
 
-						handle = ReflectionUtils.CompilePacketHandler(meth);
-
-						Base.PacketImplCache.TryAdd(packet.Type, handle);
+						Base.PacketImplCache.TryAdd(packet.Type, pItem);
 					}
 
-					handle(packet, presence, _context);
-
-					Console.WriteLine(packet.Type.ToString());
+					presence.LastPing = Time.CurrentUnixTimestamp;
+					
+					pItem.Executor.Execute(null,
+						pItem.IsDbContextRequired
+							? new object[] {packet, presence, _context}
+							: new object[] {packet, presence});
 				}
 
 				var bytes = await presence.WritePackets();
@@ -177,4 +204,4 @@ namespace oyasumi.Controllers
 			}
 		}
 	}
-}
+}	

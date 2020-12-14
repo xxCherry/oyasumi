@@ -10,7 +10,7 @@ namespace oyasumi.Events
         [Packet(PacketType.ClientPong)]
         public static void Handle(Packet p, Presence pr)
         {
-            pr.LastPing = Time.CurrentUnixTimestamp;
+            //pr.LastPing = Time.CurrentUnixTimestamp;
         }
     }
 }

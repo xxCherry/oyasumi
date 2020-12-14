@@ -50,7 +50,9 @@ namespace oyasumi.Objects
 		// --
 
 		public int LastPing;
-
+		public Score LastScore;
+		public Beatmap LastNp;
+		
         private readonly ConcurrentQueue<Packet> _packetQueue = new ConcurrentQueue<Packet>();
 
 		private static readonly List<string> _countryCodes = new List<string>
@@ -81,8 +83,8 @@ namespace oyasumi.Objects
 			Id = user.Id;
 			Username = user.Username;
 			Token = Guid.NewGuid().ToString();
-			Privileges = Privileges.Normal | Privileges.Verified;
-			Status = new PresenceStatus
+			Privileges = user.Privileges;
+			Status = new()
 			{
 				Status = ActionStatuses.Idle,
 				StatusText = "",
@@ -93,7 +95,6 @@ namespace oyasumi.Objects
 			};
 
 			Timezone = (byte)(timezone + 24);
-
 			CountryCode = (byte)_countryCodes.IndexOf(user.Country);
 
 			User = user;
