@@ -18,6 +18,7 @@ using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Interfaces;
+using oyasumi.Managers;
 using oyasumi.Objects;
 using oyasumi.Utilities;
 
@@ -27,6 +28,12 @@ namespace oyasumi
 	{
 		public ObjectMethodExecutorCompiledFast Executor { get; set; }
 		public bool IsDbContextRequired { get; set; }
+	}
+
+	public class BeatmapItem
+	{
+		public Beatmap Beatmap { get; set; }
+		public bool IsSet { get; set; }
 	}
 	
 	public class CommandItem
@@ -54,7 +61,7 @@ namespace oyasumi
 		public static readonly ConcurrentDictionary<string, CommandItem> CommandCache = new();
 		public static readonly TwoKeyDictionary<string, int, Token> TokenCache = new();
 		
-		public static readonly ConcurrentQueue<Beatmap> BeatmapDbStatusUpdate = new();
+		public static readonly ConcurrentQueue<BeatmapItem> BeatmapDbStatusUpdate = new();
 		public static readonly ConcurrentQueue<User> UserDbUpdate = new();
 		public static void Main(string[] args)
 		{

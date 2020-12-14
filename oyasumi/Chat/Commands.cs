@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using oyasumi.Attributes;
 using oyasumi.Enums;
+using oyasumi.Extensions;
 using oyasumi.Layouts;
 using oyasumi.Managers;
 using oyasumi.Objects;
@@ -23,12 +24,13 @@ namespace oyasumi.Chat
                 return;
             }
 
-            await ChannelManager.BotMessage(pr, channel, $"[https://osu.ppy.sh/b/{pr.LastScore.Beatmap.Id} {pr.LastScore.Beatmap.BeatmapName}] " +
-                                                         $"{Math.Round(pr.LastScore.Beatmap.Metadata.Stars, 2)}★, " +
-                                                         $"{Math.Round(pr.LastScore.Accuracy * 100, 2)}%, " +
-                                                         $"{Math.Round(pr.LastScore.PerformancePoints, 2)}pp");
+            await ChannelManager.BotMessage(pr, channel,
+                $"[https://osu.ppy.sh/b/{pr.LastScore.Beatmap.Id} {pr.LastScore.Beatmap.BeatmapName}] " +
+                $"{Math.Round(pr.LastScore.Beatmap.Metadata.Stars, 2)}★, " +
+                $"{Math.Round(pr.LastScore.Accuracy * 100, 2)}%, " +
+                $"{Math.Round(pr.LastScore.PerformancePoints, 2)}pp");
         }
-        
+
         [Command("map", "Set the specified status to last /np'ed map", true, Privileges.ManageBeatmaps, 2)]
         public static async Task MapRanking(Presence pr, string channel, string message, string[] args)
         {
@@ -43,48 +45,72 @@ namespace oyasumi.Chat
                 await ChannelManager.BotMessage(pr, channel, $"Please /np first.");
                 return;
             }
-                
-            var beatmap = pr.LastNp;
 
-            beatmap.Status = args[0] switch
+            var beatmap = pr.LastNp;
+            var isSet = args[1] == "set";
+            
+            var status = args[0] switch
             {
                 "rank" => RankedStatus.Ranked,
                 "love" => RankedStatus.Loved,
                 "unrank" => RankedStatus.LatestPending
             };
+            
+            if (isSet)
+            {
+                var beatmaps = BeatmapManager.Beatmaps.Values.Where(x => x.SetId == beatmap.SetId);
+                foreach (var b in beatmaps)
+                    b.Status = status;
+            }
+            else
+                beatmap.Status = status;
 
             if (beatmap.Status == RankedStatus.LatestPending)
-                beatmap.ClearLeaderboard(); 
-            
-            Base.BeatmapDbStatusUpdate.Enqueue(beatmap);
-            
+                beatmap.ClearLeaderboard();
+
+            Base.BeatmapDbStatusUpdate.Enqueue(new()
+            {
+                Beatmap = beatmap,
+                IsSet = isSet
+            });
+
             await ChannelManager.BotMessage(pr, channel, $"{pr.Username} just {args[0]}ed the beatmap: " +
                                                          $"[https://osu.ppy.sh/b/{beatmap.Id} {beatmap.BeatmapName}]");
         }
 
-        [Command("ban", "Bans specified player", true, Privileges.ManageUsers, 1)]
-        public static async Task Ban(Presence pr, string channel, string message, string[] args)
+        [Command("uban", "Un/ban specified player", true, Privileges.ManageUsers, 1)]
+        public static async Task UBan(Presence pr, string channel, string message, string[] args)
         {
             var user = Base.UserCache[args[0]];
-            
+
             if (user is null)
             {
                 await ChannelManager.BotMessage(pr, channel, $"User not found.");
                 return;
             }
-            
-            user.Privileges |= ~Privileges.Normal;
-            Base.UserDbUpdate.Enqueue(user);
 
-            var target = PresenceManager.GetPresenceById(user.Id);
-            
-            if (target is not null)
+            if (!user.Banned())
             {
-                await target.LoginReply(LoginReplies.WrongCredentials);
-                await target.Notification("Your account is banned.");
+                user.Privileges |= ~Privileges.Normal;
+                Base.UserDbUpdate.Enqueue(user);
+
+                var target = PresenceManager.GetPresenceById(user.Id);
+
+                if (target is not null)
+                {
+                    await target.LoginReply(LoginReplies.WrongCredentials);
+                    await target.Notification("Your account is banned.");
+                }
+
+                await ChannelManager.BotMessage(pr, channel, $"Bye, bye, {user.Username}");
             }
-            
-            await ChannelManager.BotMessage(pr, channel, $"Bye, bye, {user.Username}");
+            else
+            {
+                user.Privileges |= Privileges.Normal;
+                Base.UserDbUpdate.Enqueue(user);
+
+                await ChannelManager.BotMessage(pr, channel, $"Welcome back, {user.Username}");
+            }
         }
     }
 }   

@@ -93,7 +93,7 @@ namespace oyasumi.Controllers
 					await _context.SaveChangesAsync();
 				}
 				
-				if (!((dbUser.Privileges & Privileges.Normal) > 0))
+				if (dbUser.Banned())
 					return await BannedError();
 
 				var presence = new Presence(dbUser, timezone);
