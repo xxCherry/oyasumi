@@ -26,7 +26,7 @@ namespace oyasumi.Events
 
             match.Host = pr;
 
-            await MatchManager.JoinMatch(pr, match, match.GamePassword);
+            await pr.JoinMatch(match, match.GamePassword);
 
             var channel = new Channel($"multi_{match.Id}", "", 1, true);
             match.Channel = channel;

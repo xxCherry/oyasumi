@@ -23,7 +23,7 @@ namespace oyasumi.Events
 
             if (MatchManager.Matches.TryGetValue(matchId, out var match))
             {
-                await MatchManager.JoinMatch(pr, match, password);
+                await pr.JoinMatch(match, password);
                 await pr.JoinChannel($"multi_{match.Id}");
             }
             else

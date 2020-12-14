@@ -114,8 +114,24 @@ namespace oyasumi
 				{
 					if (Base.BeatmapDbStatusUpdate.Any())
 					{
-						while (Base.BeatmapDbStatusUpdate.TryDequeue(out var b))
-							_context.Beatmaps.FirstOrDefault(x => x.BeatmapId == b.Id).Status = b.Status;
+						while (Base.BeatmapDbStatusUpdate.TryDequeue(out var item))
+						{
+							if (item.IsSet)
+							{
+								var beatmaps = _context.Beatmaps
+									.AsEnumerable()
+									.Where(x => item.Beatmap.SetId == x.BeatmapSetId);
+
+								foreach (var b in beatmaps)
+									b.Status = item.Beatmap.Status;
+							}
+							else
+							{
+								_context.Beatmaps
+									.FirstOrDefault(x => x.Id == item.Beatmap.Id)
+									.Status = item.Beatmap.Status;
+							}
+						}
 
 						_context.SaveChanges();
 					}

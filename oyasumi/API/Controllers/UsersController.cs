@@ -153,7 +153,7 @@ namespace oyasumi.API.Controllers
             var errors = new Dictionary<string, List<string>>
             {
                 ["username"] = new(),
-                ["user_email"] = new(),
+                ["email"] = new(),
                 ["password"] = new()
             };
 
@@ -167,10 +167,10 @@ namespace oyasumi.API.Controllers
             if (!Regex.IsMatch(email,
                 @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
                 RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)))
-                errors["user_email"].Add("Invalid email syntax.");
+                errors["email"].Add("Invalid email syntax.");
             
             if (await _context.Users.AnyAsync(x => x.Email == email))
-                errors["user_email"].Add("Email already taken by another player.");
+                errors["email"].Add("Email already taken by another player.");
 
             var passwordLength = plainPassword.Length;
             if (!(passwordLength >= 8 && passwordLength <= 32))
