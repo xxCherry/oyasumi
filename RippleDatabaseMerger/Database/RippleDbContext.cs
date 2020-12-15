@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using RippleDatabaseMerger.Database.Models;
 
-namespace RippleDatabaseMerger.Models
+namespace RippleDatabaseMerger.Database
 {
     public class RippleDbContext : DbContext
     {
@@ -8,6 +9,9 @@ namespace RippleDatabaseMerger.Models
         {
         }
         
-        
+        public DbSet<RippleUser> Users { get; set; }
+        public DbSet<RippleScore> Scores { get; set; }
+        public DbSet<RippleScore> RelaxScores { get; set; }
+        public DbSet<RippleBeatmap> Beatmaps { get; set; }
     }
 }
