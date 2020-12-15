@@ -5,8 +5,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using oyasumi.API.RequestObjects;
-using oyasumi.API.ResponseObjects;
+using oyasumi.API.Request;
+using oyasumi.API.Response;
 using oyasumi.API.Utilities;
 using oyasumi.Database;
 using oyasumi.Database.Models;
@@ -385,6 +385,37 @@ namespace oyasumi.API.Controllers
             var dbToken = await _context.Tokens.FirstOrDefaultAsync(x => x.UserId == token.Id);
             dbToken = token;
 
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpGet("merge_password")]
+        public async Task<IActionResult> MergePassword([FromBody] PasswordMergeRequest info)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(x => x.Username == info.Username);
+            
+            if (user is null)
+                return NetUtils.Error("User not found.");
+            
+            var cachedUser = Base.UserCache[user.Id];
+            var ripplePassword = await _context.RipplePasswords
+                .FirstOrDefaultAsync(x => x.UserId == user.Id);
+
+            // in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
+            // we need to merge it to bcrypt
+            if (user.Password is not null || ripplePassword is null) 
+                return NetUtils.Error("User not found.");
+            
+            if (!Crypto.VerifySCryptPassword(ripplePassword.Password, info.Password, ripplePassword.Salt))
+                return NetUtils.Error("Wrong password.");
+            var passwordMd5 = Crypto.ComputeHash(info.Password);
+            var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
+
+            user.Password = passwordBcrypt;
+                
+            if (cachedUser is not null)
+                cachedUser.Password = passwordBcrypt;
+            
             await _context.SaveChangesAsync();
             return Ok();
         }

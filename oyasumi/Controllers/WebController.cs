@@ -238,27 +238,39 @@ namespace oyasumi.Controllers
                     foreach (var otherPresence in PresenceManager.Presences.Values)
                         await score.Presence.UserStats(otherPresence);
 
+                    var leaderboard = score.Beatmap.LeaderboardCache[lbMode][score.PlayMode];
+                    
                     Score oldScore = null;
                     var oldScoreFound = false;
 
                     if (oldDbScore is not null)
-                        oldScoreFound = score.Beatmap.LeaderboardCache[lbMode][score.PlayMode].TryGetValue(oldDbScore.UserId, out oldScore);
+                        oldScoreFound = leaderboard.TryGetValue(oldDbScore.UserId, out oldScore);
 
                     var scores = await Score.GetRawScores(_context, beatmap.FileChecksum, score.PlayMode, lbMode);
 
-                    score.Beatmap.LeaderboardCache[lbMode][score.PlayMode].Clear(); // Clear the cache
+                    leaderboard.Clear(); // Clear the cache
 
                     foreach (var bScore in scores)
                     {
-                        score.Beatmap.LeaderboardCache[lbMode][score.PlayMode].TryAdd(bScore.UserId, bScore);
+                        leaderboard.TryAdd(bScore.UserId, bScore);
 
                         if (bScore.Rank == 1 && bScore.UserId == score.UserId && oldScore?.Rank != 1)
-                            await ChannelManager.SendMessage("oyasumi", $"[{lbMode}] [https://astellia.club/{bScore.UserId} {presenceAfter.Username}] achieved #1 on https://osu.ppy.sh/b/{score.Beatmap.Id}", "#announce", 1, true);
+                            await ChannelManager.SendMessage("oyasumi",
+                                $"[{lbMode}] [https://astellia.club/{bScore.UserId} {presenceAfter.Username}] achieved #1 on https://osu.ppy.sh/b/{score.Beatmap.Id}",
+                                "#announce", 1, true);
                     }
+                    score.CalculateLeaderboardRank(scores);
 
+                    if (score.Rank == 1 && oldScore?.Rank != 1)
+                        await ChannelManager.SendMessage("oyasumi", $"[{lbMode}] [https://astellia.club/{score.UserId} {presenceAfter.Username}] " +
+                                                                    $"achieved #1 on [https://osu.ppy.sh/b/{score.Beatmap.Id} {score.Beatmap.BeatmapName}]", "#announce", 1, true);
+            
                     score.Beatmap.LeaderboardFormatted[lbMode][score.PlayMode] = Score.FormatScores(scores, score.PlayMode);
 
                     score.Presence.LastScore = score;
+                    
+                    Console.WriteLine(leaderboard.Values.Count);
+                    Console.WriteLine(score.Rank);
                     
                     var bmChart = new Chart("beatmap", "astellia.club", "Beatmap Ranking", score.ScoreId, "", !oldScoreFound ? score : oldScore, score, null, null);
                     var oaChart = new Chart("overall", "astellia.club", "Overall Ranking", score.ScoreId, "", null, null, presenceBefore, presenceAfter);

@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using oyasumi.Enums;
 
-namespace oyasumi.API.ResponseObjects
+namespace oyasumi.API.Response
 {
     public class MeResponse
     {

@@ -61,7 +61,7 @@ namespace oyasumi.Objects
             return leaderboardData;
         }
 
-        public static List<string> FormatScores(List<Score> scores, PlayMode mode)
+        public static List<string> FormatScores(IEnumerable<Score> scores, PlayMode mode)
         {
             var scoreList = new List<string>();
 
@@ -82,12 +82,19 @@ namespace oyasumi.Objects
             return sb.ToString();
         }
 
-        private int CalculateLeaderboardRank(DbScore[] scores)
+        public int CalculateLeaderboardRank(IReadOnlyList<DbScore> scores)
         {
-            for (var i = 0; i < scores.Length; i++)
+            for (var i = 0; i < scores.Count; i++)
                 if (scores[i].UserId == User.Id)
                     return i + 1;
             return 0;
+        }
+        
+        public void CalculateLeaderboardRank(IReadOnlyList<Score> scores)
+        {
+            for (var i = 0; i < scores.Count; i++)
+                if (scores[i].UserId == User.Id)
+                    Rank = i + 1;
         }
 
         public static async Task<Score> FromDb(OyasumiDbContext context, int scoreId, DbScore[] scores = null)
@@ -120,7 +127,7 @@ namespace oyasumi.Objects
 
         public DbScore ToDb()
         {
-            return new DbScore
+            return new()
             {
                 Count50 = Count50,
                 Count100 = Count100,
