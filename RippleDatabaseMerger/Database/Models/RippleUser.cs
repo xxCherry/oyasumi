@@ -1,7 +1,20 @@
-﻿namespace RippleDatabaseMerger.Database.Models
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using RippleDatabaseMerger.Enums;
+
+namespace RippleDatabaseMerger.Database.Models
 {
-    public class Users
+    [Table("users")]
+    public class RippleUser
     {
-        
+        [Required]
+        [Column("id")] 
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+        [Column("username")] [Required] public string Name { get; set; }
+        [Column("password_md5")] [Required] public string Password { get; set; }
+        [Column("email")] [Required] public string Email { get; set; }
+        [Column("privileges")] [Required] public RipplePrivileges Privileges { get; set; }
+        [Column("salt")] [Required] public byte[] Salt { get; set; }
     }
 }
