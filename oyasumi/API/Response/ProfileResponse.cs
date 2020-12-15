@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace oyasumi.API.ResponseObjects
+namespace oyasumi.API.Response
 {
     public class ProfileResponse
     {

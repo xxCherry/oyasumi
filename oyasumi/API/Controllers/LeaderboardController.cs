@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using oyasumi.API.ResponseObjects;
+using oyasumi.API.Response;
 using oyasumi.Database;
 using oyasumi.Enums;
 using oyasumi.Extensions;
@@ -38,7 +38,7 @@ namespace oyasumi.API.Controllers
                 .OrderByDescending(x => x.Performance(mode))
                 .Skip(page <= 1 ? 0 : (page - 1) * limit)
                 .Take(limit)
-                .Select(x => new LeaderboardResponse()
+                .Select(x => new LeaderboardResponse
                 {
                     Id = x.Id,
                     Username = Base.UserCache[x.Id].Username,

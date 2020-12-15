@@ -2,7 +2,7 @@
 using oyasumi.Enums;
 using oyasumi.Objects;
 
-namespace oyasumi.API.ResponseObjects
+namespace oyasumi.API.Response
 {
     public class ProfileScoreResponse
     {

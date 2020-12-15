@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace oyasumi.API.RequestObjects
+namespace oyasumi.API.Request
 {
     public class UserpageUpdateRequest
     {
