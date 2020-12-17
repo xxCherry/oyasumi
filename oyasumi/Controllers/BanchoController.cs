@@ -107,9 +107,20 @@ namespace oyasumi.Controllers
 
 				await presence.Notification("Welcome to oyasumi.");
 
+				var banchoPermissions = BanchoPermissions.Supporter;
+				
+				if ((presence.Privileges & Privileges.ManageBeatmaps) != 0)
+					banchoPermissions |= BanchoPermissions.BAT;
+				if ((presence.Privileges & Privileges.ManageUsers) != 0)
+					banchoPermissions |= BanchoPermissions.Moderator;
+
+				// TODO: add new privileges for it
+				if (presence.Username == "Cherry")
+					banchoPermissions |= BanchoPermissions.Peppy;
+				
 				await presence.UserPresence();
 				await presence.UserStats();
-				await presence.UserPermissions(BanchoPermissions.Peppy | BanchoPermissions.Supporter);
+				await presence.UserPermissions(banchoPermissions);
 
 				await presence.UserPresenceSingle(presence.Id);
 

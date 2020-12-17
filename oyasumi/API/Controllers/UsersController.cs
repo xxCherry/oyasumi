@@ -280,7 +280,7 @@ namespace oyasumi.API.Controllers
             return Content(JsonConvert.SerializeObject(response));
         }
 
-        [HttpPost("users/add_friend")]
+        [HttpPost("add_friend")]
         public async Task<IActionResult> AddFriend([FromQuery(Name = "u")] int userId)
         {
             var tokenStr = Request.Headers["Authorization"];
@@ -401,13 +401,14 @@ namespace oyasumi.API.Controllers
             var ripplePassword = await _context.RipplePasswords
                 .FirstOrDefaultAsync(x => x.UserId == user.Id);
 
+            if (user.Password is not null || ripplePassword is null) 
+                return NetUtils.Error("Merging not needed.");
+            
             // in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
             // we need to merge it to bcrypt
-            if (user.Password is not null || ripplePassword is null) 
-                return NetUtils.Error("User not found.");
-            
             if (!Crypto.VerifySCryptPassword(ripplePassword.Password, info.Password, ripplePassword.Salt))
                 return NetUtils.Error("Wrong password.");
+            
             var passwordMd5 = Crypto.ComputeHash(info.Password);
             var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
 

@@ -39,22 +39,22 @@ namespace oyasumi.Objects
         }
 
         // TODO: max combo
-        public override string ToString()
-            => $"chartId:{_chartId}" +
+        public override string ToString() =>
+               $"chartId:{_chartId}" +
                $"|chartUrl:{_chartUrl}" +
                $"|chartName:{_chartName}" +
-               $"|rankBefore:{(_sBefore == null ? _pBefore.Rank : _sBefore.Rank)}" +
+               $"|rankBefore:{_sBefore?.Rank ?? _pBefore.Rank}" +
                $"|rankAfter:{(_sBefore == null ? _pAfter.Rank : _sAfter.Rank)}" +
                $"|maxComboBefore:0" +
                $"|maxComboAfter:0" +
-               $"|accuracyBefore:{(_sBefore == null ? (_pBefore.Accuracy * 100).ToString(_nfi) : (_sBefore.Accuracy * 100).ToString(_nfi))}" +
-               $"|accuracyAfter:{(_sBefore == null ? (_pAfter.Accuracy * 100).ToString(_nfi) : (_sAfter.Accuracy * 100).ToString(_nfi))}" +
-               $"|rankedScoreBefore:{(_sBefore == null ? _pBefore.RankedScore : _sBefore.TotalScore)}" +
+               $"|accuracyBefore:{_sBefore?.Accuracy * 100 ?? _pBefore.Accuracy * 100}" +
+               $"|accuracyAfter:{(_sBefore == null ? _pAfter.Accuracy * 100 : _sAfter.Accuracy * 100)}" +
+               $"|rankedScoreBefore:{_sBefore?.TotalScore ?? _pBefore.RankedScore}" +
                $"|rankedScoreAfter:{(_sBefore == null ? _pAfter.RankedScore : _sAfter.TotalScore)}" +
-               $"|totalScoreBefore:{(_sBefore == null ? _pBefore.TotalScore : _sBefore.TotalScore)}" +
+               $"|totalScoreBefore:{_sBefore?.TotalScore ?? _pBefore.TotalScore}" +
                $"|totalScoreAfter:{(_sBefore == null ? _pAfter.TotalScore : _sAfter.TotalScore)}" +
-               $"|ppBefore:{(_sBefore == null ? _pBefore.Performance : _sBefore.PerformancePoints.ToString(_nfi))}" +
-               $"|ppAfter:{(_sBefore == null ? _pAfter.Performance : _sAfter.PerformancePoints.ToString(_nfi))}" +
+               $"|ppBefore:{_sBefore?.PerformancePoints ?? _pBefore.Performance}" +
+               $"|ppAfter:{(_sBefore == null ? _pAfter.Performance : _sAfter.PerformancePoints)}" +
                (_achievements == null ? "" : "|achievements-new:" + _achievements) +
                $"|onlineScoreId:{_scoreId}";
     }
