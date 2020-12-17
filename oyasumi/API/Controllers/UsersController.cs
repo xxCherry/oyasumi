@@ -395,7 +395,7 @@ namespace oyasumi.API.Controllers
             var ripplePassword = await _context.RipplePasswords
                 .FirstOrDefaultAsync(x => x.UserId == user.Id);
 
-            if (user.Password is not null || ripplePassword is null) 
+            if (!string.IsNullOrEmpty(user.Password) || ripplePassword is null) 
                 return NetUtils.Error("Merging not needed.");
             
             // in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
