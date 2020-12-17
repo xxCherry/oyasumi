@@ -204,22 +204,16 @@ namespace oyasumi.API.Controllers
             await _context.Users.AddAsync(user);
             await _context.VanillaStats.AddAsync(vanillaStats);
             await _context.RelaxStats.AddAsync(relaxStats);
-
+            
+            await _context.SaveChangesAsync();
+            
             var token = new Token
             {
                 UserId = user.Id,
                 UserToken = Guid.NewGuid().ToString()
             };
-
             await _context.Tokens.AddAsync(token);
-            
             await _context.SaveChangesAsync();
-
-            Base.UserCache.Add(username, user.Id, user);
-            Base.TokenCache.Add(token.UserToken, token.UserId, token);
-            
-            Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanillaStats);
-            Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(user.Id, relaxStats);
 
             return Ok("Account created!");
         }
