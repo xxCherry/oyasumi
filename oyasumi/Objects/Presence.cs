@@ -383,10 +383,11 @@ namespace oyasumi.Objects
 								snipedStats.RankMania = newRank + i + 1;
 								break;
 						}
+						
+						if (Base.UserStatsCache[lbMode].TryGetValue(snipedStats.Id, out var cachedStats))
+							Base.UserStatsCache[lbMode].TryUpdate(snipedStats.Id, snipedStats, cachedStats);
 					}
-
-					if (Base.UserStatsCache[lbMode].TryGetValue(snipedStats.Id, out var cachedStats))
-						Base.UserStatsCache[lbMode].TryUpdate(snipedStats.Id, snipedStats, cachedStats);
+					
 				}
 
 

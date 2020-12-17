@@ -200,10 +200,20 @@ namespace oyasumi.Controllers
 
                     if (oldDbScore is not null) // if we already have score on the beatmap
                     {
-                        if (oldDbScore.TotalScore <= score.TotalScore) // then check if our last score is better.
-                            oldDbScore.Completed = CompletedStatus.Submitted;
+                        if (score.Relaxing)
+                        {
+                            if (oldDbScore.PerformancePoints <= score.PerformancePoints) // then check if our last score is better.
+                                oldDbScore.Completed = CompletedStatus.Submitted;
+                            else
+                                score.Completed = CompletedStatus.Submitted;
+                        }
                         else
-                            score.Completed = CompletedStatus.Submitted;
+                        {
+                            if (oldDbScore.TotalScore <= score.TotalScore) // then check if our last score is better.
+                                oldDbScore.Completed = CompletedStatus.Submitted;
+                            else
+                                score.Completed = CompletedStatus.Submitted;
+                        }
                     }
 
                     var replay = Request.Form.Files.GetFile("score");
