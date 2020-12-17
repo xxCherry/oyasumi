@@ -129,8 +129,8 @@ namespace oyasumi.Controllers
                 return Ok("error: pass");
             if (!(score.Presence.Username, (string)Request.Form["pass"]).CheckLogin())
                 return Ok("error: pass");
-            /*if ((score.Presence.Privileges & Privileges.Restricted) > 0)
-                 return Ok("error: no"); */
+            if (score.User.Banned())
+                return Ok("error: banned");
 
             var beatmap = score.Beatmap;
 
@@ -155,22 +155,27 @@ namespace oyasumi.Controllers
                 case RankedStatus.Ranked:
                     var failed = Request.Form["x"] == "1";
 
+                    IStats stats = lbMode switch
+                    {
+                        LeaderboardMode.Vanilla => await _context.VanillaStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
+                        LeaderboardMode.Relax => await _context.RelaxStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
+                    };
+                    
                     if (failed || !score.Passed)
                     {
                         foreach (var otherPresence in PresenceManager.Presences.Values)
                             await score.Presence.UserStats(otherPresence);
-
+                        
+                        var failTime = int.Parse(Request.Form["ft"]);
+                        
+                        if (failTime > 10000) // to reduce playcount abusers, we'll just set check if failTime > 10sec
+                            score.Presence.AddPlaycount(stats, score.PlayMode);
+                        
                         score.Completed = CompletedStatus.Failed;
                         return Ok("error: no");
                     }
 
                     var presenceBefore = score.Presence;
-
-                    IStats stats = lbMode switch
-                    {
-                         LeaderboardMode.Vanilla => await _context.VanillaStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
-                         LeaderboardMode.Relax => await _context.RelaxStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
-                    };
 
                     await score.Presence.UpdateAccuracy(_context, stats, score.PlayMode, lbMode); // update old accuracy
                     await score.Presence.UpdatePerformance(_context, stats, score.PlayMode, lbMode); // update old performance
@@ -205,16 +210,21 @@ namespace oyasumi.Controllers
 
                     await using (var m = new MemoryStream())
                     {
-                        await replay.CopyToAsync(m);
-                        m.Position = 0;
+                        if (replay is not null)
+                        {
+                            await replay.CopyToAsync(m);
+                            m.Position = 0;
 
-                        score.ReplayChecksum = Crypto.ComputeHash(m.ToArray());
+                            score.ReplayChecksum = Crypto.ComputeHash(m.ToArray());
 
-                        if (!string.IsNullOrEmpty(score.ReplayChecksum))
-                            await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr", m.ToArray());
+                            if (!string.IsNullOrEmpty(score.ReplayChecksum))
+                                await System.IO.File.WriteAllBytesAsync($"data/osr/{score.ReplayChecksum}.osr",
+                                    m.ToArray());
+                        }
                     }
-
-                    score.PerformancePoints = await Calculator.CalculatePerformancePoints(score);
+                    
+                    if (beatmap.Status != RankedStatus.Loved)
+                        score.PerformancePoints = await Calculator.CalculatePerformancePoints(score);
 
                     var dbScore = score.ToDb();
 
@@ -257,7 +267,7 @@ namespace oyasumi.Controllers
                         if (bScore.Rank == 1 && bScore.UserId == score.UserId && oldScore?.Rank != 1)
                             await ChannelManager.SendMessage("oyasumi",
                                 $"[{lbMode}] [https://astellia.club/{bScore.UserId} {presenceAfter.Username}] achieved #1 on https://osu.ppy.sh/b/{score.Beatmap.Id}",
-                                "#announce", 1, true);
+                                "#announce", int.MaxValue, true);
                     }
                     score.CalculateLeaderboardRank(scores);
 
@@ -268,10 +278,7 @@ namespace oyasumi.Controllers
                     score.Beatmap.LeaderboardFormatted[lbMode][score.PlayMode] = Score.FormatScores(scores, score.PlayMode);
 
                     score.Presence.LastScore = score;
-                    
-                    Console.WriteLine(leaderboard.Values.Count);
-                    Console.WriteLine(score.Rank);
-                    
+
                     var bmChart = new Chart("beatmap", "astellia.club", "Beatmap Ranking", score.ScoreId, "", !oldScoreFound ? score : oldScore, score, null, null);
                     var oaChart = new Chart("overall", "astellia.club", "Overall Ranking", score.ScoreId, "", null, null, presenceBefore, presenceAfter);
 

@@ -52,8 +52,10 @@ namespace oyasumi.Objects
                 .Take(50)
                 .ToArrayAsync();
 
-            Array.Sort(scores, new Comparison<DbScore>(
-                  (s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore)));
+            if (lbMode == LeaderboardMode.Vanilla)
+                Array.Sort(scores, (s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore));
+            else
+                Array.Sort(scores, (s1, s2) => s2.PerformancePoints.CompareTo(s1.PerformancePoints));
 
             foreach (var score in scores)
                 leaderboardData.Add(await FromDb(context, score.Id, scores));
@@ -61,15 +63,7 @@ namespace oyasumi.Objects
             return leaderboardData;
         }
 
-        public static List<string> FormatScores(IEnumerable<Score> scores, PlayMode mode)
-        {
-            var scoreList = new List<string>();
-
-            foreach (var score in scores)
-                scoreList.Add(score.ToString());
-
-            return scoreList;
-        }
+        public static List<string> FormatScores(IEnumerable<Score> scores, PlayMode mode) => scores.Select(score => score.ToString()).ToList();
 
         public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode, LeaderboardMode lbMode)
         {
@@ -110,6 +104,7 @@ namespace oyasumi.Objects
                 FileChecksum = dbScore.FileChecksum,
                 ReplayChecksum = dbScore.ReplayChecksum,
                 TotalScore = dbScore.TotalScore,
+                PerformancePoints = dbScore.PerformancePoints,
                 MaxCombo = dbScore.MaxCombo,
                 Count50 = dbScore.Count50,
                 Count100 = dbScore.Count100,
@@ -120,6 +115,7 @@ namespace oyasumi.Objects
                 Perfect = dbScore.Perfect,
                 Mods = dbScore.Mods
             };
+            score.Relaxing = (score.Mods & Mods.Relax) != 0;
             score.Rank = score.CalculateLeaderboardRank(scores);
 
             return score;
@@ -155,7 +151,7 @@ namespace oyasumi.Objects
         }
 
         public override string ToString() =>
-             $"{ScoreId}|{User.Username}|{TotalScore}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
+             $"{ScoreId}|{User.Username}|{(Relaxing ? (int)PerformancePoints : TotalScore)}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
              $"|{CountGeki}|{Perfect}|{(int)Mods}|{User.Id}|{Rank}|{Date.ToUnixTimestamp()}|{(string.IsNullOrEmpty(ReplayChecksum) ? "0" : "1")}";
     }
 }

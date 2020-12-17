@@ -9,7 +9,7 @@ namespace oyasumi.Enums
         Normal = 1,
         BAT = 2,
         Supporter = 4,
-        Friend = 8,
+        Moderator = 8,
         Peppy = 16,
         Tournament = 32
     }
