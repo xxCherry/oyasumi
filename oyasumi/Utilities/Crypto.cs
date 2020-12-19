@@ -67,9 +67,9 @@ namespace oyasumi.Utilities
         public static bool VerifyPassword(string plaintext, string hash) => 
             BCrypt.Net.BCrypt.Verify(plaintext, hash); // BCrypt.validate_password(plaintext, hash);
 
-        public static bool VerifySCryptPassword(string dbPassword, string rawPassword, byte[] salt)
+        public static bool VerifySCryptPassword(string dbPassword, string rawPassword, byte[] salt, bool fromMd5 = false)
         {
-            return SCrypt.validate_password(ComputeHash(rawPassword), dbPassword, salt);
+            return SCrypt.validate_password(fromMd5 ? rawPassword : ComputeHash(rawPassword), dbPassword, salt);
         }
         
         public static string ComputeHash(string str) => ComputeHash(Encoding.UTF8.GetBytes(str));

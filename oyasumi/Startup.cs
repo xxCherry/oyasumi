@@ -128,7 +128,7 @@ namespace oyasumi
 							else
 							{
 								_context.Beatmaps
-									.FirstOrDefault(x => x.Id == item.Beatmap.Id)
+									.FirstOrDefault(x => x.BeatmapId == item.Beatmap.Id)
 									.Status = item.Beatmap.Status;
 							}
 						}
@@ -156,11 +156,11 @@ namespace oyasumi
 					foreach (var pr in presences)
 					{
 						if (pr.Username == "oyasumi") continue;
-
-						if (currentTime - pr.LastPing <= 60 || pr.LastPing == 0)
+						if (currentTime - pr.LastPing <= 500 || pr.LastPing == 0)
 							continue;
 
 						PresenceManager.Remove(pr).Wait();
+						
 						Console.WriteLine($"Remove {pr.Username}");
 					}
 					Thread.Sleep(30);

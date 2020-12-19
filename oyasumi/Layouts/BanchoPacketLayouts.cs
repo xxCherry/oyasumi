@@ -125,7 +125,7 @@ namespace oyasumi.Layouts
             writer.Write(p.Username);
             writer.Write((byte)(p.Timezone + 24));
             writer.Write(p.CountryCode);
-            writer.Write((int) BanchoPermissions.Peppy);
+            writer.Write((int)p.BanchoPermissions);
             writer.Write(p.Longitude);
             writer.Write(p.Latitude);
             writer.Write(p.Rank);

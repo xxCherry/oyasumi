@@ -157,8 +157,8 @@ namespace oyasumi.Controllers
 
                     IStats stats = lbMode switch
                     {
-                        LeaderboardMode.Vanilla => await _context.VanillaStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
-                        LeaderboardMode.Relax => await _context.RelaxStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
+                        LeaderboardMode.Vanilla => await _context.VanillaStats.AsQueryable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
+                        LeaderboardMode.Relax => await _context.RelaxStats.AsQueryable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
                     };
                     
                     if (failed || !score.Passed)
@@ -188,6 +188,7 @@ namespace oyasumi.Controllers
                     score.Accuracy = (float)Calculator.CalculateAccuracy(score);
 
                     var oldDbScore = await _context.Scores
+                        .AsNoTracking()
                         .AsAsyncEnumerable()
                         .Where(x => x.Completed == CompletedStatus.Best &&
                                     x.UserId == score.Presence.Id &&
@@ -365,12 +366,17 @@ namespace oyasumi.Controllers
                 _ => LeaderboardMode.Vanilla,
             };
 
-            if ((presence.Status.CurrentMods & Mods.Relax) == 0 && lbMode == LeaderboardMode.Relax)
-                presence.Status.CurrentMods &= Mods.Relax;
-            else if ((presence.Status.CurrentMods & Mods.Relax) > 0 && lbMode == LeaderboardMode.Vanilla)
-                presence.Status.CurrentMods &= ~Mods.Relax;
+            switch (presence.Status.CurrentMods & Mods.Relax)
+            {
+                case 0 when lbMode == LeaderboardMode.Relax:
+                    presence.Status.CurrentMods &= Mods.Relax;
+                    break;
+                case > 0 when lbMode == LeaderboardMode.Vanilla:
+                    presence.Status.CurrentMods &= ~Mods.Relax;
+                    break;
+            }
 
-            await presence.GetOrUpdateUserStats(null, lbMode, false);
+            await presence.GetOrUpdateUserStats(_context, lbMode, false);
             await presence.UserStats();
 
             var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, fileName, setId, _context);
