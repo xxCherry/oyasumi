@@ -17,6 +17,7 @@ namespace oyasumi.API.Utilities
     {
         public static bool VerifyToken(string token)
         {
+            return true;
             return token is not null && Base.TokenCache[token] is not null;
         }
 

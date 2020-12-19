@@ -67,7 +67,7 @@ namespace oyasumi.Controllers
 
 				if (dbUser == default)
 				{
-					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe());
+					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Username == username);
 
 					if (dbUser is null)
 						return await WrongCredentials();
@@ -77,19 +77,41 @@ namespace oyasumi.Controllers
 
 				if (!Base.PasswordCache.TryGetValue(password, out _))
 				{
+					if (dbUser.Password.Length == 0)
+					{
+						var ripplePassword = await _context.RipplePasswords
+							.AsAsyncEnumerable()
+							.FirstOrDefaultAsync(x => x.UserId == dbUser.Id);
+                
+						// in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
+						// we need to merge it to bcrypt
+						if (!Crypto.VerifySCryptPassword(ripplePassword.Password, password, ripplePassword.Salt, true))
+							return await WrongCredentials();
+                
+						var passwordBcrypt = Crypto.GenerateHash(password);
+						var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Username == username);
+						
+						dbUser.Password = passwordBcrypt;
+						user.Password = passwordBcrypt;
+
+						await _context.SaveChangesAsync();
+					}
+					
 					if (!Crypto.VerifyPassword(password, dbUser.Password))
 						return await WrongCredentials();
 
 					Base.PasswordCache.TryAdd(password, dbUser.Password);
 				}
-
+				
 				var ip = Request.Headers["X-Real-IP"];
 
 				if (dbUser.Country == "XX")
 				{
-					var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe()); // cached user can't be used to update something
+					var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Username == username); // cached user can't be used to update something
 					user.Country = (await NetUtils.FetchGeoLocation(ip)).countryCode;
-
+					
+					dbUser.Country = user.Country;
+					
 					await _context.SaveChangesAsync();
 				}
 				
@@ -99,7 +121,7 @@ namespace oyasumi.Controllers
 				var presence = new Presence(dbUser, timezone);
 
 				PresenceManager.Add(presence);
-				
+
 				await presence.GetOrUpdateUserStats(_context, LeaderboardMode.Vanilla, false);
 
 				await presence.ProtocolVersion(19);
@@ -117,6 +139,8 @@ namespace oyasumi.Controllers
 				// TODO: add new privileges for it
 				if (presence.Username == "Cherry")
 					banchoPermissions |= BanchoPermissions.Peppy;
+
+				presence.BanchoPermissions = banchoPermissions;
 				
 				await presence.UserPresence();
 				await presence.UserStats();
@@ -142,7 +166,7 @@ namespace oyasumi.Controllers
 					await pr.UserPresence(presence); // send us to users
 					await presence.UserPresence(pr); // send users to us
 				}
-
+				
 				var bytes = await presence.WritePackets();
 
 				Response.Headers["cho-token"] = presence.Token;

@@ -11,7 +11,7 @@ namespace RippleDatabaseMerger.Database
         
         public DbSet<RippleUser> Users { get; set; }
         public DbSet<RippleScore> Scores { get; set; }
-        public DbSet<RippleScore> RelaxScores { get; set; }
+        public DbSet<RippleRelaxScore> RelaxScores { get; set; }
         public DbSet<RippleBeatmap> Beatmaps { get; set; }
     }
 }

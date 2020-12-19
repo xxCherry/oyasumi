@@ -2,6 +2,7 @@
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
+using osu.Game.Beatmaps;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Objects;
@@ -25,6 +26,25 @@ namespace oyasumi.Utilities
             return md5;
         }
 
+        public static async Task<double> CalculatePerformancePoints(DbScore score)
+        {
+            var beatmap =  Managers.BeatmapManager.Beatmaps[score.FileChecksum];
+            var beatmapMd5 = await GetBeatmap(score.FileChecksum, beatmap.Id);
+
+            var workingBeatmap = new ProcessorWorkingBeatmap($"./data/beatmaps/{beatmapMd5}.osu");
+
+            var psp = new ProcessorScoreDecoder(workingBeatmap);
+            var parsedScore = psp.Parse(score, $"./data/osr/{score.ReplayChecksum}.osr");
+
+            var categoryAttribs = new Dictionary<string, double>();
+            var pp = parsedScore.ScoreInfo.Ruleset
+                .CreateInstance()
+                .CreatePerformanceCalculator(workingBeatmap, parsedScore.ScoreInfo)
+                .Calculate(categoryAttribs);
+
+            return pp;
+        }
+        
         public static async Task<double> CalculatePerformancePoints(Score score)
         {
             var beatmapMd5 = await GetBeatmap(score.FileChecksum, score.Beatmap.Id);
@@ -43,7 +63,7 @@ namespace oyasumi.Utilities
             return pp;
         }
 
-        public static string CaculateRank(DbScore score)
+        public static string CalculateRank(DbScore score)
         {
             var tHits = score.Count50 + score.Count100 + score.Count300 + score.CountMiss;
             var ratio300 = (float) score.Count300 / tHits;

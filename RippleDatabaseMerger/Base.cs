@@ -1,11 +1,13 @@
-﻿using System;
+﻿//#define MERGE_BEATMAPS
+#define MERGE_SCORES
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using osu.Game.Screens.Play.HUD;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -23,7 +25,7 @@ namespace RippleDatabaseMerger
         
         private static Privileges Convert(RipplePrivileges p)
         {
-            var converted = Privileges.Banned;
+            var converted = (Privileges)0;
             if ((p & RipplePrivileges.UserNormal) != 0)
                 converted |= Privileges.Normal;
             if ((p & RipplePrivileges.AdminManageUsers) != 0)
@@ -34,6 +36,14 @@ namespace RippleDatabaseMerger
             return converted;
         }
         
+        private static CompletedStatus Convert(int completed) =>
+            completed switch
+            {
+                2 => CompletedStatus.Submitted,
+                3 => CompletedStatus.Best,
+                _ => CompletedStatus.Failed
+            };
+
         private static async Task Main(string[] args)
         {
             if (args.Length < 3)
@@ -62,29 +72,40 @@ namespace RippleDatabaseMerger
                 var oUser = new User
                 {
                     Username = user.Name,
+                    Password = string.Empty,
+                    Country = "XX",
                     Privileges = Convert(user.Privileges),
-                    Email = user.Email
+                    JoinDate = Time.UnixTimestampFromDateTime(user.JoinTimestamp),
+                    Email = user.Email,
                 };
                 
                 await oContext.Users.AddAsync(oUser);
+                await oContext.SaveChangesAsync();
+                
+                /*await oContext.VanillaStats.AddAsync(new ()
+                {
+                    Id = oUser.Id
+                });
+                await oContext.RelaxStats.AddAsync(new ()
+                {
+                    Id = oUser.Id
+                }); */
+                
                 await oContext.RipplePasswords.AddAsync(new()
                 {
-                    UserId = user.Id,
+                    UserId = oUser.Id,
                     Password = user.Password,
                     Salt = user.Salt
                 });
-                
                 await oContext.SaveChangesAsync();
                 
                 _rippleIdToOyasumi.Add(user.Id, oUser.Id);
             }
             Console.WriteLine("Users merged...");
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine();
+#if MERGE_BEATMAPS
             Console.WriteLine("Time for beatmaps...");
             var rBeatmaps = rContext.Beatmaps.AsNoTracking();
-
+            
             foreach (var beatmap in rBeatmaps)
             {
                 if (oContext.Beatmaps.Any(x => x.BeatmapMd5 == beatmap.Checksum))
@@ -99,20 +120,23 @@ namespace RippleDatabaseMerger
 
                 await oContext.Beatmaps.AddAsync(dbMap);
                 await oContext.SaveChangesAsync();
-            }
-            Console.WriteLine("Beatmaps merged!");
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine();
+            } 
+            Console.WriteLine("Beatmaps merged!"); 
+#endif
+#if MERGE_SCORES
             Console.WriteLine("Merging scores...");
-            foreach (var score in rContext.Scores)
+            foreach (var score in rContext.Scores.AsNoTracking())
             {
-                var newUserId = _rippleIdToOyasumi[score.UserId];
-                if (newUserId != 0)
+                if (!_rippleIdToOyasumi.TryGetValue(score.UserId, out var newUserId))
                 {
                     Console.WriteLine("User not found, skipping...");
                     continue;
                 }
+
+                var completed = Convert(score.Completed);
+                
+                if (completed == CompletedStatus.Failed)
+                    continue;
 
                 var convertedScore = new DbScore
                 {
@@ -126,12 +150,14 @@ namespace RippleDatabaseMerger
                     CountMiss = score.CountMiss,
                     TotalScore = score.Score,
                     MaxCombo = score.MaxCombo,
+                    Date = Time.UnixTimestampFromDateTime(int.Parse(score.Time)),
                     Mods = (Mods)score.Mods,
                     PlayMode = (PlayMode)score.PlayMode,
-                    Relaxing = false,
-                    Flags = 0
+                    Completed = completed
                 };
-
+                convertedScore.Relaxing = (convertedScore.Mods & Mods.Relax) != 0;
+                convertedScore.PerformancePoints = await Calculator.CalculatePerformancePoints(convertedScore);
+                
                 var scoreReplayPath = Path.Combine(rippleReplayPath, $"replay_{score.Id}.osr");
 
                 if (File.Exists(scoreReplayPath))
@@ -142,7 +168,7 @@ namespace RippleDatabaseMerger
                     
                     convertedScore.ReplayChecksum = Crypto.ComputeHash(ms.ToArray());
 
-                    var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, convertedScore.ReplayChecksum);
+                    var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
                     
                     if (!File.Exists(oyasumiScoreReplayPath)) 
                         File.Copy(scoreReplayPath, oyasumiScoreReplayPath);
@@ -155,12 +181,15 @@ namespace RippleDatabaseMerger
             {
                 foreach (var score in rContext.RelaxScores)
                 {
-                    var newUserId = _rippleIdToOyasumi[score.UserId];
-                    if (newUserId != 0)
+                    if (!_rippleIdToOyasumi.TryGetValue(score.UserId, out var newUserId))
                     {
                         Console.WriteLine("User not found, skipping...");
                         continue;
                     }
+                    
+                    var completed = Convert(score.Completed);
+                    if (completed == CompletedStatus.Failed)
+                        continue;
 
                     var convertedScore = new DbScore
                     {
@@ -174,12 +203,15 @@ namespace RippleDatabaseMerger
                         CountMiss = score.CountMiss,
                         TotalScore = score.Score,
                         MaxCombo = score.MaxCombo,
-                        Mods = (Mods) score.Mods,
-                        PlayMode = (PlayMode) score.PlayMode,
-                        Relaxing = true,
-                        Flags = 0
+                        Date = Time.UnixTimestampFromDateTime(int.Parse(score.Time)),
+                        Mods = (Mods)score.Mods,
+                        PlayMode = (PlayMode)score.PlayMode,
+                        Completed = Convert(score.Completed)
                     };
-
+                    
+                    convertedScore.Relaxing = (convertedScore.Mods & Mods.Relax) != 0;
+                    convertedScore.PerformancePoints = await Calculator.CalculatePerformancePoints(convertedScore);
+                    
                     var scoreReplayPath = Path.Combine(rippleRelaxReplayPath, $"replay_{score.Id}.osr");
 
                     if (File.Exists(scoreReplayPath))
@@ -190,7 +222,7 @@ namespace RippleDatabaseMerger
 
                         convertedScore.ReplayChecksum = Crypto.ComputeHash(ms.ToArray());
 
-                        var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, convertedScore.ReplayChecksum);
+                        var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
 
                         if (!File.Exists(oyasumiScoreReplayPath))
                             File.Copy(scoreReplayPath, oyasumiScoreReplayPath);
@@ -199,8 +231,10 @@ namespace RippleDatabaseMerger
                     await oContext.Scores.AddAsync(convertedScore);
                 }
             }
+            await oContext.SaveChangesAsync(); 
 
             Console.WriteLine("Scores merged...");
+#endif
 
             Thread.Sleep(3000);
         }

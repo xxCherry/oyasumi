@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using Microsoft.EntityFrameworkCore;
 using oyasumi.API.Request;
 using oyasumi.API.Response;
 using oyasumi.API.Utilities;
@@ -47,8 +48,9 @@ namespace oyasumi.API.Controllers
             {
                 Id = user.Id,
                 Username = user.Username,
+                Country = user.Country,
                 Place = stats.Rank(mode),
-                UserpageContent = "",
+                UserpageContent = user.UserpageContent,
                 TotalScore = stats.TotalScore(mode),
                 RankedScore = stats.RankedScore(mode),
                 Performance = stats.Performance(mode),
@@ -67,34 +69,33 @@ namespace oyasumi.API.Controllers
             [FromQuery(Name = "r")] bool isRelax
         )
         {
-            var scores = _context.Scores
-                .AsAsyncEnumerable()
-                .Where(x => x.UserId == userId
-                            && x.Completed == CompletedStatus.Best
-                            && x.Relaxing == isRelax
-                )
-                .OrderByDescending(x => x.PerformancePoints)
-                .Take(limit);
-
-            var formattedScores = new List<ProfileScoreResponse>();
-
-            await foreach (var score in scores)
-            {
-                var beatmap = (await BeatmapManager.Get(score.FileChecksum, "", 0, _context)).Item2;
-                formattedScores.Add(new()
-                {
-                    Id = score.Id,
-                    Beatmap = beatmap,
-                    Mods = score.Mods,
-                    Performance = score.PerformancePoints,
-                    Accuracy = score.Accuracy,
-                    Timestamp = score.Date.ToUnixTimestamp(),
-                    Rank = Calculator.CaculateRank(score)
-                });
-            }
+            var scores = (await _context.Scores
+                    .AsNoTracking()
+                    .Where(x => x.UserId == userId
+                                && x.Completed == CompletedStatus.Best
+                                && x.Relaxing == isRelax
+                                && x.PlayMode == mode
+                    )
+                    .OrderByDescending(x => x.PerformancePoints)
+                    .Take(limit)
+                    .ToListAsync())
+                    .Select(x => new ProfileScoreResponse()
+                    {
+                        Id = x.Id,
+                        Beatmap = BeatmapManager.Get(x.FileChecksum, "", 0, _context).Result.Item2,
+                        Mods = x.Mods,
+                        Count50 = x.Count50,
+                        Count100 = x.Count100,
+                        Count300 = x.Count300,
+                        Combo = x.MaxCombo,
+                        Performance = x.PerformancePoints,
+                        Accuracy = x.Accuracy,
+                        Timestamp = x.Date.ToUnixTimestamp(),
+                        Rank = Calculator.CalculateRank(x)
+                    });
 
             Response.ContentType = "application/json";
-            return Content(JsonConvert.SerializeObject(formattedScores));
+            return Content(JsonConvert.SerializeObject(scores));
         }
 
         [HttpPost("login")]
@@ -104,11 +105,32 @@ namespace oyasumi.API.Controllers
 
             if (user is null)
                 return NetUtils.Error("User not found");
-
+            
+            /*if (!await Misc.VerifyCaptcha(info.CaptchaKey, Request.Headers["X-Real-IP"]))
+                return StatusCode(400); */
+            
             var passwordMd5 = Crypto.ComputeHash(info.Password);
             
-            if (!await Misc.VerifyCaptcha(info.CaptchaKey, Request.Headers["X-Real-IP"]))
-                return StatusCode(400);
+            if (user.Password.Length == 0)
+            {
+                var ripplePassword = await _context.RipplePasswords
+                    .AsAsyncEnumerable()
+                    .FirstOrDefaultAsync(x => x.UserId == user.Id);
+                
+                // in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
+                // we need to merge it to bcrypt
+                if (!Crypto.VerifySCryptPassword(ripplePassword.Password, info.Password, ripplePassword.Salt))
+                    return NetUtils.Error("Wrong password.");
+                
+                var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
+
+                user.Password = passwordBcrypt;
+
+                if (user is not null)
+                    user.Password = passwordBcrypt;
+
+                await _context.SaveChangesAsync();
+            }
             
             if (!Base.PasswordCache.TryGetValue(passwordMd5, out _))
             {
@@ -161,7 +183,7 @@ namespace oyasumi.API.Controllers
                 errors["username"].Add("Must be 2 - 15 characters in length.");
             if (username.Contains(" ") && username.Contains("_"))
                 errors["username"].Add("May contain '_' and ' ', but not both.");
-            if (await _context.Users.AnyAsync(x => x.Username == username))
+            if (await _context.Users.AsAsyncEnumerable().AnyAsync(x => x.Username == username))
                 errors["username"].Add("Username already taken by another player..");
 
             if (!Regex.IsMatch(email,
@@ -169,7 +191,7 @@ namespace oyasumi.API.Controllers
                 RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)))
                 errors["email"].Add("Invalid email syntax.");
             
-            if (await _context.Users.AnyAsync(x => x.Email == email))
+            if (await _context.Users.AsAsyncEnumerable().AnyAsync(x => x.Email == email))
                 errors["email"].Add("Email already taken by another player.");
 
             var passwordLength = plainPassword.Length;
@@ -284,7 +306,7 @@ namespace oyasumi.API.Controllers
             var token = Base.TokenCache[tokenStr];
             var user = Base.UserCache[token.UserId];
             
-            var exists = await _context.Friends.FirstOrDefaultAsync(x => x.Friend2 == userId);
+            var exists = await _context.Friends.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Friend2 == userId);
 
             if (exists is not null)
                 return NetUtils.Error("User already added");
@@ -320,7 +342,7 @@ namespace oyasumi.API.Controllers
             if (!isForbidden)
                 return NetUtils.StatusCode("Forbidden userpage content", 400);
 
-            var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == token.UserId);
+            var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == token.UserId);
             user.UserpageContent = info.Content;
             
             return Ok();
@@ -335,7 +357,7 @@ namespace oyasumi.API.Controllers
             
             var token = Base.TokenCache[tokenStr];
             var cachedUser = Base.UserCache[token.UserId];
-            var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == token.UserId);
+            var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == token.UserId);
 
             cachedUser.PreferNightcore = info.PreferNightcore;
             user.PreferNightcore = info.PreferNightcore;
@@ -360,7 +382,7 @@ namespace oyasumi.API.Controllers
                 if (!Crypto.VerifyPassword(currentPasswordMd5, cachedUser.Password))
                     return NetUtils.StatusCode("Invalid old password", 400);
             }
-            var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == cachedToken.UserId);
+            var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == cachedToken.UserId);
             var newPasswordBcrypt = Crypto.GenerateHash(Crypto.ComputeHash(info.NewPassword));
 
             user.Password = newPasswordBcrypt;
@@ -376,41 +398,9 @@ namespace oyasumi.API.Controllers
             };
             Base.TokenCache[tokenStr] = token;
             
-            var dbToken = await _context.Tokens.FirstOrDefaultAsync(x => x.UserId == token.Id);
+            var dbToken = await _context.Tokens.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UserId == token.Id);
             dbToken = token;
 
-            await _context.SaveChangesAsync();
-            return Ok();
-        }
-
-        [HttpGet("merge_password")]
-        public async Task<IActionResult> MergePassword([FromBody] PasswordMergeRequest info)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(x => x.Username == info.Username);
-            
-            if (user is null)
-                return NetUtils.Error("User not found.");
-            
-            var cachedUser = Base.UserCache[user.Id];
-            var ripplePassword = await _context.RipplePasswords
-                .FirstOrDefaultAsync(x => x.UserId == user.Id);
-
-            if (!string.IsNullOrEmpty(user.Password) || ripplePassword is null) 
-                return NetUtils.Error("Merging not needed.");
-            
-            // in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
-            // we need to merge it to bcrypt
-            if (!Crypto.VerifySCryptPassword(ripplePassword.Password, info.Password, ripplePassword.Salt))
-                return NetUtils.Error("Wrong password.");
-            
-            var passwordMd5 = Crypto.ComputeHash(info.Password);
-            var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
-
-            user.Password = passwordBcrypt;
-                
-            if (cachedUser is not null)
-                cachedUser.Password = passwordBcrypt;
-            
             await _context.SaveChangesAsync();
             return Ok();
         }

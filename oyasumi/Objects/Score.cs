@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
+using oyasumi.Extensions;
 using oyasumi.Utilities;
 
 namespace oyasumi.Objects
@@ -42,15 +43,21 @@ namespace oyasumi.Objects
         public int Rank { get; set; }
         public CompletedStatus Completed { get; set; }
 
-        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode, LeaderboardMode lbMode)
+        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode,
+            LeaderboardMode lbMode)
         {
             var leaderboardData = new List<Score>();
 
-            var scores = await context.Scores
-                .AsQueryable()
-                .Where(x => x.FileChecksum == beatmapMd5 && x.Completed == CompletedStatus.Best && x.PlayMode == mode && x.Relaxing == (lbMode == LeaderboardMode.Relax))
-                .Take(50)
-                .ToArrayAsync();
+            var scores = (await context.Scores
+                    .AsQueryable()
+                    .ToArrayAsync())
+                    .Where(x => x.FileChecksum == beatmapMd5 &&
+                            x.Completed == CompletedStatus.Best &&
+                            x.PlayMode == mode &&
+                            x.Relaxing == (lbMode == LeaderboardMode.Relax) &&
+                            !Base.UserCache[x.UserId].Banned())
+                    .Take(50)
+                    .ToArray();
 
             if (lbMode == LeaderboardMode.Vanilla)
                 Array.Sort(scores, (s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore));
