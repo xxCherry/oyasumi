@@ -108,8 +108,8 @@ namespace oyasumi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<float>("Accuracy")
-                        .HasColumnType("float");
+                    b.Property<double>("Accuracy")
+                        .HasColumnType("double");
 
                     b.Property<bool>("AutoPiloting")
                         .HasColumnType("tinyint(1)");
@@ -159,8 +159,8 @@ namespace oyasumi.Migrations
                     b.Property<bool>("Perfect")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<float>("PerformancePoints")
-                        .HasColumnType("float");
+                    b.Property<double>("PerformancePoints")
+                        .HasColumnType("double");
 
                     b.Property<int>("PlayMode")
                         .HasColumnType("int");
@@ -199,41 +199,7 @@ namespace oyasumi.Migrations
                     b.ToTable("Friends");
                 });
 
-            modelBuilder.Entity("oyasumi.Database.Models.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<string>("Country")
-                        .HasColumnType("longtext CHARACTER SET utf8mb4");
-
-                    b.Property<DateTimeOffset>("JoinDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("longtext CHARACTER SET utf8mb4");
-
-                    b.Property<int>("Privileges")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext CHARACTER SET utf8mb4");
-
-                    b.Property<string>("UsernameAka")
-                        .HasColumnType("longtext CHARACTER SET utf8mb4");
-
-                    b.Property<string>("UsernameSafe")
-                        .HasColumnType("longtext CHARACTER SET utf8mb4");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("oyasumi.Database.Models.UserStats", b =>
+            modelBuilder.Entity("oyasumi.Database.Models.RelaxStats", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -313,7 +279,170 @@ namespace oyasumi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("UserStats");
+                    b.ToTable("RelaxStats");
+                });
+
+            modelBuilder.Entity("oyasumi.Database.Models.RipplePassword", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Password")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<byte[]>("Salt")
+                        .HasColumnType("longblob");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RipplePasswords");
+                });
+
+            modelBuilder.Entity("oyasumi.Database.Models.Token", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserToken")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Tokens");
+                });
+
+            modelBuilder.Entity("oyasumi.Database.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<DateTimeOffset>("JoinDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<bool>("PreferNightcore")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Privileges")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<string>("UsernameAka")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<string>("UsernameSafe")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<string>("UserpageContent")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("oyasumi.Database.Models.VanillaStats", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<float>("AccuracyCtb")
+                        .HasColumnType("float");
+
+                    b.Property<float>("AccuracyMania")
+                        .HasColumnType("float");
+
+                    b.Property<float>("AccuracyOsu")
+                        .HasColumnType("float");
+
+                    b.Property<float>("AccuracyTaiko")
+                        .HasColumnType("float");
+
+                    b.Property<int>("PerformanceCtb")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PerformanceMania")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PerformanceOsu")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PerformanceTaiko")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlaycountCtb")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlaycountMania")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlaycountOsu")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlaycountTaiko")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RankCtb")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RankMania")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RankOsu")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RankTaiko")
+                        .HasColumnType("int");
+
+                    b.Property<long>("RankedScoreCtb")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RankedScoreMania")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RankedScoreOsu")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RankedScoreTaiko")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalScoreCtb")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalScoreMania")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalScoreOsu")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalScoreTaiko")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VanillaStats");
                 });
 #pragma warning restore 612, 618
         }

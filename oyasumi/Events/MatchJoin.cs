@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class MatchJoin
     {
         [Packet(PacketType.ClientMultiMatchJoin)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var reader = new SerializationReader(new MemoryStream(p.Data));
             var matchId = reader.ReadInt32();
@@ -23,8 +23,8 @@ namespace oyasumi.Events
 
             if (MatchManager.Matches.TryGetValue(matchId, out var match))
             {
-                MatchManager.JoinMatch(pr, match, password);
-                pr.JoinChannel($"multi_{match.Id}");
+                await pr.JoinMatch(match, password);
+                await pr.JoinChannel($"multi_{match.Id}");
             }
             else
                 pr.MatchJoinFail();

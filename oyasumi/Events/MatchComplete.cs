@@ -16,7 +16,7 @@ namespace oyasumi.Events
     public class MatchComplete
     {
         [Packet(PacketType.ClientMultiMatchCompleted)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -38,7 +38,7 @@ namespace oyasumi.Events
                 {
                     Type = PacketType.ServerMultiMatchFinished
                 });
-                presence.MatchUpdate(match);
+                await presence.MatchUpdate(match);
             }
         }
     }

@@ -27,10 +27,8 @@ namespace oyasumi.Controllers
 	{
 		private readonly OyasumiDbContext _context;
 
-		public BanchoController(OyasumiDbContext context)
-		{
+		public BanchoController(OyasumiDbContext context) =>
 			_context = context;
-		}
 
 		public async Task<FileContentResult> WrongCredentials()
 		{
@@ -38,6 +36,19 @@ namespace oyasumi.Controllers
 			return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
 				"application/octet-stream");
 		}
+		
+		public async Task<FileContentResult> Notification(string message)
+		{
+			Response.Headers["cho-token"] = "no-token";
+			return File(await BanchoPacketLayouts.NotificationAsync(message), 
+				"application/octet-stream");
+		}
+
+		public async Task<FileContentResult> BannedError()
+		{
+			Response.Headers["cho-token"] = "no-token";
+			return File(await BanchoPacketLayouts.BannedError(), "application/octet-stream");
+		} 
 
 		[Route("/")]
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
@@ -56,7 +67,7 @@ namespace oyasumi.Controllers
 
 				if (dbUser == default)
 				{
-					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe());
+					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Username == username);
 
 					if (dbUser is null)
 						return await WrongCredentials();
@@ -66,24 +77,46 @@ namespace oyasumi.Controllers
 
 				if (!Base.PasswordCache.TryGetValue(password, out _))
 				{
+					if (dbUser.Password.Length == 0)
+					{
+						var ripplePassword = await _context.RipplePasswords
+							.AsAsyncEnumerable()
+							.FirstOrDefaultAsync(x => x.UserId == dbUser.Id);
+                
+						// in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
+						// we need to merge it to bcrypt
+						if (!Crypto.VerifySCryptPassword(ripplePassword.Password, password, ripplePassword.Salt, true))
+							return await WrongCredentials();
+                
+						var passwordBcrypt = Crypto.GenerateHash(password);
+						var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Username == username);
+						
+						dbUser.Password = passwordBcrypt;
+						user.Password = passwordBcrypt;
+
+						await _context.SaveChangesAsync();
+					}
+					
 					if (!Crypto.VerifyPassword(password, dbUser.Password))
 						return await WrongCredentials();
 
 					Base.PasswordCache.TryAdd(password, dbUser.Password);
 				}
-
+				
 				var ip = Request.Headers["X-Real-IP"];
 
 				if (dbUser.Country == "XX")
 				{
-					var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UsernameSafe == username.ToSafe()); // cached user can't be used
-
-					var geoData = await NetUtils.FetchGeoLocation(ip);
-
-					user.Country = geoData.countryCode;
-
+					var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Username == username); // cached user can't be used to update something
+					user.Country = (await NetUtils.FetchGeoLocation(ip)).countryCode;
+					
+					dbUser.Country = user.Country;
+					
 					await _context.SaveChangesAsync();
 				}
+				
+				if (dbUser.Banned())
+					return await BannedError();
 
 				var presence = new Presence(dbUser, timezone);
 
@@ -91,40 +124,55 @@ namespace oyasumi.Controllers
 
 				await presence.GetOrUpdateUserStats(_context, LeaderboardMode.Vanilla, false);
 
-				presence.ProtocolVersion(19);
-				presence.LoginReply(presence.Id);
+				await presence.ProtocolVersion(19);
+				await presence.LoginReply(presence.Id);
 
-				presence.Notification("Welcome to oyasumi.");
+				await presence.Notification("Welcome to oyasumi.");
 
-				presence.UserPresence();
-				presence.UserStats();
-				presence.UserPermissions(BanchoPermissions.Peppy | BanchoPermissions.Supporter);
+				var banchoPermissions = BanchoPermissions.Supporter;
+				
+				if ((presence.Privileges & Privileges.ManageBeatmaps) != 0)
+					banchoPermissions |= BanchoPermissions.BAT;
+				if ((presence.Privileges & Privileges.ManageUsers) != 0)
+					banchoPermissions |= BanchoPermissions.Moderator;
 
-				presence.UserPresenceSingle(presence.Id);
+				// TODO: add new privileges for it
+				if (presence.Username == "Cherry")
+					banchoPermissions |= BanchoPermissions.Peppy;
 
-				presence.FriendList(Base.FriendCache.Where(x => x.Key == presence.Id).FirstOrDefault().Value?.ToArray());
+				presence.BanchoPermissions = banchoPermissions;
+				
+				await presence.UserPresence();
+				await presence.UserStats();
+				await presence.UserPermissions(banchoPermissions);
+
+				await presence.UserPresenceSingle(presence.Id);
+
+				Base.FriendCache.TryGetValue(presence.Id, out var friends);
+
+				await presence.FriendList(friends?.ToArray());
 
 				// Default channel
-				presence.ChatChannelListingComplete(0);
-				presence.JoinChannel("#osu");
-				presence.ChatChannelAvailable("#osu", "Default osu! channel", 1);
+				await presence.ChatChannelListingComplete(0);
+			    await presence.JoinChannel("#osu");
+				await presence.ChatChannelAvailable("#osu", "Default osu! channel", 1);
 
 				// TODO: user count
 				foreach (var chan in ChannelManager.Channels.Values)
-					presence.ChatChannelAvailable(chan.Name, chan.Description, (short)chan.UserCount);
+					await presence.ChatChannelAvailable(chan.Name, chan.Description, (short)chan.UserCount);
 
 				foreach (var pr in PresenceManager.Presences.Values) // go for each presence
 				{
-					pr.UserPresence(presence); // send us to users
-					presence.UserPresence(pr); // send users to us
+					await pr.UserPresence(presence); // send us to users
+					await presence.UserPresence(pr); // send users to us
 				}
-
+				
 				var bytes = await presence.WritePackets();
 
 				Response.Headers["cho-token"] = presence.Token;
 				Response.Headers["cho-protocol"] = "19";
 
-				presence.Notification("Login took: " + stopwatch.Elapsed.TotalMilliseconds + "ms");
+				await presence.Notification("Login took: " + stopwatch.Elapsed.TotalMilliseconds + "ms");
 
 				stopwatch.Stop();
 
@@ -148,27 +196,30 @@ namespace oyasumi.Controllers
 
 				foreach (var packet in packets)
 				{
-					if (!Base.PacketImplCache.TryGetValue(packet.Type, out var handle))
+					if (!Base.PacketImplCache.TryGetValue(packet.Type, out var pItem))
 					{
 						var meth = Base.Types
 								.SelectMany(type => type.GetMethods())
-								.FirstOrDefault(m => m?.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
+								.FirstOrDefault(m => m.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
 
 						if (meth is null)
+							continue; // no handler found for this packet, skipping...
+
+						pItem = new()
 						{
-							// not handled
-							Console.WriteLine(packet.Type.ToString());
-							continue;
-						}
+							Executor = ReflectionUtils.GetExecutor(meth),
+							IsDbContextRequired = meth.GetParameters().Length > 2
+						};
 
-						handle = ReflectionUtils.CompilePacketHandler(meth);
-
-						Base.PacketImplCache.TryAdd(packet.Type, handle);
+						Base.PacketImplCache.TryAdd(packet.Type, pItem);
 					}
 
-					handle(packet, presence, _context);
-
-					Console.WriteLine(packet.Type.ToString());
+					presence.LastPing = Time.CurrentUnixTimestamp;
+					
+					pItem.Executor.Execute(null,
+						pItem.IsDbContextRequired
+							? new object[] {packet, presence, _context}
+							: new object[] {packet, presence});
 				}
 
 				var bytes = await presence.WritePackets();
@@ -177,4 +228,4 @@ namespace oyasumi.Controllers
 			}
 		}
 	}
-}
+}	

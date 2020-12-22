@@ -16,7 +16,7 @@ namespace oyasumi.Events
     public class ChatMessagePrivate
     {
         [Packet(PacketType.ClientChatMessagePrivate)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
@@ -25,21 +25,7 @@ namespace oyasumi.Events
             var message = reader.ReadString();
             var target = reader.ReadString();
 
-            if (target == "oyasumi") // Handle commands if bot
-            {
-                if (message.StartsWith("!"))
-                {   
-                    var command = message[1..]; // from 1 to end of string
-                    if (command == "ping")
-                    {
-                        ChannelManager.SendMessage("oyasumi", "Pong", pr.Username, 1, false);
-                    }
-                }
-            }
-            else
-            {
-                ChannelManager.SendMessage(pr, message, target, false);
-            }
+            await ChannelManager.SendMessage(pr, message, target, false);
         }
     }
 }

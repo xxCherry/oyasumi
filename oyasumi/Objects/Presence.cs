@@ -50,12 +50,16 @@ namespace oyasumi.Objects
 		// --
 
 		public int LastPing;
+		public Score LastScore;
+		public Beatmap LastNp;
 
+		public BanchoPermissions BanchoPermissions;
+		
         private readonly ConcurrentQueue<Packet> _packetQueue = new ConcurrentQueue<Packet>();
 
 		private static readonly List<string> _countryCodes = new List<string>
 		{
-					"--","AP","EU","AD","AE","AF","AG","AI","AL","AM","AN","AO","AQ","AR",
+					"XX","AP","EU","AD","AE","AF","AG","AI","AL","AM","AN","AO","AQ","AR",
 					"AS","AT","AU","AW","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ",
 					"BM","BN","BO","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF",
 					"CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CX","CY","CZ",
@@ -81,8 +85,8 @@ namespace oyasumi.Objects
 			Id = user.Id;
 			Username = user.Username;
 			Token = Guid.NewGuid().ToString();
-			Privileges = Privileges.Normal | Privileges.Verified;
-			Status = new PresenceStatus
+			Privileges = user.Privileges;
+			Status = new()
 			{
 				Status = ActionStatuses.Idle,
 				StatusText = "",
@@ -93,7 +97,6 @@ namespace oyasumi.Objects
 			};
 
 			Timezone = (byte)(timezone + 24);
-
 			CountryCode = (byte)_countryCodes.IndexOf(user.Country);
 
 			User = user;
@@ -142,7 +145,7 @@ namespace oyasumi.Objects
 				if (!exists)
 					Base.UserStatsCache[lbMode].TryAdd(User.Id, stats);
 
-				Base.UserStatsCache[lbMode].TryUpdate(User.Id, stats, cachedStats);
+				Base.UserStatsCache[lbMode][User.Id] = stats;
 			}
 
 			var performance = Status.CurrentPlayMode switch
@@ -382,10 +385,11 @@ namespace oyasumi.Objects
 								snipedStats.RankMania = newRank + i + 1;
 								break;
 						}
+						
+						if (Base.UserStatsCache[lbMode].TryGetValue(snipedStats.Id, out var cachedStats))
+							Base.UserStatsCache[lbMode].TryUpdate(snipedStats.Id, snipedStats, cachedStats);
 					}
-
-					if (Base.UserStatsCache[lbMode].TryGetValue(snipedStats.Id, out var cachedStats))
-						Base.UserStatsCache[lbMode].TryUpdate(snipedStats.Id, snipedStats, cachedStats);
+					
 				}
 
 
@@ -433,10 +437,10 @@ namespace oyasumi.Objects
 						.Take(500)
 						.ToListAsync();
 
-			var totalPerformance = 0d;
-
-			for (var i = 0; i < scores.Count; i++)
-				totalPerformance += Math.Round(Math.Round(scores[i].PerformancePoints) * Math.Pow(0.95, i));
+			var totalPerformance = scores
+				.Select((t, i) => 
+					Math.Round(Math.Round(t.PerformancePoints) * Math.Pow(0.95, i)))
+				.Sum();
 
 			if (totalPerformance > short.MaxValue)
 				Performance = 0;
@@ -470,9 +474,7 @@ namespace oyasumi.Objects
 		{
 			var writer = new PacketWriter();
 			while (_packetQueue.TryDequeue(out var p))
-			{
 				await writer.Write(p);
-			}
 
 			return writer.ToBytes();
 		}

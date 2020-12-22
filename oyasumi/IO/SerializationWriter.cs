@@ -20,10 +20,10 @@ namespace oyasumi.IO
         public override void Write(string str)
         {
             if (str == null)
-                Write((byte) TypeBytes.Null);
+                Write((byte) ByteTypes.Null);
             else
             {
-                Write((byte) TypeBytes.String);
+                Write((byte) ByteTypes.String);
                 base.Write(str);
             }
         }
@@ -135,76 +135,76 @@ namespace oyasumi.IO
         private void WriteObject(object o)
         {
             if (o == null)
-                Write((byte) TypeBytes.Null);
+                Write((byte) ByteTypes.Null);
             else
                 switch (o)
                 {
                     case bool v:
-                        Write((byte) TypeBytes.Bool);
+                        Write((byte) ByteTypes.Bool);
                         base.Write(v);
                         break;
                     case byte v:
-                        Write((byte) TypeBytes.Byte);
+                        Write((byte) ByteTypes.Byte);
                         base.Write(v);
                         break;
                     case ushort v:
-                        Write((byte) TypeBytes.UShort);
+                        Write((byte) ByteTypes.UShort);
                         base.Write(v);
                         break;
                     case uint v:
-                        Write((byte) TypeBytes.UInt);
+                        Write((byte) ByteTypes.UInt);
                         base.Write(v);
                         break;
                     case ulong v:
-                        Write((byte) TypeBytes.ULong);
+                        Write((byte) ByteTypes.ULong);
                         base.Write(v);
                         break;
                     case sbyte v:
-                        Write((byte) TypeBytes.SByte);
+                        Write((byte) ByteTypes.SByte);
                         base.Write(v);
                         break;
                     case short v:
-                        Write((byte) TypeBytes.Short);
+                        Write((byte) ByteTypes.Short);
                         base.Write(v);
                         break;
                     case int v:
-                        Write((byte) TypeBytes.Int);
+                        Write((byte) ByteTypes.Int);
                         base.Write(v);
                         break;
                     case long v:
-                        Write((byte) TypeBytes.Long);
+                        Write((byte) ByteTypes.Long);
                         base.Write(v);
                         break;
                     case char v:
-                        Write((byte) TypeBytes.Char);
+                        Write((byte) ByteTypes.Char);
                         base.Write(v);
                         break;
                     case string v:
-                        Write((byte) TypeBytes.String);
+                        Write((byte) ByteTypes.String);
                         base.Write(v);
                         break;
                     case float v:
-                        Write((byte) TypeBytes.Float);
+                        Write((byte) ByteTypes.Float);
                         base.Write(v);
                         break;
                     case double v:
-                        Write((byte) TypeBytes.Double);
+                        Write((byte) ByteTypes.Double);
                         base.Write(v);
                         break;
                     case decimal v:
-                        Write((byte) TypeBytes.Decimal);
+                        Write((byte) ByteTypes.Decimal);
                         base.Write(v);
                         break;
                     case DateTime v:
-                        Write((byte) TypeBytes.DateTime);
+                        Write((byte) ByteTypes.DateTime);
                         Write(v);
                         break;
                     case byte[] v:
-                        Write((byte) TypeBytes.ByteArray);
+                        Write((byte) ByteTypes.ByteArray);
                         base.Write(v);
                         break;
                     case char[] v:
-                        Write((byte) TypeBytes.CharArray);
+                        Write((byte) ByteTypes.CharArray);
                         base.Write(v);
                         break;
                     default:

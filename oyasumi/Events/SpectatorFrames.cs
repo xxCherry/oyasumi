@@ -15,7 +15,7 @@ namespace oyasumi.Events
         {
             foreach (var presence in pr.Spectators)
             {
-                presence.PacketEnqueue(new Packet() 
+                presence.PacketEnqueue(new () 
                 { 
                     Type = PacketType.ServerSpectateData,
                     Data = p.Data 

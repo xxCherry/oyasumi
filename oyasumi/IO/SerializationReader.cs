@@ -35,16 +35,16 @@ namespace oyasumi.IO
         {
             switch (ReadByte())
             {
-                case (byte)TypeBytes.Null:
+                case (byte)ByteTypes.Null:
                     return null;
-                case (byte)TypeBytes.String:
+                case (byte)ByteTypes.String:
                     return base.ReadString();
                 default:
-                    throw new Exception($"Type byte is not {TypeBytes.Null} or {TypeBytes.String} (position: {BaseStream.Position})");
+                    throw new Exception($"Type byte is not {ByteTypes.Null} or {ByteTypes.String} (position: {BaseStream.Position})");
             }
         }
 
-        public Match ReadMatch(OyasumiDbContext context)
+        public Match ReadMatch()
         {
             var match = new Match();
 
@@ -57,12 +57,14 @@ namespace oyasumi.IO
             match.GameName = ReadString();
             match.GamePassword = ReadString();
 
-            ReadString(); // game name
+            ReadString(); // beatmap name
 
             match.BeatmapId = ReadInt32();
             match.BeatmapChecksum = ReadString();
 
-            match.Beatmap = BeatmapManager.Get(match.BeatmapChecksum, "", 0, context).Result.Item2;
+            BeatmapManager.Get(match.BeatmapChecksum, "", 0)
+                .ContinueWith(x => match.Beatmap = x.Result.Item2)
+                .Wait();
 
             foreach (var slot in match.Slots)
                 slot.Status = (SlotStatus)ReadByte();
@@ -115,28 +117,28 @@ namespace oyasumi.IO
 
         public object ReadObject()
         {
-            switch ((TypeBytes)ReadByte())
+            switch ((ByteTypes)ReadByte())
             {
-                case TypeBytes.Null:        return null;
-                case TypeBytes.Bool:        return ReadBoolean();
-                case TypeBytes.Byte:        return ReadByte();
-                case TypeBytes.UShort:      return ReadUInt16();
-                case TypeBytes.UInt:        return ReadUInt32();
-                case TypeBytes.ULong:       return ReadUInt64();
-                case TypeBytes.SByte:       return ReadSByte();
-                case TypeBytes.Short:       return ReadInt16();
-                case TypeBytes.Int:         return ReadInt32();
-                case TypeBytes.Long:        return ReadInt64();
-                case TypeBytes.Char:        return ReadChar();
-                case TypeBytes.String:      return base.ReadString();
-                case TypeBytes.Float:       return ReadSingle();
-                case TypeBytes.Double:      return ReadDouble();
-                case TypeBytes.Decimal:     return ReadDecimal();
-                case TypeBytes.DateTime:    return ReadDateTime();
-                case TypeBytes.ByteArray:   return ReadBytes();
-                case TypeBytes.CharArray:   return ReadChars();
-                case TypeBytes.Unknown:
-                case TypeBytes.Serializable: 
+                case ByteTypes.Null:        return null;
+                case ByteTypes.Bool:        return ReadBoolean();
+                case ByteTypes.Byte:        return ReadByte();
+                case ByteTypes.UShort:      return ReadUInt16();
+                case ByteTypes.UInt:        return ReadUInt32();
+                case ByteTypes.ULong:       return ReadUInt64();
+                case ByteTypes.SByte:       return ReadSByte();
+                case ByteTypes.Short:       return ReadInt16();
+                case ByteTypes.Int:         return ReadInt32();
+                case ByteTypes.Long:        return ReadInt64();
+                case ByteTypes.Char:        return ReadChar();
+                case ByteTypes.String:      return base.ReadString();
+                case ByteTypes.Float:       return ReadSingle();
+                case ByteTypes.Double:      return ReadDouble();
+                case ByteTypes.Decimal:     return ReadDecimal();
+                case ByteTypes.DateTime:    return ReadDateTime();
+                case ByteTypes.ByteArray:   return ReadBytes();
+                case ByteTypes.CharArray:   return ReadChars();
+                case ByteTypes.Unknown:
+                case ByteTypes.Serializable: 
                 default:
                     throw new NotImplementedException();
             }

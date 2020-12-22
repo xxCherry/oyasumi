@@ -26,13 +26,14 @@ namespace oyasumi.Events
 
             var friend = context.Friends.FirstOrDefault(x => x.Friend2 == id);
 
-            if (friend is not null) {
-                context.Friends.Remove(friend);
+            if (friend is null) 
+                return;
+            
+            context.Friends.Remove(friend);
 
-                Base.FriendCache.Where(x => x.Key == friend.Friend1).FirstOrDefault().Value.Remove(friend.Friend2);
+            Base.FriendCache.FirstOrDefault(x => x.Key == friend.Friend1).Value.Remove(friend.Friend2);
 
-                context.SaveChanges();
-            }
+            context.SaveChanges();
         }
     }
 }
