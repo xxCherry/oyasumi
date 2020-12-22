@@ -11,7 +11,7 @@ namespace oyasumi.Database.Models
         [Required]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        public string BeatmapMd5 { get; set; }
+        [Column(TypeName = "varchar(32)")] public string BeatmapMd5 { get; set; }
         public int BeatmapId { get; set; }
         public string FileName { get; set; }
         public int BeatmapSetId { get; set; }

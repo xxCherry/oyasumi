@@ -17,10 +17,10 @@ namespace oyasumi.Events
     public class MatchChangeOption
     {
         [Packet(PacketType.ClientMultiSettingsChange)]
-        public static void Handle(Packet p, Presence pr, OyasumiDbContext context)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var reader = new SerializationReader(new MemoryStream(p.Data));
-            var newMatch = reader.ReadMatch(context);
+            var newMatch = reader.ReadMatch();
 
             var match = pr.CurrentMatch;
 
@@ -95,7 +95,7 @@ namespace oyasumi.Events
             }
 
             foreach (var presence in match.Presences)
-                presence.MatchUpdate(match);
+                await presence.MatchUpdate(match);
         }
     }
 }

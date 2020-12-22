@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class MatchLeave
     {
         [Packet(PacketType.ClientMultiMatchLeave)]
-        public static void Handle(Packet p, Presence pr) =>
-            pr.LeaveMatch();
+        public static async Task Handle(Packet p, Presence pr) =>
+            await pr.LeaveMatch();
     }
 }

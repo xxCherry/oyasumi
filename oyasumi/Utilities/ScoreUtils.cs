@@ -17,6 +17,7 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Replays;
 using osu.Game.Scoring.Legacy;
+using oyasumi.Database.Models;
 
 namespace oyasumi.Utilities
 {
@@ -138,6 +139,48 @@ namespace oyasumi.Utilities
                     },
                 },
                 Replay = new Replay(),
+            };
+
+            CalculateAccuracy(score.ScoreInfo);
+
+            return score;
+        }
+        
+         public Score Parse(DbScore oScore)
+        {
+            _ruleset = LegacyHelper.Convert(oScore.PlayMode);
+
+            var mods = LegacyHelper.Convert(oScore.PlayMode).ConvertFromLegacyMods((LegacyMods)oScore.Mods).ToArray();
+
+            var score = new Score
+            {
+                ScoreInfo = new()
+                {
+                    Accuracy = oScore.Accuracy,
+                    Beatmap = _beatmap.BeatmapInfo,
+                    Combo = oScore.MaxCombo,
+                    MaxCombo = oScore.MaxCombo,
+                    User = new() { Username = "owo" },
+                    RulesetID = (int)oScore.PlayMode,
+                    Date = oScore.Date,
+                    Files = null,
+                    Hash = null,
+                    Mods = mods,
+                    Ruleset = _ruleset.RulesetInfo,
+                    Passed = true,
+                    TotalScore = oScore.TotalScore,
+                    Statistics = new ()
+                    {
+                        [HitResult.Perfect] = oScore.Count300,
+                        [HitResult.Good] = oScore.Count100,
+                        [HitResult.Great] = oScore.CountGeki,
+                        [HitResult.Meh] = oScore.Count50,
+                        [HitResult.Miss] = oScore.CountMiss,
+                        [HitResult.Ok] = oScore.CountKatu,
+                        [HitResult.None] = 0,
+                    },
+                },
+                Replay = new (),
             };
 
             CalculateAccuracy(score.ScoreInfo);

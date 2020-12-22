@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class MatchSlotChange
     {
         [Packet(PacketType.ClientMultiSlotChange)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -46,7 +46,7 @@ namespace oyasumi.Events
             currentSlot.Team = SlotTeams.Neutral;
 
             foreach (var presence in match.Presences)
-                presence.MatchUpdate(match);
+                await presence.MatchUpdate(match);
         }
     }
 }

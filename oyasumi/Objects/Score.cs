@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
+using oyasumi.Extensions;
 using oyasumi.Utilities;
 
 namespace oyasumi.Objects
@@ -42,67 +45,56 @@ namespace oyasumi.Objects
         public int Rank { get; set; }
         public CompletedStatus Completed { get; set; }
 
-        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode, LeaderboardMode lbMode)
+        public static async Task<Score[]> GetRawScores(string beatmapMd5, PlayMode mode,
+            LeaderboardMode lbMode)
         {
-            var leaderboardData = new List<Score>();
-
-            var scores = await context.Scores
-                .AsQueryable()
-                .Where(x => x.FileChecksum == beatmapMd5 && x.Completed == CompletedStatus.Best && x.PlayMode == mode && x.Relaxing == (lbMode == LeaderboardMode.Relax))
-                .Take(50)
-                .ToArrayAsync();
-
-            Array.Sort(scores, new Comparison<DbScore>(
-                  (s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore)));
-
-            foreach (var score in scores)
-                leaderboardData.Add(await FromDb(context, score.Id, scores));
-
-            return leaderboardData;
+            IEnumerable<DbScore> scores = null;
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                scores = await db.QueryAsync<DbScore>($"SELECT * FROM Scores " +
+                                                      $"JOIN Users ON Users.Id = Scores.UserId " +
+                                                      $"WHERE Users.Privileges & {(int)Privileges.Normal} > 0 " +
+                                                      $"AND FileChecksum = '{beatmapMd5}' " +
+                                                      $"AND Completed = {(int)CompletedStatus.Best} " +
+                                                      $"AND PlayMode = {(int)mode} " +
+                                                      $"AND Relaxing = {lbMode == LeaderboardMode.Relax} " +
+                                                      $"ORDER BY {(lbMode == LeaderboardMode.Relax ? "PerformancePoints" : "TotalScore")} " +
+                                                      $"LIMIT 50");
+            }
+            var dbScores = scores as DbScore[] ?? scores.ToArray();
+            
+            return dbScores.Select(score => FromDb(score, dbScores)).ToArray();
         }
 
-        public static List<string> FormatScores(List<Score> scores, PlayMode mode)
+        public static List<string> FormatScores(IEnumerable<Score> scores, PlayMode mode) => scores.Select(score => score.ToString()).ToList();
+
+        public int CalculateLeaderboardRank(IReadOnlyList<DbScore> scores)
         {
-            var scoreList = new List<string>();
-
-            foreach (var score in scores)
-                scoreList.Add(score.ToString());
-
-            return scoreList;
-        }
-
-        public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode, LeaderboardMode lbMode)
-        {
-            var sb = new StringBuilder();
-            var scores = await GetRawScores(context, beatmapMd5, mode, lbMode);
-
-            foreach (var score in scores)
-                sb.AppendLine(score.ToString());
-
-            return sb.ToString();
-        }
-
-        private int CalculateLeaderboardRank(DbScore[] scores)
-        {
-            for (var i = 0; i < scores.Length; i++)
+            for (var i = 0; i < scores.Count; i++)
                 if (scores[i].UserId == User.Id)
                     return i + 1;
             return 0;
         }
-
-        public static async Task<Score> FromDb(OyasumiDbContext context, int scoreId, DbScore[] scores = null)
+        
+        public void CalculateLeaderboardRank(IReadOnlyList<Score> scores)
         {
-            var dbScore = await context.Scores.AsNoTracking().FirstOrDefaultAsync(x => x.Id == scoreId);
+            for (var i = 0; i < scores.Count; i++)
+                if (scores[i].UserId == User.Id)
+                    Rank = i + 1;
+        }
 
+        public static Score FromDb(DbScore dbScore, DbScore[] scores = null)
+        {
             var score = new Score
             {
-                ScoreId = scoreId,
+                ScoreId = dbScore.Id,
                 User = Base.UserCache[dbScore.UserId],
                 Date = dbScore.Date,
                 UserId = dbScore.UserId,
                 FileChecksum = dbScore.FileChecksum,
                 ReplayChecksum = dbScore.ReplayChecksum,
                 TotalScore = dbScore.TotalScore,
+                PerformancePoints = dbScore.PerformancePoints,
                 MaxCombo = dbScore.MaxCombo,
                 Count50 = dbScore.Count50,
                 Count100 = dbScore.Count100,
@@ -113,6 +105,7 @@ namespace oyasumi.Objects
                 Perfect = dbScore.Perfect,
                 Mods = dbScore.Mods
             };
+            score.Relaxing = (score.Mods & Mods.Relax) != 0;
             score.Rank = score.CalculateLeaderboardRank(scores);
 
             return score;
@@ -120,7 +113,7 @@ namespace oyasumi.Objects
 
         public DbScore ToDb()
         {
-            return new DbScore
+            return new()
             {
                 Count50 = Count50,
                 Count100 = Count100,
@@ -148,7 +141,7 @@ namespace oyasumi.Objects
         }
 
         public override string ToString() =>
-             $"{ScoreId}|{User.Username}|{TotalScore}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
+             $"{ScoreId}|{User.Username}|{(Relaxing ? (int)PerformancePoints : TotalScore)}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
              $"|{CountGeki}|{Perfect}|{(int)Mods}|{User.Id}|{Rank}|{Date.ToUnixTimestamp()}|{(string.IsNullOrEmpty(ReplayChecksum) ? "0" : "1")}";
     }
 }

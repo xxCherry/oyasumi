@@ -14,12 +14,12 @@ namespace oyasumi.IO
 		private bool _clean;
 
         public PacketWriter() =>
-			_data = new MemoryStream();
+			_data = new ();
 
 		public byte[] ToBytes()
 		{
 			if (_clean)
-				throw new Exception("Unable to access because ToBytes() method can be called only once");
+				throw new ("Unable to access because ToBytes() method can be called only once");
 			
 			var array = _data.ToArray();
 			
@@ -43,6 +43,13 @@ namespace oyasumi.IO
 			writer.Write(packet.Data);
 			
 			((MemoryStream)writer.BaseStream).WriteTo(_data);
+		}
+
+		public async Task Write(byte[] packet)
+		{
+			await using var ms = new MemoryStream(packet);
+
+			ms.WriteTo(_data);
 		}
 	}
 }

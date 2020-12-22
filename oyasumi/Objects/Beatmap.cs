@@ -12,16 +12,16 @@ namespace oyasumi.Objects
 {
     public struct BeatmapMetadata
     {
-        public string Artist { get; set; }
-        public string Title { get; set; }
-        public string DifficultyName { get; set; }
-        public string Creator { get; set; }
-        public float BPM { get; set; }
-        public float CircleSize { get; set; }
-        public float OverallDifficulty { get; set; }
-        public float ApproachRate { get; set; }
-        public float HPDrainRate { get; set; }
-        public float Stars { get; set; }
+        [JsonProperty("artist")] public string Artist { get; set; }
+        [JsonProperty("title")] public string Title { get; set; }
+        [JsonProperty("difficulty_name")] public string DifficultyName { get; set; }
+        [JsonProperty("creator")] public string Creator { get; set; }
+        [JsonProperty("bpm")] public float BPM { get; set; }
+        [JsonProperty("cs")] public float CircleSize { get; set; }
+        [JsonProperty("od")]public float OverallDifficulty { get; set; }
+        [JsonProperty("ar")] public float ApproachRate { get; set; }
+        [JsonProperty("hp")] public float HPDrainRate { get; set; }
+        [JsonProperty("stars")] public float Stars { get; set; }
     }
 
     public struct JsonBeatmap
@@ -86,27 +86,35 @@ namespace oyasumi.Objects
             [8] = APIRankedStatus.Loved
         };
 
-        public string FileChecksum;
-        public string FileName;
-        public int Id;
-        public int SetId;
-        public RankedStatus Status;
-        public bool Frozen;
-        public int PlayCount;
-        public int PassCount;
-        public int OnlineOffset;
-        public int Rating;
+        [JsonProperty("file_checksum")] public string FileChecksum;
+        [JsonProperty("file_name")] public string FileName;
+        [JsonProperty("id")] public int Id { get; set; }
+        [JsonProperty("set_id")] public int SetId { get; set; }
+        [JsonProperty("status")] public RankedStatus Status { get; set; }
+        [JsonProperty("frozen")] public bool Frozen;
+        [JsonProperty("play_count")] public int PlayCount;
 
-        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, List<string>>> LeaderboardFormatted = new();
-        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, ConcurrentDictionary<int, Score>>> LeaderboardCache = new(); // int is user id
+        [JsonProperty("pass_count")] public int PassCount;
+        [JsonProperty("online_offset")] public int OnlineOffset;
+        [JsonProperty("rating")] public int Rating;
 
-        public BeatmapMetadata Metadata;
-        public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
-        public Beatmap(
+        [JsonIgnore]
+        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, List<string>>>
+            LeaderboardFormatted = new();
+
+        [JsonIgnore]
+        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, ConcurrentDictionary<int, Score>>> 
+            LeaderboardCache = new(); // int is user id
+
+        [JsonProperty("metadata")] public BeatmapMetadata Metadata { get; set; }
+        [JsonProperty("beatmap_name")] public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
+
+        public Beatmap
+        (
             string md5, string fileName, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
-            bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard, 
-            PlayMode mode, LeaderboardMode lbMode, OyasumiDbContext context
-            )
+            bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard,
+            PlayMode mode
+        )
         {
             FileChecksum = md5;
             FileName = fileName;
@@ -122,43 +130,41 @@ namespace oyasumi.Objects
 
             if (leaderboard)
             {
-                Task.WaitAll(Task.Run(async () =>
+                var vanillaScores = Score.GetRawScores(md5, mode, LeaderboardMode.Vanilla).Result;
+                var relaxScores = Score.GetRawScores(md5, mode, LeaderboardMode.Relax).Result;
+
+                for (var i = 0; i < 3; i++)
                 {
-                    var vanillaScores = await Score.GetRawScores(context, md5, mode, LeaderboardMode.Vanilla);
-                    var relaxScores = await Score.GetRawScores(context, md5, mode, LeaderboardMode.Relax);
+                    LeaderboardCache.TryAdd((LeaderboardMode) i, new());
+                    LeaderboardFormatted.TryAdd((LeaderboardMode) i, new());
 
-                    for (var i = 0; i < 3; i++)
+                    for (var j = 0; j < 4; j++)
                     {
-                        LeaderboardCache.TryAdd((LeaderboardMode)i, new());
-                        LeaderboardFormatted.TryAdd((LeaderboardMode)i, new());
-
-                        for (var j = 0; j < 4; j++)
-                        {
-                            LeaderboardCache[(LeaderboardMode)i].TryAdd((PlayMode)j, new());
-                            LeaderboardFormatted[(LeaderboardMode)i].TryAdd((PlayMode)j, new());
-                        }
+                        LeaderboardCache[(LeaderboardMode) i].TryAdd((PlayMode) j, new());
+                        LeaderboardFormatted[(LeaderboardMode) i].TryAdd((PlayMode) j, new());
                     }
+                }
 
-                    foreach (var score in vanillaScores)
-                        LeaderboardCache[LeaderboardMode.Vanilla][mode].TryAdd(score.UserId, score);
-                    foreach (var score in relaxScores)
-                        LeaderboardCache[LeaderboardMode.Relax][mode].TryAdd(score.UserId, score);
+                foreach (var score in vanillaScores)
+                    LeaderboardCache[LeaderboardMode.Vanilla][mode].TryAdd(score.UserId, score);
+                foreach (var score in relaxScores)
+                    LeaderboardCache[LeaderboardMode.Relax][mode].TryAdd(score.UserId, score);
 
-                    LeaderboardFormatted[LeaderboardMode.Vanilla][mode] = Score.FormatScores(vanillaScores, mode);
-                    LeaderboardFormatted[LeaderboardMode.Relax][mode] = Score.FormatScores(relaxScores, mode);
-
-                }));
+                LeaderboardFormatted[LeaderboardMode.Vanilla][mode] = Score.FormatScores(vanillaScores, mode);
+                LeaderboardFormatted[LeaderboardMode.Relax][mode] = Score.FormatScores(relaxScores, mode);
             }
         }
-        public static async Task<Beatmap> Get(string md5, string fileName, bool leaderboard, PlayMode mode, LeaderboardMode lbMode, OyasumiDbContext context)
+
+
+        public static async Task<Beatmap> Get(string md5, string fileName, bool leaderboard, PlayMode mode)
         {
             using var client = new HttpClient();
 
             var resp = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/md5/{md5}");
 
             if (!resp.IsSuccessStatusCode) // if map not found or mirror is down then set status to NotSubmitted
-                return new Beatmap(md5, fileName, -1, -1, new BeatmapMetadata(),
-                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
+                return new (md5, fileName, -1, -1, new (),
+                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, mode);
 
             var beatmap = JsonConvert.DeserializeObject<JsonBeatmap>(await resp.Content.ReadAsStringAsync());
 
@@ -179,8 +185,36 @@ namespace oyasumi.Objects
 
             var status = ApiToOsuRankedStatus[(APIRankedStatus)beatmap.RankedStatus];
 
-            return new Beatmap(md5, fileName, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
-                status, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
+            return new (md5, fileName, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
+                status, false, 0, 0, 0, 0, leaderboard, mode);
+        }
+
+        public void ClearLeaderboard()
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                LeaderboardCache[(LeaderboardMode)i] = new();
+                LeaderboardFormatted[(LeaderboardMode)i] = new();
+
+                for (var j = 0; j < 4; j++)
+                {
+                    LeaderboardCache[(LeaderboardMode)i][(PlayMode)j] = new();
+                    LeaderboardFormatted[(LeaderboardMode)i][(PlayMode)j] = new();
+                }
+            }
+        }
+
+        public async Task UpdateLeaderboard(LeaderboardMode lbMode, PlayMode mode)
+        {
+            var scores = await Score.GetRawScores(FileChecksum, mode, lbMode);
+
+            var leaderboard = LeaderboardCache[lbMode][mode];
+            leaderboard.Clear(); // Clear the cache
+
+            foreach (var score in scores)
+                leaderboard.TryAdd(score.UserId, score);
+
+            LeaderboardFormatted[lbMode][mode] = Score.FormatScores(scores, mode);
         }
 
         public string ToString(PlayMode mode, LeaderboardMode lbMode)

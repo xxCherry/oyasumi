@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class ChatMessagePublic
     {
         [Packet(PacketType.ClientChatMessagePublic)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
@@ -31,7 +31,7 @@ namespace oyasumi.Events
             else if (target == "#multiplayer" && pr.CurrentMatch is not null)
                 target = $"multi_{pr.CurrentMatch.Id}";
                 
-            ChannelManager.SendMessage(pr, message, target, true);
+            await ChannelManager.SendMessage(pr, message, target, true);
         }
     }
 }

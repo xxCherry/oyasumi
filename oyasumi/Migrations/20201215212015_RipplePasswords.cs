@@ -1,32 +1,33 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace oyasumi.Migrations
 {
-    public partial class Channels : Migration
+    public partial class RipplePasswords : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "Channels",
+                name: "RipplePasswords",
                 columns: table => new
                 {
                     Id = table.Column<int>(nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Name = table.Column<string>(nullable: true),
-                    Topic = table.Column<string>(nullable: true),
-                    Public = table.Column<bool>(nullable: false)
+                    UserId = table.Column<int>(nullable: false),
+                    Password = table.Column<string>(nullable: true),
+                    Salt = table.Column<byte[]>(nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Channels", x => x.Id);
+                    table.PrimaryKey("PK_RipplePasswords", x => x.Id);
                 });
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Channels");
+                name: "RipplePasswords");
         }
     }
 }

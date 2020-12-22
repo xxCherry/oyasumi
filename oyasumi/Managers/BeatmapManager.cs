@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using osu.Game.Screens.Edit.Components;
 using oyasumi.Database;
@@ -22,69 +23,83 @@ namespace oyasumi.Managers
     public static class BeatmapManager
     {
         // Beatmap local cache
-        public static TwoKeyDictionary<int, string, Beatmap> Beatmaps = new TwoKeyDictionary<int, string, Beatmap>();
+        public static TwoKeyDictionary<int, string, Beatmap> Beatmaps = new ();
         
         /// <summary>
         ///  Getting beatmap by fastest method available
         /// </summary>
         /// <param name="checksum">MD5 checksum of beatmap</param>
-        /// <param name="title">Beatmap title object</param>
-        public static async Task<(RankedStatus, Beatmap)> Get(string checksum, string fileName, int setId, OyasumiDbContext context, bool leaderboard = true, PlayMode mode = PlayMode.Osu, LeaderboardMode lbMode = LeaderboardMode.Vanilla)
+        /// <param name="fileName">Name of osu beatmap file</param>
+        /// <param name="setId">Beatmap set id</param>
+        /// <param name="context">Database instance</param>
+        public static async Task<(RankedStatus, Beatmap)> Get
+        (
+            string checksum, string fileName, int setId,
+            bool leaderboard = true, PlayMode mode = PlayMode.Osu,
+            LeaderboardMode lbMode = LeaderboardMode.Vanilla
+        )
         {
             var beatmap = Beatmaps[checksum]; // try get beatmap from local cache
 
             if (beatmap is not null)
-            {  
-                if (beatmap.Id == -1)
-                    return (RankedStatus.NotSubmitted, beatmap);
-                else
-                    return (RankedStatus.Approved, beatmap);                  // Approved is not actual ranked status
-                                                                              // just for handling them after calling Get()
-            }
-
-            var dbBeatmap = context.Beatmaps.AsNoTracking().FirstOrDefault(x => x.BeatmapMd5 == checksum); // try get beatmap from db
+                return beatmap.Id == -1 ? (RankedStatus.NotSubmitted, beatmap) : (RankedStatus.Approved, beatmap);
+            
+            DbBeatmap dbBeatmap = null;
+            await using (var db = MySqlProvider.GetDbConnection())
+                dbBeatmap = await db.QueryFirstOrDefaultAsync<DbBeatmap>($"SELECT * From Beatmaps WHERE BeatmapMd5 = '{checksum}'");
 
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
             {
-                beatmap = dbBeatmap.FromDb(context, leaderboard, mode, lbMode);
+                beatmap = dbBeatmap.FromDb(leaderboard, mode);
 
                 Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
-            beatmap = await Beatmap.Get(checksum, fileName, leaderboard, mode, lbMode, context); // try get beatmap from osu!api
+            beatmap = await Beatmap.Get(checksum, fileName, leaderboard, mode); // try fetch beatmap from osu!api
 
             if (beatmap.Id == -1)
             {
-                dbBeatmap = context.Beatmaps.AsNoTracking().FirstOrDefault(x => x.FileName == fileName);
+                await using (var db = MySqlProvider.GetDbConnection()) 
+                    dbBeatmap = (await db.QueryAsync<DbBeatmap>($"SELECT * FROM Beatmaps WHERE FileName = '{fileName}'")).FirstOrDefault();
 
                 if (dbBeatmap is not null)
                     return (RankedStatus.NeedUpdate, null);
-                else
-                {
-                    using var client = new HttpClient();
-                    var result = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/s/{setId}");
 
-                    if (result.IsSuccessStatusCode)
-                        return (RankedStatus.NeedUpdate, null);
-                    else
-                    {
-                        Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
-                        return (RankedStatus.NotSubmitted, null);
-                    }
-                }
+                using var client = new HttpClient();
+                var result = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/s/{setId}");
+
+                if (result.IsSuccessStatusCode)
+                    return (RankedStatus.NeedUpdate, null);
+
+                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
+                return (RankedStatus.NotSubmitted, null);
             }
-
+            
             // if beatmap exists in api we'll add it to local cache and db
             Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
-            await context.Beatmaps.AddAsync(beatmap.ToDb());
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                await db.ExecuteAsync("INSERT INTO Beatmaps " +
+                                      "(" +
+                                        "BeatmapId, FileName, BeatmapSetId, Status, Frozen, " +
+                                        "PlayCount, PassCount, Artist, Title, DifficultyName, " +
+                                        "Creator, BPM, CircleSize, OverallDifficulty, ApproachRate, " +
+                                        "HPDrainRate, Stars" +
+                                      ") " +
+                                      "VALUES " +
+                                      "(" +
+                                        "@BeatmapId, '@FileName', @BeatmapSetId, @Status, @Frozen, " +
+                                        "@PlayCount, @PassCount, '@Artist', '@Title', '@DifficultyName', " +
+                                        "'@Creator', @BPM, @CircleSize, @OverallDifficulty, @ApproachRate, " +
+                                        "@HPDrainRate, @Stars" +
+                                      ")", beatmap.ToDb());
+            }
 
-            await context.SaveChangesAsync();
-            
             return (RankedStatus.Approved, beatmap);
         }
-        public static Beatmap FromDb(this DbBeatmap b, OyasumiDbContext context, bool leaderboard, PlayMode mode, LeaderboardMode lbMode)
+        public static Beatmap FromDb(this DbBeatmap b, bool leaderboard, PlayMode mode)
         {
             var metadata = new BeatmapMetadata
             {
@@ -99,13 +114,13 @@ namespace oyasumi.Managers
                 BPM = b.BPM,
                 Stars = b.Stars
             };
-            return new Beatmap(b.BeatmapMd5, b.FileName, b.BeatmapId, b.BeatmapSetId, metadata,
-                b.Status, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
+            return new (b.BeatmapMd5, b.FileName, b.BeatmapId, b.BeatmapSetId, metadata,
+                b.Status, false, 0, 0, 0, 0, leaderboard, mode);
         }
 
         public static DbBeatmap ToDb(this Beatmap b)
         {
-            return new DbBeatmap
+            return new()
             {
                 Artist = b.Metadata.Artist,
                 Title = b.Metadata.Title,

@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class MatchFailed
     {
         [Packet(PacketType.ClientMultiFailed)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -33,7 +33,7 @@ namespace oyasumi.Events
             }
 
             foreach (var presence in match.Presences)
-                presence.MatchPlayerFailed(slotId);
+                await presence.MatchPlayerFailed(slotId);
         }
     }
 }

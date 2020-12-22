@@ -15,7 +15,7 @@ namespace oyasumi.Events
     public class MatchUpdateMods
     {
         [Packet(PacketType.ClientMultiChangeMods)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -37,7 +37,7 @@ namespace oyasumi.Events
                 match.ActiveMods = mods;
 
             foreach (var presence in match.Presences)
-                presence.MatchUpdate(match);
+                await presence.MatchUpdate(match);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
@@ -12,7 +13,7 @@ namespace oyasumi.Events
     public class UserPresenceRequest
     {
         [Packet(PacketType.ClientUserPresenceRequest)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {    
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
@@ -26,9 +27,9 @@ namespace oyasumi.Events
             {
                 var otherPresence = PresenceManager.GetPresenceById(prId);
                 if (otherPresence is not null)
-                    pr.UserPresence(otherPresence);
+                    await pr.UserPresence(otherPresence);
                 else
-                    pr.UserLogout(prId);
+                    await pr.UserLogout(prId);
             }
         }
     }

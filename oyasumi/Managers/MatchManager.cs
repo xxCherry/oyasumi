@@ -14,7 +14,7 @@ namespace oyasumi.Managers
         public static Dictionary<int, Match> Matches = new Dictionary<int, Match>();
         private static int _idCounter;
 
-        public static void JoinMatch(this Presence pr, Match match, string password)
+        public static async Task JoinMatch(this Presence pr, Match match, string password)
         {
             if (pr.CurrentMatch is not null || (match.PasswordRequired && match.GamePassword != password))
             {
@@ -34,15 +34,15 @@ namespace oyasumi.Managers
 
             match.Presences.Add(pr);
 
-            pr.MatchJoinSuccess(match);
+            await pr.MatchJoinSuccess(match);
 
             pr.CurrentMatch = match;
 
             foreach (var presence in match.Presences)
-                presence.MatchUpdate(match);
+                await presence.MatchUpdate(match);
         }
 
-        public static void LeaveMatch(this Presence pr)
+        public static async Task LeaveMatch(this Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -60,7 +60,7 @@ namespace oyasumi.Managers
             }
 
             match.Presences.Remove(pr);
-            pr.LeaveChannel($"multi_{pr.CurrentMatch.Id}", true);
+            await pr.LeaveChannel($"multi_{pr.CurrentMatch.Id}", true);
 
             if (match.Presences.Count == 0)
             {
@@ -69,7 +69,7 @@ namespace oyasumi.Managers
             }
             else
                 foreach (var presence in match.Presences)
-                    presence.MatchUpdate(match);
+                    await presence.MatchUpdate(match);
 
             pr.CurrentMatch = null;
         }

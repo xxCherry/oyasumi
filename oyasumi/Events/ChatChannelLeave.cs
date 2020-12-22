@@ -14,14 +14,14 @@ namespace oyasumi.Events
     public class ChatChannelLeave
     {
         [Packet(PacketType.ClientChatChannelLeave)]
-        public static void Handle(Packet p, Presence pr)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
 
             var channel = reader.ReadString();
 
-            pr.LeaveChannel(channel);
+            await pr.LeaveChannel(channel);
         }
     }
 }
