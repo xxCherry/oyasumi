@@ -9,7 +9,7 @@ namespace oyasumi.Database.Models
         [Required]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        public string UserToken { get; set; }
+        [Column(TypeName="varchar(36)")] public string UserToken { get; set; }
         public int UserId { get; set; }
     }
 }

@@ -63,6 +63,9 @@ namespace oyasumi
 		
 		public static readonly ConcurrentQueue<BeatmapItem> BeatmapDbStatusUpdate = new();
 		public static readonly ConcurrentQueue<User> UserDbUpdate = new();
+		
+		public static readonly string ConnectionString = $"server=localhost;database={Config.Properties.Database};" + 
+		                                                 $"user={Config.Properties.Username};password={Config.Properties.Password};Allow User Variables=true";
 		public static void Main(string[] args)
 		{
 			Types = Assembly.GetEntryAssembly().GetTypes();

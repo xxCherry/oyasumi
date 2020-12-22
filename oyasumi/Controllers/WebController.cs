@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Dapper;
 using ManagedBass.Fx;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -55,13 +58,15 @@ namespace oyasumi.Controllers
 
             using var client = new HttpClient();
 
-            var reqResult = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/search?amount=100&offset={page}" +
-                $"&query={query}{(mods != -1 ? $"&m={mods}" : "")}{(status != 4 ? $"&status={(int)Beatmap.DirectToApiRankedStatus[status]}" : "")}");
+            var reqResult = await client.GetAsync(
+                $"{Config.Properties.BeatmapMirror}/api/search?amount=100&offset={page}" +
+                $"&query={query}{(mods != -1 ? $"&m={mods}" : "")}{(status != 4 ? $"&status={(int) Beatmap.DirectToApiRankedStatus[status]}" : "")}");
 
             if (!reqResult.IsSuccessStatusCode)
                 return Ok("no");
 
-            var beatmaps = JsonConvert.DeserializeObject<List<JsonBeatmap>>(await reqResult.Content.ReadAsStringAsync());
+            var beatmaps =
+                JsonConvert.DeserializeObject<List<JsonBeatmap>>(await reqResult.Content.ReadAsStringAsync());
 
             var results = new List<string>();
 
@@ -72,7 +77,8 @@ namespace oyasumi.Controllers
                 if (beatmap.ChildrenBeatmaps is not null)
                 {
                     foreach (var childBeatmap in beatmap.ChildrenBeatmaps)
-                        difficulties.Add($"[{Math.Round(childBeatmap.DifficultyRating, 2).ToString().Replace(',', '.')}⭐] {childBeatmap.DiffName} " +
+                        difficulties.Add(
+                            $"[{Math.Round(childBeatmap.DifficultyRating, 2).ToString().Replace(',', '.')}⭐] {childBeatmap.DiffName} " +
                             $"CS: {childBeatmap.CS.ToString().Replace(',', '.')} " +
                             $"OD: {childBeatmap.OD.ToString().Replace(',', '.')} " +
                             $"AR: {childBeatmap.AR.ToString().Replace(',', '.')} " +
@@ -80,7 +86,8 @@ namespace oyasumi.Controllers
                             $"@{childBeatmap.Mode}"); // any string can be used before '@'
                 }
 
-                results.Add($"{beatmap.SetID}.osz|{beatmap.Artist}|{beatmap.Title}|{beatmap.Creator}|{beatmap.RankedStatus}|10.0|{beatmap.LastUpdate}|{beatmap.SetID}" +
+                results.Add(
+                    $"{beatmap.SetID}.osz|{beatmap.Artist}|{beatmap.Title}|{beatmap.Creator}|{beatmap.RankedStatus}|10.0|{beatmap.LastUpdate}|{beatmap.SetID}" +
                     $"|0|0|0|0|0|{string.Join(",", difficulties)}");
             }
 
@@ -107,27 +114,31 @@ namespace oyasumi.Controllers
             DbBeatmap beatmap = null;
 
             if (Request.Query.ToList().Any(x => x.Key == "s"))
-                beatmap = await _context.Beatmaps.AsNoTracking().AsAsyncEnumerable().Where(x => x.BeatmapSetId == setId).FirstOrDefaultAsync();
+                beatmap = await _context.Beatmaps.AsNoTracking().AsAsyncEnumerable().Where(x => x.BeatmapSetId == setId)
+                    .FirstOrDefaultAsync();
             else if (Request.Query.ToList().Any(x => x.Key == "b"))
-                beatmap = await _context.Beatmaps.AsNoTracking().AsAsyncEnumerable().Where(x => x.BeatmapId == beatmapId).FirstOrDefaultAsync();
+                beatmap = await _context.Beatmaps.AsNoTracking().AsAsyncEnumerable()
+                    .Where(x => x.BeatmapId == beatmapId).FirstOrDefaultAsync();
 
             if (beatmap is null)
                 return Ok("no");
 
-            return Ok($"{beatmap.BeatmapSetId}.osz|{beatmap.Artist}|{beatmap.Title}|{beatmap.Creator}|{beatmap.Status}|10.0|0|{beatmap.BeatmapSetId}" + // 0 after 10.0 (ranking) is last updated
+            return Ok(
+                $"{beatmap.BeatmapSetId}.osz|{beatmap.Artist}|{beatmap.Title}|{beatmap.Creator}|{beatmap.Status}|10.0|0|{beatmap.BeatmapSetId}" + // 0 after 10.0 (ranking) is last updated
                 $"|0|0|0|0|0");
         }
 
         [HttpPost("osu-submit-modular-selector.php")]
         public async Task<IActionResult> SubmitModular()
         {
-            var score = await ((string)Request.Form["score"], (string)Request.Form["iv"], (string)Request.Form["osuver"]).ToScore(_context);
+            var score = await ((string) Request.Form["score"], (string) Request.Form["iv"],
+                (string) Request.Form["osuver"]).ToScore();
 
             if (score is null)
                 return Ok("error: no");
             if (score.Presence is null)
                 return Ok("error: pass");
-            if (!(score.Presence.Username, (string)Request.Form["pass"]).CheckLogin())
+            if (!(score.Presence.Username, (string) Request.Form["pass"]).CheckLogin())
                 return Ok("error: pass");
             if (score.User.Banned())
                 return Ok("error: banned");
@@ -157,20 +168,22 @@ namespace oyasumi.Controllers
 
                     IStats stats = lbMode switch
                     {
-                        LeaderboardMode.Vanilla => await _context.VanillaStats.AsQueryable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
-                        LeaderboardMode.Relax => await _context.RelaxStats.AsQueryable().FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
+                        LeaderboardMode.Vanilla => await _context.VanillaStats.AsQueryable()
+                            .FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
+                        LeaderboardMode.Relax => await _context.RelaxStats.AsQueryable()
+                            .FirstOrDefaultAsync(x => x.Id == score.Presence.Id),
                     };
-                    
+
                     if (failed || !score.Passed)
                     {
                         foreach (var otherPresence in PresenceManager.Presences.Values)
                             await score.Presence.UserStats(otherPresence);
-                        
+
                         var failTime = int.Parse(Request.Form["ft"]);
-                        
+
                         if (failTime > 10000) // to reduce playcount abusers, we'll just set check if failTime > 10sec
                             score.Presence.AddPlaycount(stats, score.PlayMode);
-                        
+
                         score.Completed = CompletedStatus.Failed;
                         return Ok("error: no");
                     }
@@ -178,17 +191,17 @@ namespace oyasumi.Controllers
                     var presenceBefore = score.Presence;
 
                     await score.Presence.UpdateAccuracy(_context, stats, score.PlayMode, lbMode); // update old accuracy
-                    await score.Presence.UpdatePerformance(_context, stats, score.PlayMode, lbMode); // update old performance
+                    await score.Presence.UpdatePerformance(_context, stats, score.PlayMode,
+                        lbMode); // update old performance
 
                     score.Presence.AddPlaycount(stats, score.PlayMode);
 
                     score.Presence.AddScore(stats, score.TotalScore, true, score.PlayMode);
                     score.Presence.AddScore(stats, score.TotalScore, false, score.PlayMode);
 
-                    score.Accuracy = (float)Calculator.CalculateAccuracy(score);
+                    score.Accuracy = (float) Calculator.CalculateAccuracy(score);
 
                     var oldDbScore = await _context.Scores
-                        .AsNoTracking()
                         .AsAsyncEnumerable()
                         .Where(x => x.Completed == CompletedStatus.Best &&
                                     x.UserId == score.Presence.Id &&
@@ -196,26 +209,6 @@ namespace oyasumi.Controllers
                                     x.PlayMode == score.PlayMode &&
                                     x.Relaxing == (lbMode == LeaderboardMode.Relax))
                         .FirstOrDefaultAsync();
-
-                    score.Completed = CompletedStatus.Best;
-
-                    if (oldDbScore is not null) // if we already have score on the beatmap
-                    {
-                        if (score.Relaxing)
-                        {
-                            if (oldDbScore.PerformancePoints <= score.PerformancePoints) // then check if our last score is better.
-                                oldDbScore.Completed = CompletedStatus.Submitted;
-                            else
-                                score.Completed = CompletedStatus.Submitted;
-                        }
-                        else
-                        {
-                            if (oldDbScore.TotalScore <= score.TotalScore) // then check if our last score is better.
-                                oldDbScore.Completed = CompletedStatus.Submitted;
-                            else
-                                score.Completed = CompletedStatus.Submitted;
-                        }
-                    }
 
                     var replay = Request.Form.Files.GetFile("score");
 
@@ -237,13 +230,77 @@ namespace oyasumi.Controllers
                     if (beatmap.Status != RankedStatus.Loved)
                         score.PerformancePoints = await Calculator.CalculatePerformancePoints(score);
 
+                    score.Completed = CompletedStatus.Best;
+                    
+                    if (oldDbScore is not null) // if we already have score on the beatmap
+                    {
+                        if (score.Relaxing)
+                        {
+                            if (oldDbScore.PerformancePoints <= score.PerformancePoints)  // then check if our last score is better.
+                                oldDbScore.Completed = CompletedStatus.Submitted;
+                            else
+                                score.Completed = CompletedStatus.Submitted;
+                        }
+                        else
+                        {
+                            if (oldDbScore.TotalScore <= score.TotalScore) // then check if our last score is better.
+                                oldDbScore.Completed = CompletedStatus.Submitted;
+                            else
+                                score.Completed = CompletedStatus.Submitted;
+                        }
+                    }
+
                     var dbScore = score.ToDb();
+                    
+                    // TODO: maybe there's another way to do it, like just pass object to param?
+                    await using (var db = MySqlProvider.GetDbConnection())
+                    {
+                        var scoreId = await db.ExecuteAsync(
+                            "INSERT INTO Scores " +
+                            "(" +
+                                "Count300, Count100, Count50, CountGeki, " +
+                                "CountKatu, CountMiss, TotalScore, Accuracy, FileChecksum, " +
+                                "MaxCombo, Passed, Mods, PlayMode, Flags, OsuVersion, Perfect, " +
+                                "UserId, Date, ReplayChecksum, Relaxing, AutoPiloting, " +
+                                "PerformancePoints, Completed" +
+                            ") " +
+                            "VALUES " +
+                            "(" +
+                                "@Count300, @Count100, @Count50, @CountGeki, " +
+                                "@CountKatu, @CountMiss, @TotalScore, @Accuracy, @FileChecksum, " +
+                                "@MaxCombo, @Passed, @Mods, @PlayMode, @Flags, @OsuVersion, @Perfect, " +
+                                "@UserId, @Date, @ReplayChecksum, @Relaxing, @AutoPiloting, " +
+                                "@PerformancePoints, @Completed" +
+                            ");"
+                            , new
+                            {
+                                dbScore.Count100,
+                                dbScore.Count300,
+                                dbScore.Count50,
+                                dbScore.CountGeki,
+                                dbScore.CountKatu,
+                                dbScore.CountMiss,
+                                dbScore.TotalScore,
+                                dbScore.Accuracy,
+                                dbScore.FileChecksum,
+                                dbScore.MaxCombo,
+                                dbScore.Passed,
+                                dbScore.Mods,
+                                dbScore.PlayMode,
+                                dbScore.Flags,
+                                dbScore.OsuVersion,
+                                dbScore.Perfect,
+                                dbScore.UserId,
+                                dbScore.Date,
+                                dbScore.ReplayChecksum,
+                                dbScore.Relaxing,
+                                dbScore.AutoPiloting,
+                                dbScore.PerformancePoints,
+                                dbScore.Completed
+                            });
 
-                    await _context.Scores.AddAsync(dbScore);
-
-                    score.ScoreId = dbScore.Id;
-
-                    await _context.SaveChangesAsync();
+                        score.ScoreId = scoreId;
+                    }
 
                     await score.Presence.UpdateAccuracy(_context, stats, score.PlayMode, lbMode); // now get new accuracy
                     await score.Presence.UpdatePerformance(_context, stats, score.PlayMode, lbMode); // now get new performance
@@ -267,7 +324,7 @@ namespace oyasumi.Controllers
                     if (oldDbScore is not null)
                         oldScoreFound = leaderboard.TryGetValue(oldDbScore.UserId, out oldScore);
 
-                    var scores = await Score.GetRawScores(_context, beatmap.FileChecksum, score.PlayMode, lbMode);
+                    var scores = await Score.GetRawScores(beatmap.FileChecksum, score.PlayMode, lbMode);
 
                     leaderboard.Clear(); // Clear the cache
 
@@ -379,7 +436,7 @@ namespace oyasumi.Controllers
             await presence.GetOrUpdateUserStats(_context, lbMode, false);
             await presence.UserStats();
 
-            var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, fileName, setId, _context);
+            var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, fileName, setId);
 
             switch (status)
             {

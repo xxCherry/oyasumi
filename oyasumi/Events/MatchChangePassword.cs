@@ -16,7 +16,7 @@ namespace oyasumi.Events
     public class MatchChangePassword
     {
         [Packet(PacketType.ClientMultiChangePassword)]
-        public static async Task Handle(Packet p, Presence pr, OyasumiDbContext context)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var match = pr.CurrentMatch;
 
@@ -25,7 +25,7 @@ namespace oyasumi.Events
 
             var reader = new SerializationReader(new MemoryStream(p.Data));
 
-            var newMatch = reader.ReadMatch(context);
+            var newMatch = reader.ReadMatch();
 
             if (string.IsNullOrEmpty(newMatch.GamePassword))
                 match.GamePassword = null;

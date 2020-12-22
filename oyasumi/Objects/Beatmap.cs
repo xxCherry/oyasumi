@@ -103,17 +103,17 @@ namespace oyasumi.Objects
             LeaderboardFormatted = new();
 
         [JsonIgnore]
-        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, ConcurrentDictionary<int, Score>>>
+        public ConcurrentDictionary<LeaderboardMode, ConcurrentDictionary<PlayMode, ConcurrentDictionary<int, Score>>> 
             LeaderboardCache = new(); // int is user id
 
         [JsonProperty("metadata")] public BeatmapMetadata Metadata { get; set; }
-        public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
+        [JsonProperty("beatmap_name")] public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
 
         public Beatmap
         (
             string md5, string fileName, int id, int setId, BeatmapMetadata metadata, RankedStatus status,
             bool frozen, int playCount, int passCount, int onlineOffset, int mapRating, bool leaderboard,
-            PlayMode mode, LeaderboardMode lbMode, OyasumiDbContext context
+            PlayMode mode
         )
         {
             FileChecksum = md5;
@@ -130,8 +130,8 @@ namespace oyasumi.Objects
 
             if (leaderboard)
             {
-                var vanillaScores = Score.GetRawScores(context, md5, mode, LeaderboardMode.Vanilla).Result;
-                var relaxScores = Score.GetRawScores(context, md5, mode, LeaderboardMode.Relax).Result;
+                var vanillaScores = Score.GetRawScores(md5, mode, LeaderboardMode.Vanilla).Result;
+                var relaxScores = Score.GetRawScores(md5, mode, LeaderboardMode.Relax).Result;
 
                 for (var i = 0; i < 3; i++)
                 {
@@ -156,15 +156,15 @@ namespace oyasumi.Objects
         }
 
 
-        public static async Task<Beatmap> Get(string md5, string fileName, bool leaderboard, PlayMode mode, LeaderboardMode lbMode, OyasumiDbContext context)
+        public static async Task<Beatmap> Get(string md5, string fileName, bool leaderboard, PlayMode mode)
         {
             using var client = new HttpClient();
 
             var resp = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/md5/{md5}");
 
             if (!resp.IsSuccessStatusCode) // if map not found or mirror is down then set status to NotSubmitted
-                return new Beatmap(md5, fileName, -1, -1, new BeatmapMetadata(),
-                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
+                return new (md5, fileName, -1, -1, new (),
+                    RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, mode);
 
             var beatmap = JsonConvert.DeserializeObject<JsonBeatmap>(await resp.Content.ReadAsStringAsync());
 
@@ -185,8 +185,8 @@ namespace oyasumi.Objects
 
             var status = ApiToOsuRankedStatus[(APIRankedStatus)beatmap.RankedStatus];
 
-            return new Beatmap(md5, fileName, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
-                status, false, 0, 0, 0, 0, leaderboard, mode, lbMode, context);
+            return new (md5, fileName, requestedDifficulty.BeatmapID, requestedDifficulty.ParentSetID, beatmapMetadata,
+                status, false, 0, 0, 0, 0, leaderboard, mode);
         }
 
         public void ClearLeaderboard()
@@ -202,6 +202,19 @@ namespace oyasumi.Objects
                     LeaderboardFormatted[(LeaderboardMode)i][(PlayMode)j] = new();
                 }
             }
+        }
+
+        public async Task UpdateLeaderboard(LeaderboardMode lbMode, PlayMode mode)
+        {
+            var scores = await Score.GetRawScores(FileChecksum, mode, lbMode);
+
+            var leaderboard = LeaderboardCache[lbMode][mode];
+            leaderboard.Clear(); // Clear the cache
+
+            foreach (var score in scores)
+                leaderboard.TryAdd(score.UserId, score);
+
+            LeaderboardFormatted[lbMode][mode] = Score.FormatScores(scores, mode);
         }
 
         public string ToString(PlayMode mode, LeaderboardMode lbMode)

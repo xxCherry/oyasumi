@@ -16,10 +16,10 @@ namespace oyasumi.Events
     public class MatchCreate
     {
         [Packet(PacketType.ClientMultiMatchCreate)]
-        public static async Task Handle(Packet p, Presence pr, OyasumiDbContext context)
+        public static async Task Handle(Packet p, Presence pr)
         {
             var reader = new SerializationReader(new MemoryStream(p.Data));
-            var match = reader.ReadMatch(context);
+            var match = reader.ReadMatch();
 
             if (string.IsNullOrEmpty(match.GamePassword))
                 match.GamePassword = null;

@@ -3,8 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Dapper;
+using Microsoft.EntityFrameworkCore;
 using oyasumi.Attributes;
+using oyasumi.Database;
+using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Extensions;
 using oyasumi.Layouts;
@@ -91,8 +96,13 @@ namespace oyasumi.Chat
 
             if (!user.Banned())
             {
-                user.Privileges |= ~Privileges.Normal;
-                Base.UserDbUpdate.Enqueue(user);
+                await ChannelManager.BotMessage(pr, channel, $"Bye, bye, {user.Username}");
+                user.Privileges &= ~Privileges.Normal;
+
+                await using (var db = MySqlProvider.GetDbConnection())
+                {
+                    await db.ExecuteAsync($"UPDATE Users SET Privileges = {(int)user.Privileges} WHERE Id = {user.Id}");
+                }
 
                 var target = PresenceManager.GetPresenceById(user.Id);
 
@@ -101,15 +111,57 @@ namespace oyasumi.Chat
                     await target.LoginReply(LoginReplies.WrongCredentials);
                     await target.Notification("Your account is banned.");
                 }
-
-                await ChannelManager.BotMessage(pr, channel, $"Bye, bye, {user.Username}");
+                
+                new Thread(async () =>
+                {
+                    IEnumerable<DbScore> scores = null;
+                    await using (var db = MySqlProvider.GetDbConnection())
+                    {
+                        scores = await db.QueryAsync<DbScore>($"SELECT * FROM Scores " + 
+                                                              $"WHERE UserId = {user.Id} " +
+                                                              $"AND Completed = {(int)CompletedStatus.Best}");
+                    }
+                    
+                    foreach (var score in scores)
+                    {
+                        var lbMode = score.Relaxing ? LeaderboardMode.Relax : LeaderboardMode.Vanilla;
+                        var beatmap = (await BeatmapManager.Get(score.FileChecksum, "", 0, true, score.PlayMode)).Item2;
+                        if (beatmap is not null)
+                            await beatmap.UpdateLeaderboard(lbMode, score.PlayMode);
+                    }
+                    
+                }).Start();
+                
             }
             else
             {
-                user.Privileges |= Privileges.Normal;
-                Base.UserDbUpdate.Enqueue(user);
-
                 await ChannelManager.BotMessage(pr, channel, $"Welcome back, {user.Username}");
+                user.Privileges |= Privileges.Normal;
+                
+                await using (var db = MySqlProvider.GetDbConnection())
+                {
+                    await db.ExecuteAsync($"UPDATE Users SET Privileges = {(int)user.Privileges} WHERE Id = {user.Id}");
+                }
+
+                new Thread(async () =>
+                {
+                    IEnumerable<DbScore> scores = null;
+                    await using (var db = MySqlProvider.GetDbConnection())
+                    {
+                        scores = await db.QueryAsync<DbScore>($"SELECT * FROM Scores " + 
+                                                              $"WHERE UserId = {user.Id} " +
+                                                              $"AND Completed = {(int)CompletedStatus.Best}");
+                    }
+                    
+                    foreach (var score in scores)
+                    {
+                        var lbMode = score.Relaxing ? LeaderboardMode.Relax : LeaderboardMode.Vanilla;
+                        var beatmap = (await BeatmapManager.Get(score.FileChecksum, "", 0, true, score.PlayMode)).Item2;
+                        if (beatmap is not null)
+                            await beatmap.UpdateLeaderboard(lbMode, score.PlayMode);
+                    }
+
+                }).Start();
             }
         }
     }
