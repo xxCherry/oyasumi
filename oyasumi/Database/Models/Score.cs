@@ -24,7 +24,7 @@ namespace oyasumi.Database.Models
         public int CountMiss { get; set; }
         public int TotalScore { get; set; }
         public double Accuracy { get; set; }
-        public string FileChecksum { get; set; }
+        [Column(TypeName = "varchar(32)")] public string FileChecksum { get; set; }
         public int MaxCombo { get; set; }
         public bool Passed { get; set; }
         public Mods Mods { get; set; }
@@ -34,7 +34,7 @@ namespace oyasumi.Database.Models
         public bool Perfect { get; set; }
         public int UserId { get; set; }
         public DateTime Date { get; set; }
-        public string ReplayChecksum { get; set; }
+        [Column(TypeName = "varchar(32)")] public string ReplayChecksum { get; set; }
         public bool Relaxing { get; set; }
         public bool AutoPiloting { get; set; }
         public double PerformancePoints { get; set; }

@@ -9,7 +9,7 @@ namespace oyasumi.Enums
     [Flags]
     public enum Privileges
     {
-        Banned = 1 << 0,
+        Banned = 0,
         Restricted = 1 << 1,
         Normal = 1 << 2,
         Verified = 1 << 3,

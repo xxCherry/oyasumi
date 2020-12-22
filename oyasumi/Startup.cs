@@ -107,8 +107,8 @@ namespace oyasumi
 				var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
 				    $"server=localhost;database={Config.Properties.Database};" +
 					$"user={Config.Properties.Username};password={Config.Properties.Password};");
-				
-				var _context = new OyasumiDbContext(builder.Options);
+
+				var _context = OyasumiDbContext.Create();
 				
 				while (true)
 				{
@@ -141,7 +141,6 @@ namespace oyasumi
 						while (Base.UserDbUpdate.TryDequeue(out var u))
 						{
 							var user = _context.Users.FirstOrDefault(x => x.Id == u.Id);
-							user.Privileges = u.Privileges;
 							user.Password = u.Password;
 						}
 

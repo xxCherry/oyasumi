@@ -136,7 +136,6 @@ namespace oyasumi.Objects
 				stats = cachedStats; 
 			else
 			{
-				Console.WriteLine(lbMode);
 				stats = lbMode switch
 				{
 					LeaderboardMode.Vanilla => await context.VanillaStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == User.Id),
@@ -438,10 +437,10 @@ namespace oyasumi.Objects
 						.Take(500)
 						.ToListAsync();
 
-			var totalPerformance = 0d;
-
-			for (var i = 0; i < scores.Count; i++)
-				totalPerformance += Math.Round(Math.Round(scores[i].PerformancePoints) * Math.Pow(0.95, i));
+			var totalPerformance = scores
+				.Select((t, i) => 
+					Math.Round(Math.Round(t.PerformancePoints) * Math.Pow(0.95, i)))
+				.Sum();
 
 			if (totalPerformance > short.MaxValue)
 				Performance = 0;
@@ -475,9 +474,7 @@ namespace oyasumi.Objects
 		{
 			var writer = new PacketWriter();
 			while (_packetQueue.TryDequeue(out var p))
-			{
 				await writer.Write(p);
-			}
 
 			return writer.ToBytes();
 		}

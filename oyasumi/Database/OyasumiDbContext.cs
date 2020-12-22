@@ -17,6 +17,14 @@ namespace oyasumi.Database
             Database.Migrate();
         }
 
+        public static OyasumiDbContext Create()
+        {
+            var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
+                $"server=localhost;database={Config.Properties.Database};" +
+                $"user={Config.Properties.Username};password={Config.Properties.Password};");
+            return new (builder.Options);
+        }
+        
         public DbSet<DbScore> Scores { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<RipplePassword> RipplePasswords { get; set; }

@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -15,7 +17,8 @@ namespace oyasumi.Utilities
         {
             var file = $"./data/beatmaps/{md5}.osu";
 
-            if (File.Exists(file)) return md5;
+            if (File.Exists(file)) 
+                return md5;
 
             using var httpClient = new HttpClient();
             var data = await httpClient.GetByteArrayAsync($"https://osu.ppy.sh/osu/{id}");
@@ -26,15 +29,43 @@ namespace oyasumi.Utilities
             return md5;
         }
 
+        public static async Task<string> GetBeatmapByMd5(string md5)
+        {
+            var file = $"./data/beatmaps/{md5}.osu";
+
+            if (File.Exists(file)) 
+                return md5;
+            
+            using var client = new HttpClient();
+
+            var resp = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/md5/{md5}");
+
+            if (!resp.IsSuccessStatusCode) // if map not found or mirror is down then set status to NotSubmitted
+                return string.Empty;
+
+            var beatmap = JsonConvert.DeserializeObject<JsonBeatmap>(await resp.Content.ReadAsStringAsync());
+
+            var requestedDifficulty = beatmap.ChildrenBeatmaps.FirstOrDefault(x => x.FileMD5 == md5);
+            var data = await client.GetByteArrayAsync($"https://osu.ppy.sh/osu/{requestedDifficulty.BeatmapID}");
+
+            md5 = Crypto.ComputeHash(data); // probably md5 got updated, so re-compute it.
+
+            await File.WriteAllBytesAsync($"./data/beatmaps/{md5}.osu", data);
+
+            return md5;
+        }
+
         public static async Task<double> CalculatePerformancePoints(DbScore score)
         {
-            var beatmap =  Managers.BeatmapManager.Beatmaps[score.FileChecksum];
-            var beatmapMd5 = await GetBeatmap(score.FileChecksum, beatmap.Id);
-
+            var beatmapMd5 = await GetBeatmapByMd5(score.FileChecksum);
+            
+            if (beatmapMd5 == string.Empty)
+                return 0.0;
+            
             var workingBeatmap = new ProcessorWorkingBeatmap($"./data/beatmaps/{beatmapMd5}.osu");
 
             var psp = new ProcessorScoreDecoder(workingBeatmap);
-            var parsedScore = psp.Parse(score, $"./data/osr/{score.ReplayChecksum}.osr");
+            var parsedScore = psp.Parse(score);
 
             var categoryAttribs = new Dictionary<string, double>();
             var pp = parsedScore.ScoreInfo.Ruleset

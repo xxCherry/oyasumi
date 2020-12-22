@@ -82,7 +82,7 @@ namespace oyasumi.API.Controllers
                     .Select(x => new ProfileScoreResponse()
                     {
                         Id = x.Id,
-                        Beatmap = BeatmapManager.Get(x.FileChecksum, "", 0, _context).Result.Item2,
+                        Beatmap = BeatmapManager.Get(x.FileChecksum, "", 0).Result.Item2,
                         Mods = x.Mods,
                         Count50 = x.Count50,
                         Count100 = x.Count100,

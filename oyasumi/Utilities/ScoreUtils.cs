@@ -146,42 +146,21 @@ namespace oyasumi.Utilities
             return score;
         }
         
-         public Score Parse(DbScore oScore, string replayPath = null)
+         public Score Parse(DbScore oScore)
         {
-            using var rawReplay = replayPath == null
-                ? File.OpenRead(".data/osr/" + oScore.ReplayChecksum)
-                : File.OpenRead(replayPath);
-
-            var properties = new byte[5];
-            if (rawReplay.Read(properties, 0, 5) != 5)
-                throw new IOException("input .lzma is too short");
-
-            long outSize = 0;
-
-            for (var i = 0; i < 8; i++)
-            {
-                var v = rawReplay.ReadByte();
-                if (v < 0)
-                    throw new IOException("Can't Read 1");
-
-                outSize |= (long)(byte)v << (8 * i);
-            }
-
-            var compressedSize = rawReplay.Length - rawReplay.Position;
-
             _ruleset = LegacyHelper.Convert(oScore.PlayMode);
 
             var mods = LegacyHelper.Convert(oScore.PlayMode).ConvertFromLegacyMods((LegacyMods)oScore.Mods).ToArray();
 
             var score = new Score
             {
-                ScoreInfo = new ScoreInfo
+                ScoreInfo = new()
                 {
                     Accuracy = oScore.Accuracy,
                     Beatmap = _beatmap.BeatmapInfo,
                     Combo = oScore.MaxCombo,
                     MaxCombo = oScore.MaxCombo,
-                    User = new() { Username = Base.UserCache[oScore.UserId].Username },
+                    User = new() { Username = "owo" },
                     RulesetID = (int)oScore.PlayMode,
                     Date = oScore.Date,
                     Files = null,

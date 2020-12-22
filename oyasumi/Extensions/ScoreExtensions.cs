@@ -19,7 +19,7 @@ namespace oyasumi.Extensions
     {
         private const string SUBMISSION_KEY = "osu!-scoreburgr---------{0}";
 
-        public static async Task<Score> ToScore(this (string encScore, string iv, string osuVersion) self, OyasumiDbContext context)
+        public static async Task<Score> ToScore(this (string encScore, string iv, string osuVersion) self)
         {
             var scoreDecrypted = Crypto.DecryptString(
                 self.encScore,
@@ -33,7 +33,7 @@ namespace oyasumi.Extensions
             var isRelax = (mods & Mods.Relax) > 0;
             var isAutopilot = (mods & Mods.Relax2) > 0;
 
-            var beatmap = await BeatmapManager.Get(split[0], "", 0, context, false);
+            var beatmap = await BeatmapManager.Get(split[0], "", 0, false);
 
             var osuVersionUnformatted = split[17];
             var osuVersion = osuVersionUnformatted.Trim();
@@ -43,9 +43,9 @@ namespace oyasumi.Extensions
             var presence = PresenceManager.GetPresenceByName(split[1].TrimEnd()); // TrimEnd() because osu! adds extra space if user is supporter
 
             if (presence is null)
-                return new Score();
+                return new ();
 
-            return new Score
+            return new()
             {
                 FileChecksum = split[0],
                 Presence = presence,

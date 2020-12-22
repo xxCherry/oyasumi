@@ -274,13 +274,12 @@ namespace oyasumi.Layouts
 
             await using var writer = new SerializationWriter(new MemoryStream());
 
-            if (friendIds is null)
-                friendIds = Array.Empty<int>();
+            friendIds ??= Array.Empty<int>();
 
             writer.Write((short)friendIds.Length);
 
-            for (var i = 0; i < friendIds?.Length; i++)
-                writer.Write(friendIds[i]);
+            foreach (var t in friendIds)
+                writer.Write(t);
 
             packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
             p.PacketEnqueue(packet);

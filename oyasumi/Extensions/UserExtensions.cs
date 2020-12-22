@@ -32,7 +32,7 @@ namespace oyasumi.Extensions
             self.Replace(" ", "_").ToLower();
 
         public static bool Banned(this User self) => 
-            !((self.Privileges & Privileges.Normal) > 0);
+            (self.Privileges & Privileges.Normal) == 0;
 
         public static long TotalScore(this IStats stats, PlayMode mode)
         {

@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -43,45 +45,28 @@ namespace oyasumi.Objects
         public int Rank { get; set; }
         public CompletedStatus Completed { get; set; }
 
-        public static async Task<List<Score>> GetRawScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode,
+        public static async Task<Score[]> GetRawScores(string beatmapMd5, PlayMode mode,
             LeaderboardMode lbMode)
         {
-            var leaderboardData = new List<Score>();
-
-            var scores = (await context.Scores
-                    .AsQueryable()
-                    .ToArrayAsync())
-                    .Where(x => x.FileChecksum == beatmapMd5 &&
-                            x.Completed == CompletedStatus.Best &&
-                            x.PlayMode == mode &&
-                            x.Relaxing == (lbMode == LeaderboardMode.Relax) &&
-                            !Base.UserCache[x.UserId].Banned())
-                    .Take(50)
-                    .ToArray();
-
-            if (lbMode == LeaderboardMode.Vanilla)
-                Array.Sort(scores, (s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore));
-            else
-                Array.Sort(scores, (s1, s2) => s2.PerformancePoints.CompareTo(s1.PerformancePoints));
-
-            foreach (var score in scores)
-                leaderboardData.Add(await FromDb(context, score.Id, scores));
-
-            return leaderboardData;
+            IEnumerable<DbScore> scores = null;
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                scores = await db.QueryAsync<DbScore>($"SELECT * FROM Scores " +
+                                                      $"JOIN Users ON Users.Id = Scores.UserId " +
+                                                      $"WHERE Users.Privileges & {(int)Privileges.Normal} > 0 " +
+                                                      $"AND FileChecksum = '{beatmapMd5}' " +
+                                                      $"AND Completed = {(int)CompletedStatus.Best} " +
+                                                      $"AND PlayMode = {(int)mode} " +
+                                                      $"AND Relaxing = {lbMode == LeaderboardMode.Relax} " +
+                                                      $"ORDER BY {(lbMode == LeaderboardMode.Relax ? "PerformancePoints" : "TotalScore")} " +
+                                                      $"LIMIT 50");
+            }
+            var dbScores = scores as DbScore[] ?? scores.ToArray();
+            
+            return dbScores.Select(score => FromDb(score, dbScores)).ToArray();
         }
 
         public static List<string> FormatScores(IEnumerable<Score> scores, PlayMode mode) => scores.Select(score => score.ToString()).ToList();
-
-        public static async Task<string> GetFormattedScores(OyasumiDbContext context, string beatmapMd5, PlayMode mode, LeaderboardMode lbMode)
-        {
-            var sb = new StringBuilder();
-            var scores = await GetRawScores(context, beatmapMd5, mode, lbMode);
-
-            foreach (var score in scores)
-                sb.AppendLine(score.ToString());
-
-            return sb.ToString();
-        }
 
         public int CalculateLeaderboardRank(IReadOnlyList<DbScore> scores)
         {
@@ -98,13 +83,11 @@ namespace oyasumi.Objects
                     Rank = i + 1;
         }
 
-        public static async Task<Score> FromDb(OyasumiDbContext context, int scoreId, DbScore[] scores = null)
+        public static Score FromDb(DbScore dbScore, DbScore[] scores = null)
         {
-            var dbScore = await context.Scores.AsNoTracking().FirstOrDefaultAsync(x => x.Id == scoreId);
-
             var score = new Score
             {
-                ScoreId = scoreId,
+                ScoreId = dbScore.Id,
                 User = Base.UserCache[dbScore.UserId],
                 Date = dbScore.Date,
                 UserId = dbScore.UserId,

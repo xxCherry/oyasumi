@@ -1,4 +1,4 @@
-﻿//#define MERGE_BEATMAPS
+﻿#define MERGE_BEATMAPS
 #define MERGE_SCORES
 
 using System;
@@ -16,6 +16,7 @@ using oyasumi.Objects;
 using oyasumi.Utilities;
 using RippleDatabaseMerger.Database;
 using RippleDatabaseMerger.Enums;
+using static System.Int32;
 
 namespace RippleDatabaseMerger
 {
@@ -65,7 +66,9 @@ namespace RippleDatabaseMerger
             var rContext = new RippleDbContext(new DbContextOptionsBuilder<RippleDbContext>().UseMySql(connectionString).Options);
    
             Console.WriteLine("Users merging...");
-            var rUsers = rContext.Users.AsNoTracking();
+            var rUsers = await rContext.Users.AsNoTracking().ToListAsync();
+            var stats = await rContext.Stats.AsNoTracking().ToListAsync();
+            var relaxStats = await rContext.RelaxStats.AsNoTracking().ToListAsync();
 
             foreach (var user in rUsers.Where(x => x.Id != 999))
             {
@@ -78,18 +81,58 @@ namespace RippleDatabaseMerger
                     JoinDate = Time.UnixTimestampFromDateTime(user.JoinTimestamp),
                     Email = user.Email,
                 };
+
+                var vanillaStats = stats.FirstOrDefault(x => x.id == user.Id);
+                var sRelaxStats = rContext.RelaxStats.AsNoTracking().FirstOrDefault(x => x.id == user.Id);
                 
                 await oContext.Users.AddAsync(oUser);
                 await oContext.SaveChangesAsync();
                 
-                /*await oContext.VanillaStats.AddAsync(new ()
+                await oContext.VanillaStats.AddAsync(new() 
                 {
-                    Id = oUser.Id
+                    TotalScoreOsu = vanillaStats.total_score_std,
+                    TotalScoreTaiko = vanillaStats.total_score_taiko,
+                    TotalScoreCtb = vanillaStats.total_score_ctb,
+                    TotalScoreMania = vanillaStats.total_score_mania,
+                    
+                    RankedScoreOsu = vanillaStats.ranked_score_std,
+                    RankedScoreTaiko = vanillaStats.ranked_score_taiko,
+                    RankedScoreCtb = vanillaStats.ranked_score_ctb,
+                    RankedScoreMania = vanillaStats.ranked_score_mania,
+
+                    AccuracyOsu = vanillaStats.avg_accuracy_std / 100,
+                    AccuracyTaiko = vanillaStats.avg_accuracy_taiko / 100,
+                    AccuracyCtb = vanillaStats.avg_accuracy_ctb / 100,
+                    AccuracyMania = vanillaStats.avg_accuracy_mania / 100,
+                    
+                    PlaycountOsu = vanillaStats.playcount_std,
+                    PlaycountTaiko = vanillaStats.playcount_taiko,
+                    PlaycountCtb = vanillaStats.playcount_ctb,
+                    PlaycountMania = vanillaStats.playcount_mania
                 });
-                await oContext.RelaxStats.AddAsync(new ()
+                
+                await oContext.RelaxStats.AddAsync(new () 
                 {
-                    Id = oUser.Id
-                }); */
+                    TotalScoreOsu = sRelaxStats.total_score_std,
+                    TotalScoreTaiko = sRelaxStats.total_score_taiko,
+                    TotalScoreCtb = sRelaxStats.total_score_ctb,
+                    TotalScoreMania = sRelaxStats.total_score_mania,
+                    
+                    RankedScoreOsu = sRelaxStats.ranked_score_std,
+                    RankedScoreTaiko = sRelaxStats.ranked_score_taiko,
+                    RankedScoreCtb = sRelaxStats.ranked_score_ctb,
+                    RankedScoreMania = sRelaxStats.ranked_score_mania,
+
+                    AccuracyOsu = sRelaxStats.avg_accuracy_std / 100,
+                    AccuracyTaiko = sRelaxStats.avg_accuracy_taiko / 100,
+                    AccuracyCtb = sRelaxStats.avg_accuracy_ctb / 100,
+                    AccuracyMania = sRelaxStats.avg_accuracy_mania / 100,
+                    
+                    PlaycountOsu = sRelaxStats.playcount_std,
+                    PlaycountTaiko = sRelaxStats.playcount_taiko,
+                    PlaycountCtb = sRelaxStats.playcount_ctb,
+                    PlaycountMania = sRelaxStats.playcount_mania
+                }); 
                 
                 await oContext.RipplePasswords.AddAsync(new()
                 {
@@ -99,7 +142,7 @@ namespace RippleDatabaseMerger
                 });
                 await oContext.SaveChangesAsync();
                 
-                _rippleIdToOyasumi.Add(user.Id, oUser.Id);
+               _rippleIdToOyasumi.Add(user.Id, oUser.Id);
             }
             Console.WriteLine("Users merged...");
 #if MERGE_BEATMAPS
@@ -111,7 +154,7 @@ namespace RippleDatabaseMerger
                 if (oContext.Beatmaps.Any(x => x.BeatmapMd5 == beatmap.Checksum))
                     continue;
                 
-                var oBeatmap = await BeatmapManager.Get(beatmap.Checksum,"", 0, oContext);
+                var oBeatmap = await BeatmapManager.Get(beatmap.Checksum,"", 0);
                 if (oBeatmap.Item1 == RankedStatus.NotSubmitted || oBeatmap.Item1 == RankedStatus.NeedUpdate)
                     continue;
 
@@ -121,11 +164,12 @@ namespace RippleDatabaseMerger
                 await oContext.Beatmaps.AddAsync(dbMap);
                 await oContext.SaveChangesAsync();
             } 
-            Console.WriteLine("Beatmaps merged!"); 
+            Console.WriteLine("Beatmaps merged!");
 #endif
 #if MERGE_SCORES
             Console.WriteLine("Merging scores...");
-            foreach (var score in rContext.Scores.AsNoTracking())
+            var scores = (await rContext.Scores.AsNoTracking().ToListAsync()).Where(x => x.PlayMode == 0);
+            foreach (var score in scores)
             {
                 if (!_rippleIdToOyasumi.TryGetValue(score.UserId, out var newUserId))
                 {
@@ -134,10 +178,10 @@ namespace RippleDatabaseMerger
                 }
 
                 var completed = Convert(score.Completed);
-                
+
                 if (completed == CompletedStatus.Failed)
                     continue;
-
+                var timeParsed = TryParse(score.Time, out var time);
                 var convertedScore = new DbScore
                 {
                     FileChecksum = score.BeatmapChecksum,
@@ -148,16 +192,17 @@ namespace RippleDatabaseMerger
                     CountGeki = score.CountGeki,
                     CountKatu = score.CountKatu,
                     CountMiss = score.CountMiss,
+                    Accuracy = score.Accuracy,
                     TotalScore = score.Score,
                     MaxCombo = score.MaxCombo,
-                    Date = Time.UnixTimestampFromDateTime(int.Parse(score.Time)),
-                    Mods = (Mods)score.Mods,
-                    PlayMode = (PlayMode)score.PlayMode,
+                    Date = timeParsed ? Time.UnixTimestampFromDateTime(time) : DateTime.Now.AddDays(-10),
+                    Mods = (Mods) score.Mods,
+                    PlayMode = (PlayMode) score.PlayMode,
                     Completed = completed
                 };
                 convertedScore.Relaxing = (convertedScore.Mods & Mods.Relax) != 0;
                 convertedScore.PerformancePoints = await Calculator.CalculatePerformancePoints(convertedScore);
-                
+
                 var scoreReplayPath = Path.Combine(rippleReplayPath, $"replay_{score.Id}.osr");
 
                 if (File.Exists(scoreReplayPath))
@@ -177,20 +222,25 @@ namespace RippleDatabaseMerger
                 await oContext.Scores.AddAsync(convertedScore);
             }
 
+
+
             if (rippleRelaxReplayPath != string.Empty)
             {
-                foreach (var score in rContext.RelaxScores)
+                var scoresRelax =
+                    (await rContext.RelaxScores.AsNoTracking().ToListAsync()).Where(x => x.PlayMode == 0);
+                foreach (var score in scoresRelax)
                 {
                     if (!_rippleIdToOyasumi.TryGetValue(score.UserId, out var newUserId))
                     {
                         Console.WriteLine("User not found, skipping...");
                         continue;
                     }
-                    
+
                     var completed = Convert(score.Completed);
                     if (completed == CompletedStatus.Failed)
                         continue;
 
+                    var timeParsed = TryParse(score.Time, out var time);
                     var convertedScore = new DbScore
                     {
                         FileChecksum = score.BeatmapChecksum,
@@ -201,17 +251,18 @@ namespace RippleDatabaseMerger
                         CountGeki = score.CountGeki,
                         CountKatu = score.CountKatu,
                         CountMiss = score.CountMiss,
+                        Accuracy = score.Accuracy,
                         TotalScore = score.Score,
                         MaxCombo = score.MaxCombo,
-                        Date = Time.UnixTimestampFromDateTime(int.Parse(score.Time)),
-                        Mods = (Mods)score.Mods,
-                        PlayMode = (PlayMode)score.PlayMode,
+                        Date = timeParsed ? Time.UnixTimestampFromDateTime(time) : DateTime.Now.AddDays(-10),
+                        Mods = (Mods) score.Mods,
+                        PlayMode = (PlayMode) score.PlayMode,
                         Completed = Convert(score.Completed)
                     };
-                    
+
                     convertedScore.Relaxing = (convertedScore.Mods & Mods.Relax) != 0;
                     convertedScore.PerformancePoints = await Calculator.CalculatePerformancePoints(convertedScore);
-                    
+
                     var scoreReplayPath = Path.Combine(rippleRelaxReplayPath, $"replay_{score.Id}.osr");
 
                     if (File.Exists(scoreReplayPath))
@@ -231,6 +282,7 @@ namespace RippleDatabaseMerger
                     await oContext.Scores.AddAsync(convertedScore);
                 }
             }
+
             await oContext.SaveChangesAsync(); 
 
             Console.WriteLine("Scores merged...");
