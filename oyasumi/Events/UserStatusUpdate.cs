@@ -7,6 +7,7 @@ using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
 using oyasumi.Objects;
+using static oyasumi.Objects.Presence;
 
 namespace oyasumi.Events
 {
@@ -18,7 +19,7 @@ namespace oyasumi.Events
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
             
-            pr.Status = new PresenceStatus
+            pr.Status = new ActionStatus
             {
                 Status = (ActionStatuses) reader.ReadByte(),
                 StatusText = reader.ReadString(),

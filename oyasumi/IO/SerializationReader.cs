@@ -44,7 +44,7 @@ namespace oyasumi.IO
             }
         }
 
-        public Match ReadMatch()
+        public async Task<Match> ReadMatch()
         {
             var match = new Match();
 
@@ -62,9 +62,7 @@ namespace oyasumi.IO
             match.BeatmapId = ReadInt32();
             match.BeatmapChecksum = ReadString();
 
-            BeatmapManager.Get(match.BeatmapChecksum, "", 0)
-                .ContinueWith(x => match.Beatmap = x.Result.Item2)
-                .Wait();
+            match.Beatmap = (await BeatmapManager.Get(match.BeatmapChecksum, "", 0)).Item2;
 
             foreach (var slot in match.Slots)
                 slot.Status = (SlotStatus)ReadByte();

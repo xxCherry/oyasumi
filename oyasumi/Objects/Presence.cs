@@ -11,11 +11,14 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using oyasumi.Interfaces;
+using oyasumi.Chat.Objects;
+using System.Threading;
 
 namespace oyasumi.Objects
 {
 	public class Presence
 	{
+
 		public readonly string Token;
 		public readonly string Username;
 
@@ -41,7 +44,18 @@ namespace oyasumi.Objects
 		// --- > Shared
 		public int Rank;
 		// --- User Stats
-		public PresenceStatus Status;
+
+		public class ActionStatus
+		{
+			public ActionStatuses Status { get; set; }
+			public string StatusText { get; set; }
+			public string BeatmapChecksum { get; set; }
+			public Mods CurrentMods { get; set; }
+			public PlayMode CurrentPlayMode { get; set; }
+			public int BeatmapId { get; set; }
+		}
+
+		public ActionStatus Status;
 		public long RankedScore;
         public double Accuracy;
 		public int PlayCount;
@@ -55,7 +69,10 @@ namespace oyasumi.Objects
 
 		public BanchoPermissions BanchoPermissions;
 		
-        private readonly ConcurrentQueue<Packet> _packetQueue = new ConcurrentQueue<Packet>();
+        private readonly ConcurrentQueue<Packet> _packetQueue = new ();
+		public readonly ConcurrentQueue<ScheduledCommand> CommandQueue = new ();
+		public readonly ConcurrentDictionary<string, ScheduledCommand> ProcessedCommands = new();
+		
 
 		private static readonly List<string> _countryCodes = new List<string>
 		{
@@ -108,7 +125,7 @@ namespace oyasumi.Objects
 			Username = username;
 			Token = Guid.NewGuid().ToString();
 			Privileges = Privileges.Normal | Privileges.Verified;
-			Status = new PresenceStatus
+			Status = new ActionStatus
 			{
 				Status = ActionStatuses.Idle,
 				StatusText = "",
@@ -466,9 +483,29 @@ namespace oyasumi.Objects
 			return totalPerformance;
 		}
 
+		public bool WaitForCommandArguments(string cmd, out string[] args)
+        {
+			ScheduledCommand schCommand = null;
+
+			args = Array.Empty<string>();
+
+			if (!ProcessedCommands.TryGetValue(cmd, out schCommand)) 
+				return true;
+
+			ProcessedCommands.Remove(cmd, out _);
+
+			if (!schCommand.NoErrors)
+				args = null;
+			else 
+				args = schCommand.Args;
+
+			return false;
+		}
+
 		public async Task Apply(OyasumiDbContext context) => await context.SaveChangesAsync();
 
 		public void PacketEnqueue(Packet p) => _packetQueue.Enqueue(p);
+		public void CommandEnqueue(ScheduledCommand c) => CommandQueue.Enqueue(c);
 		
 		public async Task<byte[]> WritePackets()
 		{
