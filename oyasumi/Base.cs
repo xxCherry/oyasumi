@@ -7,6 +7,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -38,10 +39,14 @@ namespace oyasumi
 	
 	public class CommandItem
 	{
+		public string Name { get; set; }
 		public ObjectMethodExecutorCompiledFast Executor { get; set; }
 		public bool IsPublic { get; set; }
-		public int? RequiredArgs { get; set; }
+		public int RequiredArgs { get; set; }
 		public Privileges Privileges { get; set; }
+		public string Filter { get; set; }
+		public bool Scheduled { get; set; }
+		public string OnArgsPushed { get; set; }
 	}
 
 	public class Base

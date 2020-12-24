@@ -25,7 +25,7 @@ namespace oyasumi.Events
 
             var reader = new SerializationReader(new MemoryStream(p.Data));
 
-            var newMatch = reader.ReadMatch();
+            var newMatch = await reader.ReadMatch();
 
             if (string.IsNullOrEmpty(newMatch.GamePassword))
                 match.GamePassword = null;

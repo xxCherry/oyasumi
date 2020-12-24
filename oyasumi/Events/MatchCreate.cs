@@ -19,7 +19,7 @@ namespace oyasumi.Events
         public static async Task Handle(Packet p, Presence pr)
         {
             var reader = new SerializationReader(new MemoryStream(p.Data));
-            var match = reader.ReadMatch();
+            var match = await reader.ReadMatch();
 
             if (string.IsNullOrEmpty(match.GamePassword))
                 match.GamePassword = null;

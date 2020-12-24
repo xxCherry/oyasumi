@@ -108,6 +108,7 @@ namespace oyasumi.Objects
 
         [JsonProperty("metadata")] public BeatmapMetadata Metadata { get; set; }
         [JsonProperty("beatmap_name")] public string BeatmapName => $"{Metadata.Artist} - {Metadata.Title} [{Metadata.DifficultyName}]";
+        [JsonIgnore] public string BeatmapOsuName => $"{Metadata.Artist} - {Metadata.Title} ({Metadata.Creator}) [{Metadata.DifficultyName}].osu";
 
         public Beatmap
         (
@@ -129,30 +130,7 @@ namespace oyasumi.Objects
             Rating = mapRating;
 
             if (leaderboard)
-            {
-                var vanillaScores = Score.GetRawScores(md5, mode, LeaderboardMode.Vanilla).Result;
-                var relaxScores = Score.GetRawScores(md5, mode, LeaderboardMode.Relax).Result;
-
-                for (var i = 0; i < 3; i++)
-                {
-                    LeaderboardCache.TryAdd((LeaderboardMode) i, new());
-                    LeaderboardFormatted.TryAdd((LeaderboardMode) i, new());
-
-                    for (var j = 0; j < 4; j++)
-                    {
-                        LeaderboardCache[(LeaderboardMode) i].TryAdd((PlayMode) j, new());
-                        LeaderboardFormatted[(LeaderboardMode) i].TryAdd((PlayMode) j, new());
-                    }
-                }
-
-                foreach (var score in vanillaScores)
-                    LeaderboardCache[LeaderboardMode.Vanilla][mode].TryAdd(score.UserId, score);
-                foreach (var score in relaxScores)
-                    LeaderboardCache[LeaderboardMode.Relax][mode].TryAdd(score.UserId, score);
-
-                LeaderboardFormatted[LeaderboardMode.Vanilla][mode] = Score.FormatScores(vanillaScores, mode);
-                LeaderboardFormatted[LeaderboardMode.Relax][mode] = Score.FormatScores(relaxScores, mode);
-            }
+                InitializeLeaderboard(mode).Wait();
         }
 
 
@@ -189,6 +167,39 @@ namespace oyasumi.Objects
                 status, false, 0, 0, 0, 0, leaderboard, mode);
         }
 
+        public static async IAsyncEnumerable<Beatmap> GetBeatmapSet(int setId, string fileName, bool leaderboard, PlayMode mode)
+        {
+            using var client = new HttpClient();
+
+            var resp = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/s/{setId}");
+
+            if (!resp.IsSuccessStatusCode) // if map not found or mirror is down then set status to NotSubmitted
+                yield return new Beatmap("", fileName, -1, -1, new(), RankedStatus.NotSubmitted, false, 0, 0, 0, 0, leaderboard, mode);
+
+            var beatmap = JsonConvert.DeserializeObject<JsonBeatmap>(await resp.Content.ReadAsStringAsync());
+
+            foreach (var b in beatmap.ChildrenBeatmaps)
+            {
+                var beatmapMetadata = new BeatmapMetadata
+                {
+                    Artist = beatmap.Artist,
+                    Title = beatmap.Title,
+                    Creator = beatmap.Creator,
+                    DifficultyName = b.DiffName,
+                    CircleSize = b.CS,
+                    ApproachRate = b.AR,
+                    OverallDifficulty = b.OD,
+                    HPDrainRate = b.HP,
+                    Stars = b.DifficultyRating
+                };
+
+                var status = ApiToOsuRankedStatus[(APIRankedStatus)beatmap.RankedStatus];
+
+                yield return new(b.FileMD5, fileName, b.BeatmapID, b.ParentSetID, beatmapMetadata,
+                    status, false, 0, 0, 0, 0, leaderboard, mode);
+            }
+        }
+
         public void ClearLeaderboard()
         {
             for (var i = 0; i < 3; i++)
@@ -215,6 +226,32 @@ namespace oyasumi.Objects
                 leaderboard.TryAdd(score.UserId, score);
 
             LeaderboardFormatted[lbMode][mode] = Score.FormatScores(scores, mode);
+        }
+
+        public async Task InitializeLeaderboard(PlayMode mode)
+        {
+            var vanillaScores = Score.GetRawScores(FileChecksum, mode, LeaderboardMode.Vanilla).Result;
+            var relaxScores = Score.GetRawScores(FileChecksum, mode, LeaderboardMode.Relax).Result;
+
+            for (var i = 0; i < 3; i++)
+            {
+                LeaderboardCache.TryAdd((LeaderboardMode)i, new());
+                LeaderboardFormatted.TryAdd((LeaderboardMode)i, new());
+
+                for (var j = 0; j < 4; j++)
+                {
+                    LeaderboardCache[(LeaderboardMode)i].TryAdd((PlayMode)j, new());
+                    LeaderboardFormatted[(LeaderboardMode)i].TryAdd((PlayMode)j, new());
+                }
+            }
+
+            foreach (var score in vanillaScores)
+                LeaderboardCache[LeaderboardMode.Vanilla][mode].TryAdd(score.UserId, score);
+            foreach (var score in relaxScores)
+                LeaderboardCache[LeaderboardMode.Relax][mode].TryAdd(score.UserId, score);
+
+            LeaderboardFormatted[LeaderboardMode.Vanilla][mode] = Score.FormatScores(vanillaScores, mode);
+            LeaderboardFormatted[LeaderboardMode.Relax][mode] = Score.FormatScores(relaxScores, mode);
         }
 
         public string ToString(PlayMode mode, LeaderboardMode lbMode)

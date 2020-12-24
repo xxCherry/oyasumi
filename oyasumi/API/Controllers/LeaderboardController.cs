@@ -1,10 +1,16 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using oyasumi.API.Response;
 using oyasumi.Database;
+using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Extensions;
+using oyasumi.Interfaces;
+using oyasumi.Utilities;
 
 namespace oyasumi.API.Controllers
 {
@@ -18,7 +24,7 @@ namespace oyasumi.API.Controllers
             _context = context;
 
         [HttpGet("leaderboard")]
-        public IActionResult Leaderboard(
+        public async Task<IActionResult> Leaderboard(
             [FromQuery(Name = "mode")] PlayMode mode,
             [FromQuery(Name = "l")] int limit,
             [FromQuery(Name = "p")] int page,
@@ -32,9 +38,8 @@ namespace oyasumi.API.Controllers
             };
             
             Response.ContentType = "application/json";
-            
             return Content(JsonConvert.SerializeObject(stats
-                .Where(x => x.Performance(mode) > 0)
+                .Where(x => x.Performance(mode) > 0 & !Base.UserCache[x.Id].Banned())
                 .OrderByDescending(x => x.Performance(mode))
                 .Skip(page <= 1 ? 0 : (page - 1) * limit)
                 .Take(limit)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Microsoft.EntityFrameworkCore;
@@ -69,30 +70,32 @@ namespace oyasumi.API.Controllers
             [FromQuery(Name = "r")] bool isRelax
         )
         {
-            var scores = (await _context.Scores
-                    .AsNoTracking()
-                    .Where(x => x.UserId == userId
-                                && x.Completed == CompletedStatus.Best
-                                && x.Relaxing == isRelax
-                                && x.PlayMode == mode
-                    )
-                    .OrderByDescending(x => x.PerformancePoints)
-                    .Take(limit)
-                    .ToListAsync())
-                    .Select(x => new ProfileScoreResponse()
-                    {
-                        Id = x.Id,
-                        Beatmap = BeatmapManager.Get(x.FileChecksum, "", 0).Result.Item2,
-                        Mods = x.Mods,
-                        Count50 = x.Count50,
-                        Count100 = x.Count100,
-                        Count300 = x.Count300,
-                        Combo = x.MaxCombo,
-                        Performance = x.PerformancePoints,
-                        Accuracy = x.Accuracy,
-                        Timestamp = x.Date.ToUnixTimestamp(),
-                        Rank = Calculator.CalculateRank(x)
+            IEnumerable<ProfileScoreResponse> scores = null;
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                scores = (await db
+                        .QueryAsync<DbScore>($"SELECT * FROM Scores " +
+                                             $"WHERE UserId = {userId} " +
+                                             $"AND Relaxing = {(isRelax ? "1" : "0")} " +
+                                             $"AND PlayMode = {(int) mode} " +
+                                             $"ORDER BY PerformancePoints DESC " +
+                                             $"LIMIT {limit}" +
+                                             $""))
+                        .Select(x => new ProfileScoreResponse()
+                        {
+                            Id = x.Id,
+                            Beatmap = BeatmapManager.Get(x.FileChecksum, "", 0).Result.Item2,
+                            Mods = x.Mods,
+                            Count50 = x.Count50,
+                            Count100 = x.Count100,
+                            Count300 = x.Count300,
+                            Combo = x.MaxCombo,
+                            Performance = x.PerformancePoints,
+                            Accuracy = x.Accuracy,
+                            Timestamp = x.Date.ToUnixTimestamp(),
+                            Rank = Calculator.CalculateRank(x)
                     });
+            }
 
             Response.ContentType = "application/json";
             return Content(JsonConvert.SerializeObject(scores));

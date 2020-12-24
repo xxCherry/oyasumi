@@ -60,7 +60,7 @@ namespace oyasumi.Controllers
 
             var reqResult = await client.GetAsync(
                 $"{Config.Properties.BeatmapMirror}/api/search?amount=100&offset={page}" +
-                $"&query={query}{(mods != -1 ? $"&m={mods}" : "")}{(status != 4 ? $"&status={(int) Beatmap.DirectToApiRankedStatus[status]}" : "")}");
+                $"&query={query}{(mods != -1 ? $"&m={mods}" : "")}{(status != 4 ? $"&status={(int)Beatmap.DirectToApiRankedStatus[status]}" : "")}");
 
             if (!reqResult.IsSuccessStatusCode)
                 return Ok("no");
@@ -131,14 +131,14 @@ namespace oyasumi.Controllers
         [HttpPost("osu-submit-modular-selector.php")]
         public async Task<IActionResult> SubmitModular()
         {
-            var score = await ((string) Request.Form["score"], (string) Request.Form["iv"],
-                (string) Request.Form["osuver"]).ToScore();
+            var score = await ((string)Request.Form["score"], (string)Request.Form["iv"],
+                (string)Request.Form["osuver"]).ToScore();
 
             if (score is null)
                 return Ok("error: no");
             if (score.Presence is null)
                 return Ok("error: pass");
-            if (!(score.Presence.Username, (string) Request.Form["pass"]).CheckLogin())
+            if (!(score.Presence.Username, (string)Request.Form["pass"]).CheckLogin())
                 return Ok("error: pass");
             if (score.User.Banned())
                 return Ok("error: banned");
@@ -199,7 +199,7 @@ namespace oyasumi.Controllers
                     score.Presence.AddScore(stats, score.TotalScore, true, score.PlayMode);
                     score.Presence.AddScore(stats, score.TotalScore, false, score.PlayMode);
 
-                    score.Accuracy = (float) Calculator.CalculateAccuracy(score);
+                    score.Accuracy = (float)Calculator.CalculateAccuracy(score);
 
                     var oldDbScore = await _context.Scores
                         .AsAsyncEnumerable()
@@ -226,12 +226,12 @@ namespace oyasumi.Controllers
                                     m.ToArray());
                         }
                     }
-                    
+
                     if (beatmap.Status != RankedStatus.Loved)
                         score.PerformancePoints = await Calculator.CalculatePerformancePoints(score);
 
                     score.Completed = CompletedStatus.Best;
-                    
+
                     if (oldDbScore is not null) // if we already have score on the beatmap
                     {
                         if (score.Relaxing)
@@ -251,7 +251,7 @@ namespace oyasumi.Controllers
                     }
 
                     var dbScore = score.ToDb();
-                    
+
                     // TODO: maybe there's another way to do it, like just pass object to param?
                     await using (var db = MySqlProvider.GetDbConnection())
                     {
@@ -316,8 +316,13 @@ namespace oyasumi.Controllers
                     foreach (var otherPresence in PresenceManager.Presences.Values)
                         await score.Presence.UserStats(otherPresence);
 
-                    var leaderboard = score.Beatmap.LeaderboardCache[lbMode][score.PlayMode];
-                    
+                    var isLeaderboardModeCached = beatmap.LeaderboardCache.TryGetValue(lbMode, out var modeLeaderboard);
+
+                    if (!isLeaderboardModeCached)
+                        await beatmap.InitializeLeaderboard(score.PlayMode);
+
+                    var leaderboard = modeLeaderboard[score.PlayMode];
+
                     Score oldScore = null;
                     var oldScoreFound = false;
 
@@ -342,7 +347,7 @@ namespace oyasumi.Controllers
                     if (score.Rank == 1 && oldScore?.Rank != 1)
                         await ChannelManager.SendMessage("oyasumi", $"[{lbMode}] [https://astellia.club/{score.UserId} {presenceAfter.Username}] " +
                                                                     $"achieved #1 on [https://osu.ppy.sh/b/{score.Beatmap.Id} {score.Beatmap.BeatmapName}]", "#announce", 1, true);
-            
+
                     score.Beatmap.LeaderboardFormatted[lbMode][score.PlayMode] = Score.FormatScores(scores, score.PlayMode);
 
                     score.Presence.LastScore = score;
@@ -397,14 +402,14 @@ namespace oyasumi.Controllers
         public async Task<IActionResult> GetScores
         (
             [FromQuery(Name = "s")] bool getScores,
-            [FromQuery(Name = "vv")] string scoreboardVersion, 
+            [FromQuery(Name = "vv")] string scoreboardVersion,
             [FromQuery(Name = "v")] RankingType scoreboardType,
-            [FromQuery(Name = "c")] string beatmapChecksum, 
+            [FromQuery(Name = "c")] string beatmapChecksum,
             [FromQuery(Name = "f")] string fileName,
             [FromQuery(Name = "m")] PlayMode mode,
             [FromQuery(Name = "i")] int setId,
             [FromQuery(Name = "mods")] Mods mods,
-            [FromQuery(Name = "us")] string username, 
+            [FromQuery(Name = "us")] string username,
             [FromQuery(Name = "ha")] string password
         )
         {
@@ -443,7 +448,12 @@ namespace oyasumi.Controllers
                 case RankedStatus.NotSubmitted:
                     return Ok("-1|false");
                 case RankedStatus.Approved:
-                    var personalBest = beatmap.LeaderboardCache[lbMode][mode].TryGetValue(Base.UserCache[username].Id, out var score);
+                    var isLeaderboardModeCached = beatmap.LeaderboardCache.TryGetValue(lbMode, out var modeLeaderboard);
+
+                    if (!isLeaderboardModeCached)
+                        await beatmap.InitializeLeaderboard(mode);
+
+                    var personalBest = modeLeaderboard[mode].TryGetValue(Base.UserCache[username].Id, out var score);
                     var personalBestString = string.Empty;
 
                     if (personalBest)
@@ -458,5 +468,17 @@ namespace oyasumi.Controllers
                     return Ok("-1|false");
             }
         }
+        [HttpGet("maps/{fileName}")]
+        public async Task<IActionResult> GetScores(string fileName)
+        {
+            var beatmaps = BeatmapManager.Beatmaps.Values;
+            var beatmap = BeatmapManager.Beatmaps[fileName, 0];
+
+            if (beatmap is not null)
+                return Ok(await Calculator.GetBeatmap(beatmap.FileChecksum));
+
+            return NotFound();
+        }
+            
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,13 +53,22 @@ namespace oyasumi
 			if (env.IsDevelopment())
 			{
 				app.UseDeveloperExceptionPage();
-			}
+			}	
 			else
 			{
 				app.UseExceptionHandler("/Home/Error");
 				// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
 				app.UseHsts();
 			}
+
+			if (!Directory.Exists("./data/"))
+				Directory.CreateDirectory("./data/");
+			if (!Directory.Exists("./data/beatmaps/"))
+				Directory.CreateDirectory("./data/beatmaps/");
+			if (!Directory.Exists("./data/avatars/"))
+				Directory.CreateDirectory("./data/avatars/");
+			if (!Directory.Exists("./data/osr/"))
+				Directory.CreateDirectory("./data/osr/");
 
 			// User cache, speed up inital login by 15x
 			var users = context.Users.AsNoTracking().AsEnumerable();
