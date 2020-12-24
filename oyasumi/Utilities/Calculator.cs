@@ -17,7 +17,7 @@ namespace oyasumi.Utilities
         {
             var file = $"./data/beatmaps/{md5}.osu";
 
-            if (File.Exists(file)) 
+            if (File.Exists(file))
                 return md5;
 
             using var httpClient = new HttpClient();
