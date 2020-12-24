@@ -14,7 +14,7 @@ namespace oyasumi.Controllers
         {
             if (System.IO.File.Exists($"./data/avatars/{id}.png"))
             {
-                var file = await System.IO.File.ReadAllBytesAsync($"./data/{id}.png");
+                var file = await System.IO.File.ReadAllBytesAsync($"./data/avatars/{id}.png");
                 return File(file, "image/png");
             }
 
