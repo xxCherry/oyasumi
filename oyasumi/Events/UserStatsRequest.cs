@@ -25,7 +25,7 @@ namespace oyasumi.Events
             for (var i = 0; i < length; i++) 
                 presenceIds.Add(reader.ReadInt32());
 
-            //await pr.UserStats();
+            await pr.UserStats();
             foreach (var prId in presenceIds)
             {
                 if (prId == pr.Id)

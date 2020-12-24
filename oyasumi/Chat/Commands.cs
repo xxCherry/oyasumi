@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
 using oyasumi.Attributes;
+using oyasumi.Chat.Objects;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -15,6 +17,7 @@ using oyasumi.Extensions;
 using oyasumi.Layouts;
 using oyasumi.Managers;
 using oyasumi.Objects;
+using oyasumi.Utilities;
 
 namespace oyasumi.Chat
 {
@@ -35,7 +38,6 @@ namespace oyasumi.Chat
                 $"{Math.Round(pr.LastScore.Accuracy * 100, 2)}%, " +
                 $"{Math.Round(pr.LastScore.PerformancePoints, 2)}pp");
         }
-
         [Command("map", "Set the specified status to last /np'ed map", true, Privileges.ManageBeatmaps, 2)]
         public static async Task MapRanking(Presence pr, string channel, string message, string[] args)
         {
@@ -83,16 +85,10 @@ namespace oyasumi.Chat
                                                          $"[https://osu.ppy.sh/b/{beatmap.Id} {beatmap.BeatmapName}]");
         }
 
-        [Command("uban", "Un/ban specified player", true, Privileges.ManageUsers, 1)]
+        [Command("uban", "Un/ban specified player", true, Privileges.ManageUsers, 1, true, onArgsPushed: "UBan_OnArgsPushed")]
         public static async Task UBan(Presence pr, string channel, string message, string[] args)
         {
             var user = Base.UserCache[args[0]];
-
-            if (user is null)
-            {
-                await ChannelManager.BotMessage(pr, channel, $"User not found.");
-                return;
-            }
 
             if (!user.Banned())
             {

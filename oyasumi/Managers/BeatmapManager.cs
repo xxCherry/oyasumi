@@ -23,7 +23,7 @@ namespace oyasumi.Managers
     public static class BeatmapManager
     {
         // Beatmap local cache
-        public static TwoKeyDictionary<int, string, Beatmap> Beatmaps = new ();
+        public static MultiKeyDictionary<int, string, string, Beatmap> Beatmaps = new ();
         
         /// <summary>
         ///  Getting beatmap by fastest method available
@@ -53,7 +53,7 @@ namespace oyasumi.Managers
             {
                 beatmap = dbBeatmap.FromDb(leaderboard, mode);
 
-                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
+                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap.BeatmapOsuName, beatmap);
                 return (RankedStatus.Approved, beatmap);
             }
 
@@ -62,23 +62,53 @@ namespace oyasumi.Managers
             if (beatmap.Id == -1)
             {
                 await using (var db = MySqlProvider.GetDbConnection()) 
-                    dbBeatmap = (await db.QueryAsync<DbBeatmap>($"SELECT * FROM Beatmaps WHERE FileName = '{fileName}'")).FirstOrDefault();
+                    dbBeatmap = (await db.QueryAsync<DbBeatmap>($"SELECT * FROM Beatmaps WHERE FileName = @FileName", new { FileName = fileName})).FirstOrDefault();
 
                 if (dbBeatmap is not null)
                     return (RankedStatus.NeedUpdate, null);
 
                 using var client = new HttpClient();
+
                 var result = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/s/{setId}");
 
-                if (result.IsSuccessStatusCode)
-                    return (RankedStatus.NeedUpdate, null);
 
-                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
+                if (result.IsSuccessStatusCode)
+                {
+                    var beatmaps = Beatmap.GetBeatmapSet(setId, fileName, true, mode);
+                    await foreach (var b in beatmaps)
+                    {
+                        await using (var db = MySqlProvider.GetDbConnection())
+                        {
+                            dbBeatmap = await db.QueryFirstOrDefaultAsync<DbBeatmap>($"SELECT * From Beatmaps WHERE BeatmapMd5 = '{b.FileChecksum}'");
+                            if (dbBeatmap is null)
+                            {
+                                await db.ExecuteAsync("INSERT INTO Beatmaps " +
+                                                      "(" +
+                                                        "BeatmapId, FileName, BeatmapSetId, Status, Frozen, " +
+                                                        "PlayCount, PassCount, Artist, Title, DifficultyName, " +
+                                                        "Creator, BPM, CircleSize, OverallDifficulty, ApproachRate, " +
+                                                        "HPDrainRate, Stars" +
+                                                      ") " +
+                                                      "VALUES " +
+                                                      "(" +
+                                                        "@BeatmapId, '@FileName', @BeatmapSetId, @Status, @Frozen, " +
+                                                        "@PlayCount, @PassCount, '@Artist', '@Title', '@DifficultyName', " +
+                                                        "'@Creator', @BPM, @CircleSize, @OverallDifficulty, @ApproachRate, " +
+                                                        "@HPDrainRate, @Stars" +
+                                                      ")", b.ToDb());
+                            }
+                        }
+                        Beatmaps.Add(b.Id, b.FileChecksum, b.BeatmapOsuName, b);
+                    }
+                    return (RankedStatus.NeedUpdate, null);
+                }
+
+                Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap.BeatmapOsuName, beatmap);
                 return (RankedStatus.NotSubmitted, null);
             }
             
             // if beatmap exists in api we'll add it to local cache and db
-            Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap);
+            Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap.BeatmapOsuName, beatmap);
             await using (var db = MySqlProvider.GetDbConnection())
             {
                 await db.ExecuteAsync("INSERT INTO Beatmaps " +

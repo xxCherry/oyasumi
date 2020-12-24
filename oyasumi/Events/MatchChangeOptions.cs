@@ -20,7 +20,7 @@ namespace oyasumi.Events
         public static async Task Handle(Packet p, Presence pr)
         {
             var reader = new SerializationReader(new MemoryStream(p.Data));
-            var newMatch = reader.ReadMatch();
+            var newMatch = await reader.ReadMatch();
 
             var match = pr.CurrentMatch;
 
