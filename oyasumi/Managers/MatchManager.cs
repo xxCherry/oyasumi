@@ -22,7 +22,7 @@ namespace oyasumi.Managers
                 return;
             }
 
-            if (!Matches.TryGetValue(match.Id, out var _))
+            if (!Matches.TryGetValue(match.Id, out _))
             {
                 match.Id = ++_idCounter;
                 Matches.Add(match.Id, match);
