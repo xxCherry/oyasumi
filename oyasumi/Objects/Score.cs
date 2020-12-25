@@ -58,7 +58,7 @@ namespace oyasumi.Objects
                                                       $"AND Completed = {(int)CompletedStatus.Best} " +
                                                       $"AND PlayMode = {(int)mode} " +
                                                       $"AND Relaxing = {lbMode == LeaderboardMode.Relax} " +
-                                                      $"ORDER BY {(lbMode == LeaderboardMode.Relax ? "PerformancePoints" : "TotalScore")} " +
+                                                      $"ORDER BY {(lbMode == LeaderboardMode.Relax ? "PerformancePoints" : "TotalScore")} DESC " +
                                                       $"LIMIT 50");
             }
             var dbScores = scores as DbScore[] ?? scores.ToArray();

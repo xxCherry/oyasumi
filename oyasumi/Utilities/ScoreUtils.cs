@@ -15,9 +15,9 @@ using osu.Game.Beatmaps.Formats;
 using osu.Game.Scoring;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Beatmaps.Legacy;
-using osu.Game.Replays;
 using osu.Game.Scoring.Legacy;
 using oyasumi.Database.Models;
+using ReplayOsu = osu.Game.Replays.Replay;
 
 namespace oyasumi.Utilities
 {
@@ -138,7 +138,7 @@ namespace oyasumi.Utilities
                         [HitResult.None] = 0,
                     },
                 },
-                Replay = new Replay(),
+                Replay = new (),
             };
 
             CalculateAccuracy(score.ScoreInfo);
