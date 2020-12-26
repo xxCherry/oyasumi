@@ -8,20 +8,18 @@
  * Chat
  * Spectators
  * Multiplayer
- * Data Caching (initial login around 120ms and second login around 0.1ms)
+ * Data Caching
  * Commands
  
 
 ##### How can I contribute in this project?
-
- - You can ask access to collaborators
- - Or create pull request
+ - Create issues with bug reports
  
 #### Goals
  - Just for fun
 
 # Setup
-Before setup you need **dotnet**>5.0, on lower versions you won't be able compile oyasumi
+Before setup you need **dotnet**>5.0, on lower versions you won't be able to compile oyasumi
 
 ### Clone repository
 ```sh
@@ -44,4 +42,9 @@ $ ./oyasumi
 $ nano config.json
 ```
 
-If you want change port add to start oyasumi arguments `--urls=http://localhost:port`
+### FAQ
+ Q: How to start oyasumi on custom port?
+ A: `./oyasumi --urls=http://localhost:port`
+
+Q: How to enable relax pp?
+A: You need to edit osu!'s repository. Remove Mod.IsRanked check from PerformanceCalculator of mode you want (or from all modes) [Planned to use my own fork of osu! repository]
