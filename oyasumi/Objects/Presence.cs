@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using oyasumi.Interfaces;
 using oyasumi.Chat.Objects;
 using System.Threading;
+using oyasumi.Managers;
 
 namespace oyasumi.Objects
 {
@@ -405,11 +406,14 @@ namespace oyasumi.Objects
 						
 						if (Base.UserStatsCache[lbMode].TryGetValue(snipedStats.Id, out var cachedStats))
 							Base.UserStatsCache[lbMode].TryUpdate(snipedStats.Id, snipedStats, cachedStats);
+
+						var pr = PresenceManager.GetPresenceById(snipedStats.Id);
+						
+						if (pr is not null)
+							pr.Rank = newRank + i + 1;
 					}
-					
-				}
-
-
+                }
+				
 				switch (mode)
 				{
 					case PlayMode.Osu:

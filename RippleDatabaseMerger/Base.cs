@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using oyasumi.Database;
 using oyasumi.Database.Models;
@@ -216,8 +217,7 @@ namespace RippleDatabaseMerger
                     
                     convertedScore.ReplayChecksum = Crypto.ComputeHash(ms.ToArray());
 
-                    var oyasumiScoreReplayPath =
- Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
+                    var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
                     
                     if (!File.Exists(oyasumiScoreReplayPath)) 
                         File.Copy(scoreReplayPath, oyasumiScoreReplayPath);
@@ -277,8 +277,7 @@ namespace RippleDatabaseMerger
 
                         convertedScore.ReplayChecksum = Crypto.ComputeHash(ms.ToArray());
 
-                        var oyasumiScoreReplayPath =
- Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
+                        var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
 
                         if (!File.Exists(oyasumiScoreReplayPath))
                             File.Copy(scoreReplayPath, oyasumiScoreReplayPath);
@@ -309,21 +308,53 @@ namespace RippleDatabaseMerger
                 }
             }
 
-            foreach (var score in oContext.Scores)
+
+            var dirInfo = new DirectoryInfo(oyasumiReplayPath);
+            var files = dirInfo.GetFiles().OrderBy(f => f.LastWriteTime).ToList();
+
+            
+            var id = 0;
+
+            bool validate(DateTime t1, DateTime t2)
             {
-                if (score.ReplayChecksum is null)
+                return t1.Year == t2.Year && t1.Month == t2.Month && t1.Day == t2.Day && t1.Hour == t2.Hour &&
+                       t1.Minute == t2.Minute && t1.Second >= t2.Second && t1.Second <= 60;
+            }
+
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                var scores = await db.QueryAsync("SELECT * FROM Scores");
+
+                foreach (var score in scores)
                 {
-                    var scoreChecksum =
-                        Crypto.ComputeHash(
-                            $"{score.Count300 + score.Count100}{score.FileChecksum}{score.CountMiss}{score.CountGeki}{score.CountKatu}{score.Date}{score.Mods}");
-
-                    var a = _replayHashByScoreHash.TryGetValue(scoreChecksum, out var replayMd5);
-
-                   // Console.WriteLine($"{a} | {scoreChecksum} | {replayMd5}");
-
-                    score.ReplayChecksum = replayMd5;
+                    await db.ExecuteAsync($"UPDATE Scores SET Id = {++id} WHERE Id = {score.Id}");
                 }
             }
+
+            var scores2 = oContext.Scores.AsNoTracking();
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                foreach (var score in scores2)
+                {
+                    try
+                    {
+                        await db.ExecuteAsync(
+                            $"UPDATE Scores SET ReplayChecksum = NULL WHERE Id = {score.Id}");
+                        if (score.ReplayChecksum is null)
+                        {
+                            var file = files.FirstOrDefault(x => validate(x.LastWriteTime, score.Date));
+                            if (file is not null)
+                                await db.ExecuteAsync(
+                                    $"UPDATE Scores SET ReplayChecksum = '{file.Name.Split('.')[0]}' WHERE Id = {score.Id}");
+                        }
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+
 
             await oContext.SaveChangesAsync();
 #endif

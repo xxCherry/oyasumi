@@ -77,8 +77,10 @@ namespace oyasumi.Events
                     foreach (var slot in match.Slots)
                     {
                         if (slot.Presence is not null && slot.Presence.Id == match.Host.Id)
+                        {
                             match.ActiveMods = slot.Mods | (match.ActiveMods & Mods.SpeedAltering);
                             break;
+                        }
                     }
                 }
             }
@@ -91,7 +93,7 @@ namespace oyasumi.Events
                 match.ScoringType != newMatch.ScoringType         ||
                 match.TeamType != newMatch.TeamType)
             {
-                match.UnreadyEveryone();
+                match.Unready(SlotStatus.Ready);
             }
 
             foreach (var presence in match.Presences)

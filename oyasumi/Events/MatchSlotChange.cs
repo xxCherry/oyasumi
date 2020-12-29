@@ -35,15 +35,8 @@ namespace oyasumi.Events
 
             var currentSlot = match.Slots.FirstOrDefault(x => x.Presence == pr);
 
-            slot.Mods = currentSlot.Mods;
-            slot.Presence = currentSlot.Presence;
-            slot.Status = currentSlot.Status;
-            slot.Team = currentSlot.Team;
-
-            currentSlot.Mods = Mods.None;
-            currentSlot.Presence = null;
-            currentSlot.Status = SlotStatus.Open;
-            currentSlot.Team = SlotTeams.Neutral;
+            slot.CopyFrom(currentSlot);
+            currentSlot.Clear();
 
             foreach (var presence in match.Presences)
                 await presence.MatchUpdate(match);

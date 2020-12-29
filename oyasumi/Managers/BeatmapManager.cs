@@ -34,7 +34,7 @@ namespace oyasumi.Managers
         /// <param name="context">Database instance</param>
         public static async Task<(RankedStatus, Beatmap)> Get
         (
-            string checksum, string fileName, int setId,
+            string checksum, string fileName = "", int setId = 0,
             bool leaderboard = true, PlayMode mode = PlayMode.Osu,
             LeaderboardMode lbMode = LeaderboardMode.Vanilla
         )
@@ -70,8 +70,7 @@ namespace oyasumi.Managers
                 using var client = new HttpClient();
 
                 var result = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/s/{setId}");
-
-
+                
                 if (result.IsSuccessStatusCode)
                 {
                     var beatmaps = Beatmap.GetBeatmapSet(setId, fileName, true, mode);

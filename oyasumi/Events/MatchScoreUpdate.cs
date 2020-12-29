@@ -20,18 +20,19 @@ namespace oyasumi.Events
 
             var slotIndex = -1;
             for (var i = 0; i < Match.MAX_PLAYERS; i++)
-                if (match.Slots[i].Presence == pr) 
+            {
+                if (match.Slots[i].Presence == pr)
                 {
                     slotIndex = i;
                     break;
                 }
-
-
+            }
+            
             p.Data[4] = (byte)slotIndex;
 
             foreach (var presence in pr.CurrentMatch.Presences)
             {
-                presence.PacketEnqueue(new Packet()
+                presence.PacketEnqueue(new ()
                 {
                     Type = PacketType.ServerMultiScoreUpdate,
                     Data = p.Data

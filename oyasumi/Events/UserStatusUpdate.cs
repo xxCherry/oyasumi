@@ -19,7 +19,7 @@ namespace oyasumi.Events
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
             
-            pr.Status = new ActionStatus
+            pr.Status = new ()
             {
                 Status = (ActionStatuses) reader.ReadByte(),
                 StatusText = reader.ReadString(),
@@ -31,7 +31,7 @@ namespace oyasumi.Events
 
             var lbMode = pr.Status.CurrentMods switch
             {
-                Mods mod when (mod & Mods.Relax) > 0 => LeaderboardMode.Relax,
+                var mod when (mod & Mods.Relax) > 0 => LeaderboardMode.Relax,
                 _ => LeaderboardMode.Vanilla,
             };
 
