@@ -118,7 +118,8 @@ namespace oyasumi.Controllers
                     .FirstOrDefaultAsync();
             else if (Request.Query.ToList().Any(x => x.Key == "b"))
                 beatmap = await _context.Beatmaps.AsNoTracking().AsAsyncEnumerable()
-                    .Where(x => x.BeatmapId == beatmapId).FirstOrDefaultAsync();
+                    .Where(x => x.BeatmapId == beatmapId)
+                    .FirstOrDefaultAsync();
 
             if (beatmap is null)
                 return Ok("no");
@@ -234,7 +235,7 @@ namespace oyasumi.Controllers
 
                     if (oldDbScore is not null) // if we already have score on the beatmap
                     {
-                        if (score.Relaxing)
+                        if (score.Relaxing && beatmap.Status != RankedStatus.Loved)
                         {
                             if (oldDbScore.PerformancePoints <= score.PerformancePoints)  // then check if our last score is better.
                                 oldDbScore.Completed = CompletedStatus.Submitted;
@@ -329,7 +330,7 @@ namespace oyasumi.Controllers
                     if (oldDbScore is not null)
                         oldScoreFound = leaderboard.TryGetValue(oldDbScore.UserId, out oldScore);
 
-                    var scores = await Score.GetRawScores(beatmap.FileChecksum, score.PlayMode, lbMode);
+                    var scores = await Score.GetRawScores(beatmap.FileChecksum, score.PlayMode, beatmap.Status, lbMode);
 
                     leaderboard.Clear(); // Clear the cache
 
@@ -342,13 +343,13 @@ namespace oyasumi.Controllers
                                 $"[{lbMode}] [https://astellia.club/{bScore.UserId} {presenceAfter.Username}] achieved #1 on https://osu.ppy.sh/b/{score.Beatmap.Id}",
                                 "#announce", int.MaxValue, true);
                     }
-                    score.CalculateLeaderboardRank(scores);
+                    score.CalculateLeaderboardRank(scores, beatmap.Status);
 
                     if (score.Rank == 1 && oldScore?.Rank != 1)
                         await ChannelManager.SendMessage("oyasumi", $"[{lbMode}] [https://astellia.club/{score.UserId} {presenceAfter.Username}] " +
                                                                     $"achieved #1 on [https://osu.ppy.sh/b/{score.Beatmap.Id} {score.Beatmap.BeatmapName}]", "#announce", 1, true);
 
-                    score.Beatmap.LeaderboardFormatted[lbMode][score.PlayMode] = Score.FormatScores(scores, score.PlayMode);
+                    score.Beatmap.LeaderboardFormatted[lbMode][score.PlayMode] = Score.FormatScores(scores, beatmap.Status, score.PlayMode);
 
                     score.Presence.LastScore = score;
 
@@ -389,10 +390,17 @@ namespace oyasumi.Controllers
             if (!(username, password).CheckLogin())
                 return Ok("error: pass");
 
-            var replayChecksum = await _context.Scores.AsAsyncEnumerable().Where(x => x.PlayMode == mode && x.Id == scoreId).Select(x => x.ReplayChecksum).FirstOrDefaultAsync();
+            var replayChecksum = await _context.Scores
+                .AsAsyncEnumerable()
+                .Where(x => x.PlayMode == mode && x.Id == scoreId)
+                .Select(x => x.ReplayChecksum)
+                .FirstOrDefaultAsync();
 
-            if (System.IO.File.Exists($"data/osr/{replayChecksum}.osr"))
-                return File(System.IO.File.OpenRead($"data/osr/{replayChecksum}.osr"), "binary/octet-stream");
+            if (System.IO.File.Exists($"./data/osr/{replayChecksum}.osr"))
+            {
+                var file = System.IO.File.OpenRead($"./data/osr/{replayChecksum}.osr");
+                return File(file, "binary/octet-stream");
+            }
 
             return Ok("error: no-replay");
 
@@ -424,7 +432,7 @@ namespace oyasumi.Controllers
 
             var lbMode = mods switch
             {
-                Mods mod when (mod & Mods.Relax) > 0 => LeaderboardMode.Relax,
+                var mod when (mod & Mods.Relax) > 0 => LeaderboardMode.Relax,
                 _ => LeaderboardMode.Vanilla,
             };
 
@@ -457,11 +465,11 @@ namespace oyasumi.Controllers
                     var personalBestString = string.Empty;
 
                     if (personalBest)
-                        personalBestString = $"{score}";
+                        personalBestString = score.ToString(beatmap.Status);
 
                     return Ok($"{beatmap.ToString(mode, lbMode)}\n"
-                            + $"{personalBestString}\n"
-                            + string.Join("\n", beatmap.LeaderboardFormatted[lbMode][mode]));
+                            + $"{(beatmap.Status == RankedStatus.LatestPending ? string.Empty : personalBestString)}\n"
+                            + $"{(beatmap.Status == RankedStatus.LatestPending ? string.Empty : string.Join("\n", beatmap.LeaderboardFormatted[lbMode][mode]))}");
                 case RankedStatus.NeedUpdate:
                     return Ok("1|false");
                 default:
@@ -469,13 +477,14 @@ namespace oyasumi.Controllers
             }
         }
         [HttpGet("maps/{fileName}")]
-        public async Task<IActionResult> GetScores(string fileName)
+        public async Task<IActionResult> DownloadOsu(string fileName)
         {
-            var beatmaps = BeatmapManager.Beatmaps.Values;
             var beatmap = BeatmapManager.Beatmaps[fileName, 0];
-
             if (beatmap is not null)
-                return Ok(await Calculator.GetBeatmap(beatmap.FileChecksum));
+            {
+                var file = System.IO.File.OpenRead( $"./data/beatmaps/{await Calculator.GetBeatmap(beatmap.FileChecksum)}.osu");
+                return File(file, "octet-stream");
+            }
 
             return NotFound();
         }

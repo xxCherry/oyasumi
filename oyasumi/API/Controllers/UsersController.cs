@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Dapper;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Microsoft.EntityFrameworkCore;
@@ -78,13 +80,13 @@ namespace oyasumi.API.Controllers
                                              $"WHERE UserId = {userId} " +
                                              $"AND Relaxing = {(isRelax ? "1" : "0")} " +
                                              $"AND PlayMode = {(int) mode} " +
+                                             $"AND Completed = {(int)CompletedStatus.Best} " +
                                              $"ORDER BY PerformancePoints DESC " +
-                                             $"LIMIT {limit}" +
-                                             $""))
+                                             $"LIMIT {limit}"))
                         .Select(x => new ProfileScoreResponse()
                         {
                             Id = x.Id,
-                            Beatmap = BeatmapManager.Get(x.FileChecksum, "", 0).Result.Item2,
+                            Beatmap = BeatmapManager.Get(x.FileChecksum).Result.Item2,
                             Mods = x.Mods,
                             Count50 = x.Count50,
                             Count100 = x.Count100,
@@ -94,7 +96,7 @@ namespace oyasumi.API.Controllers
                             Accuracy = x.Accuracy,
                             Timestamp = x.Date.ToUnixTimestamp(),
                             Rank = Calculator.CalculateRank(x)
-                    });
+                        });
             }
 
             Response.ContentType = "application/json";
@@ -108,23 +110,23 @@ namespace oyasumi.API.Controllers
 
             if (user is null)
                 return NetUtils.Error("User not found");
-            
+
             /*if (!await Misc.VerifyCaptcha(info.CaptchaKey, Request.Headers["X-Real-IP"]))
                 return StatusCode(400); */
-            
+
             var passwordMd5 = Crypto.ComputeHash(info.Password);
-            
+
             if (user.Password.Length == 0)
             {
                 var ripplePassword = await _context.RipplePasswords
                     .AsAsyncEnumerable()
                     .FirstOrDefaultAsync(x => x.UserId == user.Id);
-                
+
                 // in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
                 // we need to merge it to bcrypt
                 if (!Crypto.VerifySCryptPassword(ripplePassword.Password, info.Password, ripplePassword.Salt))
                     return NetUtils.Error("Wrong password.");
-                
+
                 var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
 
                 user.Password = passwordBcrypt;
@@ -134,7 +136,7 @@ namespace oyasumi.API.Controllers
 
                 await _context.SaveChangesAsync();
             }
-            
+
             if (!Base.PasswordCache.TryGetValue(passwordMd5, out _))
             {
                 if (!Crypto.VerifyPassword(passwordMd5, user.Password))
@@ -142,7 +144,7 @@ namespace oyasumi.API.Controllers
 
                 Base.PasswordCache.TryAdd(passwordMd5, user.Password);
             }
-            
+
             var token = Base.TokenCache[user.Id];
 
             if (token is null)
@@ -156,12 +158,12 @@ namespace oyasumi.API.Controllers
                 await _context.Tokens.AddAsync(token);
                 await _context.SaveChangesAsync();
             }
-            
+
             var kvp = new Dictionary<string, string>
             {
                 ["token"] = token.UserToken
             };
-            
+
             return Content(JsonConvert.SerializeObject(kvp));
         }
 
@@ -174,7 +176,7 @@ namespace oyasumi.API.Controllers
 
             if (!await Misc.VerifyCaptcha(info.CaptchaKey, Request.Headers["X-Real-IP"]))
                 return StatusCode(400);
-                
+
             var errors = new Dictionary<string, List<string>>
             {
                 ["username"] = new(),
@@ -193,7 +195,7 @@ namespace oyasumi.API.Controllers
                 @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
                 RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)))
                 errors["email"].Add("Invalid email syntax.");
-            
+
             if (await _context.Users.AsAsyncEnumerable().AnyAsync(x => x.Email == email))
                 errors["email"].Add("Email already taken by another player.");
 
@@ -211,7 +213,7 @@ namespace oyasumi.API.Controllers
             var passwordMd5 = Crypto.ComputeHash(plainPassword);
             var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
 
-            if (!Base.PasswordCache.TryGetValue(passwordMd5, out var _))
+            if (!Base.PasswordCache.TryGetValue(passwordMd5, out _))
                 Base.PasswordCache.TryAdd(passwordMd5, passwordBcrypt);
 
             var user = new User
@@ -229,17 +231,22 @@ namespace oyasumi.API.Controllers
             await _context.Users.AddAsync(user);
             await _context.VanillaStats.AddAsync(vanillaStats);
             await _context.RelaxStats.AddAsync(relaxStats);
-            
+
             await _context.SaveChangesAsync();
-            
+
             var token = new Token
             {
                 UserId = user.Id,
                 UserToken = Guid.NewGuid().ToString()
             };
+            
             await _context.Tokens.AddAsync(token);
             await _context.SaveChangesAsync();
 
+            Base.TokenCache.Add(user.Username, user.Id, token);
+            Base.UserCache.Add(user.Username, user.Id, user);
+            Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanillaStats);
+            Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, relaxStats);
             return Ok("Account created!");
         }
 
@@ -257,29 +264,30 @@ namespace oyasumi.API.Controllers
         {
             if (!Misc.VerifyToken(Request.Headers["Authorization"]))
                 return StatusCode(400);
-            
+
             var user = Base.UserCache[userId];
-            
+
             if (user is null)
                 return NetUtils.Error("User not found.");
 
             if ((user.Privileges & Privileges.ManageUsers) <= 0)
                 return NetUtils.Error("You're not allowed to do that.");
-            
+
             var passwordMd5 = Crypto.ComputeHash(password);
             var newPassword = Crypto.GenerateHash(passwordMd5);
 
             Base.PasswordCache.TryAdd(passwordMd5, newPassword);
 
             user.Password = newPassword;
-                
+
             return Ok();
         }
-        
+
         [HttpGet("me")]
         public IActionResult Me()
         {
             var tokenStr = Request.Headers["Authorization"];
+            
             if (!Misc.VerifyToken(tokenStr))
                 return StatusCode(400);
 
@@ -305,10 +313,10 @@ namespace oyasumi.API.Controllers
             var tokenStr = Request.Headers["Authorization"];
             if (!Misc.VerifyToken(tokenStr))
                 return StatusCode(400);
-            
+
             var token = Base.TokenCache[tokenStr];
             var user = Base.UserCache[token.UserId];
-            
+
             var exists = await _context.Friends.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Friend2 == userId);
 
             if (exists is not null)
@@ -332,13 +340,13 @@ namespace oyasumi.API.Controllers
             var tokenStr = Request.Headers["Authorization"];
             if (!Misc.VerifyToken(tokenStr))
                 return StatusCode(400);
-            
+
             var token = Base.TokenCache[tokenStr];
 
             var isForbidden = true;
             foreach (var line in info.Content.Split("\n"))
             {
-                if (!Regex.IsMatch(line, @"/\[(\w+)[^w]*?](.*?)\[\/\1]/g")) 
+                if (!Regex.IsMatch(line, @"/\[(\w+)[^w]*?](.*?)\[\/\1]/g"))
                     isForbidden = false;
             }
 
@@ -347,7 +355,7 @@ namespace oyasumi.API.Controllers
 
             var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == token.UserId);
             user.UserpageContent = info.Content;
-            
+
             return Ok();
         }
 
@@ -357,7 +365,7 @@ namespace oyasumi.API.Controllers
             var tokenStr = Request.Headers["Authorization"];
             if (!Misc.VerifyToken(tokenStr))
                 return StatusCode(400);
-            
+
             var token = Base.TokenCache[tokenStr];
             var cachedUser = Base.UserCache[token.UserId];
             var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == token.UserId);
@@ -375,24 +383,25 @@ namespace oyasumi.API.Controllers
             var tokenStr = Request.Headers["Authorization"];
             if (!Misc.VerifyToken(tokenStr))
                 return StatusCode(400);
-            
+
             var cachedToken = Base.TokenCache[tokenStr];
             var cachedUser = Base.UserCache[cachedToken.UserId];
-            
+
             var currentPasswordMd5 = Crypto.ComputeHash(info.CurrentPassword);
             if (!Base.PasswordCache.TryGetValue(currentPasswordMd5, out _))
             {
                 if (!Crypto.VerifyPassword(currentPasswordMd5, cachedUser.Password))
                     return NetUtils.StatusCode("Invalid old password", 400);
             }
+
             var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == cachedToken.UserId);
             var newPasswordBcrypt = Crypto.GenerateHash(Crypto.ComputeHash(info.NewPassword));
 
             user.Password = newPasswordBcrypt;
-            
-            if (info.Email != user.Email) 
+
+            if (info.Email != user.Email)
                 user.Email = info.Email;
-            
+
             var token = new Token
             {
                 Id = cachedToken.Id,
@@ -400,11 +409,41 @@ namespace oyasumi.API.Controllers
                 UserToken = Guid.NewGuid().ToString()
             };
             Base.TokenCache[tokenStr] = token;
-            
+
             var dbToken = await _context.Tokens.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UserId == token.Id);
             dbToken = token;
 
             await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPatch("update_avatar")]
+        public async Task<IActionResult> UpdateAvatar() 
+        {
+            var token = Request.Headers["Authorization"];
+            if (!Misc.VerifyToken(token))
+                return StatusCode(400);
+            
+            var dbToken = await _context.Tokens.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UserToken== token);
+            
+            var avatar = Request.Form.Files.GetFile("File");
+            if (avatar is null)
+                return NetUtils.Error("File is invalid.");
+
+            if (!Regex.IsMatch(avatar.FileName, @"([^\s]+(\.(?i)(jpg|png|jpeg))$)"))
+                return NetUtils.Error("File is not an image.");
+
+            await using (var m = new MemoryStream())
+            {
+                await avatar.CopyToAsync(m);
+                m.Position = 0;
+                await using var avatarFile =
+                    System.IO.File.Create($"./data/avatars/{dbToken.UserId}.png");
+                m.WriteTo(avatarFile);
+                m.Close();
+                avatarFile.Close();
+            }
+
             return Ok();
         }
     }

@@ -23,7 +23,7 @@ namespace oyasumi.Events
                 return;
 
             var slotId = -1;
-            for (int i = 0; i < Match.MAX_PLAYERS; i++)
+            for (var i = 0; i < Match.MAX_PLAYERS; i++)
             {
                 if (match.Slots[i].Presence == pr)
                 {

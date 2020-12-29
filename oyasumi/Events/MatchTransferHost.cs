@@ -36,8 +36,7 @@ namespace oyasumi.Events
 
             match.Host = newHost.Presence;
             await match.Host.MatchTransferHost();
-
-
+            
             foreach (var presence in match.Presences)
                 await presence.MatchUpdate(match);
         }

@@ -25,15 +25,16 @@ namespace oyasumi.Events
             var prSlot = match.Slots.FirstOrDefault(x => x.Presence == pr);
             prSlot.Skipped = true;
 
-            foreach (var slot in match.Slots)
-                if (slot.Status == SlotStatus.Playing && !slot.Skipped)
-                    return;
+            if (match.Slots.Any(slot => slot.Status == SlotStatus.Playing && !slot.Skipped))
+                return;
 
             foreach (var presence in match.Presences)
-                presence.PacketEnqueue(new Packet
+            {
+                presence.PacketEnqueue(new()
                 {
                     Type = PacketType.ServerMultiSkip
                 });
+            }
         }
     }
 }

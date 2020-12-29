@@ -15,14 +15,7 @@ namespace oyasumi.Events
     public class MatchStart
     {
         [Packet(PacketType.ClientMultiMatchStart)]
-        public static void Handle(Packet p, Presence pr)
-        {
-            var match = pr.CurrentMatch;
-
-            if (match is null)
-                return;
-
-            match.Start();
-        }
+        public static void Handle(Packet p, Presence pr) =>
+            pr.CurrentMatch?.Start();
     }
 }

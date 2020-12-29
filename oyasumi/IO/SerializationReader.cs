@@ -92,14 +92,14 @@ namespace oyasumi.IO
 
         public DateTime ReadDateTime()
         {
-            return new DateTime(ReadInt64(), DateTimeKind.Utc);
+            return new (ReadInt64(), DateTimeKind.Utc);
         }
 
         public List<T> ReadList<T>()
         {
             var l = new List<T>();
-            int length = ReadInt32();
-            for (int i = 0; i < length; i++)
+            var length = ReadInt32();
+            for (var i = 0; i < length; i++)
                 l.Add((T)ReadObject());
             return l;
         }
