@@ -27,6 +27,16 @@ namespace oyasumi.Events
             if (match is null)
                 return;
 
+            
+            if (match.BeatmapChecksum != newMatch.BeatmapChecksum ||
+                match.PlayMode != newMatch.PlayMode               ||
+                match.Type != newMatch.Type                       ||
+                match.ScoringType != newMatch.ScoringType         ||
+                match.TeamType != newMatch.TeamType)
+            {
+                match.Unready(SlotStatus.Ready);
+            }
+            
             match.Beatmap = newMatch.Beatmap;
             match.BeatmapChecksum = newMatch.BeatmapChecksum;
             match.BeatmapId = newMatch.BeatmapId;
@@ -37,7 +47,7 @@ namespace oyasumi.Events
             {
                 if (match.TeamType == MatchTeamTypes.TagTeamVs || match.TeamType == MatchTeamTypes.TeamVs)
                 {
-                    int i = 0;
+                    var i = 0;
                     foreach (var slot in match.Slots)
                     {
                         if (slot.Team == SlotTeams.Neutral)
@@ -86,15 +96,6 @@ namespace oyasumi.Events
             }
 
             match.FreeMods = newMatch.FreeMods;
-
-            if (match.BeatmapChecksum != newMatch.BeatmapChecksum ||
-                match.PlayMode != newMatch.PlayMode               ||
-                match.Type != newMatch.Type                       ||
-                match.ScoringType != newMatch.ScoringType         ||
-                match.TeamType != newMatch.TeamType)
-            {
-                match.Unready(SlotStatus.Ready);
-            }
 
             foreach (var presence in match.Presences)
                 await presence.MatchUpdate(match);

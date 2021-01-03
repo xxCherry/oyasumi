@@ -11,15 +11,16 @@ namespace oyasumi.Extensions
 {
     public static class UserExtensions
     {
-        public static async Task<(string username, string password, int timezone)> ParseLoginDataAsync(this Stream self)
+        public static async Task<(string username, string password, string osuVersion, int timezone)> ParseLoginDataAsync(this Stream self)
         {
             using var reader = new StreamReader(self, leaveOpen: true);
 
             var username = await reader.ReadLineAsync();
             var password = await reader.ReadLineAsync();
             var data = (await reader.ReadLineAsync()).Split("|");
+            
 
-            return (username, password, int.Parse(data[1]));
+            return (username, password, data[0], int.Parse(data[1]));
         }
 
         public static bool CheckLogin(this (string username, string password) self)
