@@ -12,7 +12,6 @@ namespace oyasumi.Events
         [Packet(PacketType.ClientPong)]
         public static async Task Handle(Packet p, Presence pr)
         {
-            await pr.UserStats();
         }
     }
 }

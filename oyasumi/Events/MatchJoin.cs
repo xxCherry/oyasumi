@@ -24,7 +24,9 @@ namespace oyasumi.Events
             if (MatchManager.Matches.TryGetValue(matchId, out var match))
             {
                 await pr.JoinMatch(match, password);
-                await pr.JoinChannel($"multi_{match.Id}");
+                
+                if (pr.CurrentMatch is not null)
+                    await pr.JoinChannel($"multi_{match.Id}");
             }
             else
                 pr.MatchJoinFail();

@@ -19,7 +19,6 @@ namespace oyasumi.Objects
 {
 	public class Presence
 	{
-
 		public readonly string Token;
 		public readonly string Username;
 
@@ -36,6 +35,8 @@ namespace oyasumi.Objects
 		public readonly int Id;
 		public readonly int LoginTime = Time.CurrentUnixTimestamp;
 		public Privileges Privileges;
+
+		public bool Tourney;
 
 		// --- User Presence
 		public byte Timezone;
@@ -489,28 +490,21 @@ namespace oyasumi.Objects
 
 		public bool WaitForCommandArguments(string cmd, out string[] args)
         {
-			ScheduledCommand schCommand = null;
+	        args = Array.Empty<string>();
 
-			args = Array.Empty<string>();
-
-			if (!ProcessedCommands.TryGetValue(cmd, out schCommand)) 
+			if (!ProcessedCommands.TryGetValue(cmd, out var schCommand)) 
 				return true;
 
 			ProcessedCommands.Remove(cmd, out _);
 
-			if (!schCommand.NoErrors)
-				args = null;
-			else 
-				args = schCommand.Args;
+			args = !schCommand.NoErrors ? null : schCommand.Args;
 
 			return false;
 		}
 
 		public async Task Apply(OyasumiDbContext context) => await context.SaveChangesAsync();
-
 		public void PacketEnqueue(Packet p) => _packetQueue.Enqueue(p);
-		public void CommandEnqueue(ScheduledCommand c) => CommandQueue.Enqueue(c);
-		
+
 		public async Task<byte[]> WritePackets()
 		{
 			var writer = new PacketWriter();

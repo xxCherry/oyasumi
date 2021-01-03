@@ -19,6 +19,7 @@ namespace oyasumi.Events
                 return;
 
             var slotIndex = -1;
+            
             for (var i = 0; i < Match.MAX_PLAYERS; i++)
             {
                 if (match.Slots[i].Presence == pr)

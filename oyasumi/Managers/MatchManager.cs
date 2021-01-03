@@ -11,7 +11,7 @@ namespace oyasumi.Managers
 {
     public static class MatchManager
     {
-        public static Dictionary<int, Match> Matches = new Dictionary<int, Match>();
+        public static Dictionary<int, Match> Matches = new ();
         private static int _idCounter;
 
         public static async Task JoinMatch(this Presence pr, Match match, string password)
@@ -22,13 +22,20 @@ namespace oyasumi.Managers
                 return;
             }
 
-            if (!Matches.TryGetValue(match.Id, out var _))
+            if (!Matches.TryGetValue(match.Id, out _))
             {
                 match.Id = ++_idCounter;
                 Matches.Add(match.Id, match);
             }
 
             var slot = match.FreeSlot;
+
+            if (slot is null)
+            {
+                pr.MatchJoinFail();
+                return;
+            }
+            
             slot.Status = SlotStatus.NotReady;
             slot.Presence = pr;
 
@@ -51,13 +58,7 @@ namespace oyasumi.Managers
 
             var slot = match.Slots.FirstOrDefault(x => x.Presence == pr);
 
-            if (slot is not null)
-            {
-                slot.Status = SlotStatus.Open;
-                slot.Presence = null;
-                slot.Mods = Mods.None;
-                slot.Team = SlotTeams.Neutral;
-            }
+            slot?.Clear();
 
             match.Presences.Remove(pr);
             await pr.LeaveChannel($"multi_{pr.CurrentMatch.Id}", true);

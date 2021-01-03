@@ -34,7 +34,7 @@ namespace oyasumi.Events
             if (exists is not null)
                 return;
 
-            context.Friends.Add(new Friend
+            context.Friends.Add(new ()
             {
                 Friend1 = pr.Id,
                 Friend2 = id

@@ -38,7 +38,7 @@ namespace oyasumi.Controllers
         [Route("bancho_connect.php")]
         public IActionResult BanchoConnect()
         {
-            return Ok("<>");
+            return Ok("<>"); // force client to ready to connect (works as if response was empty)
             // return Ok("https://osu.ppy.sh");
         }
 
