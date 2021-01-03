@@ -51,4 +51,4 @@ $ nano config.json
  * A: `./oyasumi --urls=http://localhost:port`
 
  * Q: How to enable relax pp?
- * A: You need to edit osu!'s repository. Remove Mod.IsRanked check from PerformanceCalculator of mode you want (or from all modes) [Planned to use my own fork of osu! repository]
+ * A: You need to edit osu!'s repository. Add `public bool Ranked = true` in `OsuModRelax.cs` [Planned to use my own fork of osu! repository]
