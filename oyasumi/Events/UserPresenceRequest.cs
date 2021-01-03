@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using osu.Game.IO.Legacy;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;

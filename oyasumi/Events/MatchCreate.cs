@@ -4,12 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using osu.Game.IO.Legacy;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
 using oyasumi.Managers;
 using oyasumi.Objects;
 using oyasumi.Database;
+using oyasumi.Extensions;
 
 namespace oyasumi.Events
 {

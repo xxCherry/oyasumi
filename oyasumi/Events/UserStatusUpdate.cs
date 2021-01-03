@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Org.BouncyCastle.Asn1.Cms;
+using osu.Game.IO.Legacy;
 using oyasumi.Database;
 using oyasumi.Enums;
 using oyasumi.IO;
