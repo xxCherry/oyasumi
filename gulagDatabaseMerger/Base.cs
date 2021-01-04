@@ -79,71 +79,75 @@ namespace gulagDatabaseMerger
 
             foreach (var user in rUsers.Where(x => x.Id != 999))
             {
-                var oUser = new User
+                try
                 {
-                    Username = user.Name,
-                    UsernameSafe = user.SafeName,
-                    Password = user.Password,
-                    Country = user.Country,
-                    Privileges = Convert(user.Privileges),
-                    JoinDate = Time.UnixTimestampFromDateTime(user.JoinTimestamp),
-                    Email = user.Email,
-                };
+                    var oUser = new User
+                    {
+                        Username = user.Name,
+                        UsernameSafe = user.SafeName,
+                        Password = user.Password,
+                        Country = user.Country,
+                        Privileges = Convert(user.Privileges),
+                        JoinDate = Time.UnixTimestampFromDateTime(user.JoinTimestamp),
+                        Email = user.Email,
+                    };
 
-                var vanillaStats = stats.FirstOrDefault(x => x.id == user.Id);
-                
-                await oContext.Users.AddAsync(oUser);
-                await oContext.SaveChangesAsync();
-                
-                await oContext.VanillaStats.AddAsync(new() 
-                {
-                    TotalScoreOsu = vanillaStats.tscore_vn_std,
-                    TotalScoreTaiko = vanillaStats.tscore_vn_taiko,
-                    TotalScoreCtb = vanillaStats.tscore_vn_catch,
-                    TotalScoreMania = vanillaStats.tscore_vn_mania,
-                    
-                    RankedScoreOsu = vanillaStats.rscore_vn_std,
-                    RankedScoreTaiko = vanillaStats.rscore_vn_taiko,
-                    RankedScoreCtb = vanillaStats.rscore_vn_catch,
-                    RankedScoreMania = vanillaStats.rscore_vn_mania,
+                    var vanillaStats = stats.FirstOrDefault(x => x.id == user.Id);
 
-                    AccuracyOsu = vanillaStats.acc_vn_std,
-                    AccuracyTaiko = vanillaStats.acc_vn_taiko,
-                    AccuracyCtb = vanillaStats.acc_vn_catch,
-                    AccuracyMania = vanillaStats.acc_vn_mania,
-                    
-                    PlaycountOsu = vanillaStats.plays_vn_std,
-                    PlaycountTaiko = vanillaStats.plays_vn_taiko,
-                    PlaycountCtb = vanillaStats.plays_vn_catch,
-                    PlaycountMania = vanillaStats.plays_vn_mania
-                });
-                
-                await oContext.RelaxStats.AddAsync(new () 
-                {
-                    TotalScoreOsu = vanillaStats.tscore_rx_std,
-                    TotalScoreTaiko = vanillaStats.tscore_rx_taiko,
-                    TotalScoreCtb = vanillaStats.tscore_rx_catch,
-                    TotalScoreMania = vanillaStats.tscore_vn_mania,
-                    
-                    RankedScoreOsu = vanillaStats.rscore_rx_std,
-                    RankedScoreTaiko = vanillaStats.rscore_rx_taiko,
-                    RankedScoreCtb = vanillaStats.rscore_rx_catch,
-                    RankedScoreMania = vanillaStats.rscore_vn_mania,
+                    await oContext.Users.AddAsync(oUser);
+                    await oContext.SaveChangesAsync();
 
-                    AccuracyOsu = vanillaStats.acc_rx_std,
-                    AccuracyTaiko = vanillaStats.acc_rx_taiko,
-                    AccuracyCtb = vanillaStats.acc_rx_catch,
-                    AccuracyMania = vanillaStats.acc_vn_mania,
-                    
-                    PlaycountOsu = vanillaStats.plays_rx_std,
-                    PlaycountTaiko = vanillaStats.plays_rx_taiko,
-                    PlaycountCtb = vanillaStats.plays_rx_catch,
-                    PlaycountMania = vanillaStats.plays_vn_mania
-                }); 
+                    await oContext.VanillaStats.AddAsync(new()
+                    {
+                        TotalScoreOsu = vanillaStats.tscore_vn_std,
+                        TotalScoreTaiko = vanillaStats.tscore_vn_taiko,
+                        TotalScoreCtb = vanillaStats.tscore_vn_catch,
+                        TotalScoreMania = vanillaStats.tscore_vn_mania,
 
-                await oContext.SaveChangesAsync();
-                
-               _rippleIdToOyasumi.Add(user.Id, oUser.Id);
+                        RankedScoreOsu = vanillaStats.rscore_vn_std,
+                        RankedScoreTaiko = vanillaStats.rscore_vn_taiko,
+                        RankedScoreCtb = vanillaStats.rscore_vn_catch,
+                        RankedScoreMania = vanillaStats.rscore_vn_mania,
+
+                        AccuracyOsu = vanillaStats.acc_vn_std,
+                        AccuracyTaiko = vanillaStats.acc_vn_taiko,
+                        AccuracyCtb = vanillaStats.acc_vn_catch,
+                        AccuracyMania = vanillaStats.acc_vn_mania,
+
+                        PlaycountOsu = vanillaStats.plays_vn_std,
+                        PlaycountTaiko = vanillaStats.plays_vn_taiko,
+                        PlaycountCtb = vanillaStats.plays_vn_catch,
+                        PlaycountMania = vanillaStats.plays_vn_mania
+                    });
+
+                    await oContext.RelaxStats.AddAsync(new()
+                    {
+                        TotalScoreOsu = vanillaStats.tscore_rx_std,
+                        TotalScoreTaiko = vanillaStats.tscore_rx_taiko,
+                        TotalScoreCtb = vanillaStats.tscore_rx_catch,
+                        TotalScoreMania = vanillaStats.tscore_vn_mania,
+
+                        RankedScoreOsu = vanillaStats.rscore_rx_std,
+                        RankedScoreTaiko = vanillaStats.rscore_rx_taiko,
+                        RankedScoreCtb = vanillaStats.rscore_rx_catch,
+                        RankedScoreMania = vanillaStats.rscore_vn_mania,
+
+                        AccuracyOsu = vanillaStats.acc_rx_std,
+                        AccuracyTaiko = vanillaStats.acc_rx_taiko,
+                        AccuracyCtb = vanillaStats.acc_rx_catch,
+                        AccuracyMania = vanillaStats.acc_vn_mania,
+
+                        PlaycountOsu = vanillaStats.plays_rx_std,
+                        PlaycountTaiko = vanillaStats.plays_rx_taiko,
+                        PlaycountCtb = vanillaStats.plays_rx_catch,
+                        PlaycountMania = vanillaStats.plays_vn_mania
+                    });
+
+                    await oContext.SaveChangesAsync();
+
+                    _rippleIdToOyasumi.Add(user.Id, oUser.Id);
+                }
+                catch (NullReferenceException) { } 
             }
             Console.WriteLine("Users merged...");
 #if MERGE_BEATMAPS
