@@ -54,22 +54,24 @@ namespace gulagDatabaseMerger
             if (args.Length < 3)
                 return;
 
-            var connectionString = args[0];
-            var rippleReplayPath = args[1];
-            var oyasumiReplayPath = args[2];
-            var oConnectionString = args[3];
+            var rdbName = args[0];
+            var odbName = args[1];
+            var dbuser = args[2];
+            var pass = args[3];
+            var rippleReplayPath = args[4];
+            var oyasumiReplayPath = args[5];
             var rippleRelaxReplayPath = string.Empty;
             
             if (args.Length == 5)
-                rippleRelaxReplayPath = args[4];
+                rippleRelaxReplayPath = args[6];
 
-            var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(oConnectionString);
-            /*
-                $"server=localhost;database={Config.Properties.Database};" +
-                $"user={Config.Properties.Username};password={Config.Properties.Password};");
-			*/	
+            var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
+                $"server=localhost;database={odbName};" +
+                $"user={dbuser};password={pass};");
             var oContext = new OyasumiDbContext(builder.Options);
-            var rContext = new GulagDbContext(new DbContextOptionsBuilder<GulagDbContext>().UseMySql(connectionString).Options);
+            var rContext = new GulagDbContext(new DbContextOptionsBuilder<GulagDbContext>().UseMySql(
+                $"server=localhost;database={rdbName};" +
+                $"user={dbuser};password={pass};").Options);
    
             Console.WriteLine("Users merging...");
             var rUsers = await rContext.Users.AsNoTracking().ToListAsync();
