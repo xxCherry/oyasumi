@@ -50,14 +50,14 @@ namespace gulagDatabaseMerger.Database.Models
         [Required] public int playtime_rx_taiko { get; set; }
         [Required] public int playtime_rx_catch { get; set; }
         [Required] public int playtime_ap_std { get; set; }
-        [Required] public int acc_vn_std { get; set; }
-        [Required] public int acc_vn_taiko { get; set; }
-        [Required] public int acc_vn_catch { get; set; }
-        [Required] public int acc_vn_mania { get; set; }
-        [Required] public int acc_rx_std { get; set; }
-        [Required] public int acc_rx_taiko { get; set; }
-        [Required] public int acc_rx_catch { get; set; }
-        [Required] public int acc_ap_std { get; set; }
+        [Required] public float acc_vn_std { get; set; }
+        [Required] public float acc_vn_taiko { get; set; }
+        [Required] public float acc_vn_catch { get; set; }
+        [Required] public float acc_vn_mania { get; set; }
+        [Required] public float acc_rx_std { get; set; }
+        [Required] public float acc_rx_taiko { get; set; }
+        [Required] public float acc_rx_catch { get; set; }
+        [Required] public float acc_ap_std { get; set; }
         [Required] public int maxcombo_vn_std { get; set; }
         [Required] public int maxcombo_vn_taiko { get; set; }
         [Required] public int maxcombo_vn_catch { get; set; }
