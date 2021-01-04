@@ -208,7 +208,7 @@ namespace gulagDatabaseMerger
                 convertedScore.Relaxing = (convertedScore.Mods & Mods.Relax) != 0;
                 convertedScore.PerformancePoints = await Calculator.CalculatePerformancePoints(convertedScore);
 
-                var scoreReplayPath = Path.Combine(rippleReplayPath, $"replay_{score.Id}.osr");
+                var scoreReplayPath = Path.Combine(rippleReplayPath, $"{score.Id}.osr");
 
                 if (File.Exists(scoreReplayPath))
                 {
