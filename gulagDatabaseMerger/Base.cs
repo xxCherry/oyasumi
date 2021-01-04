@@ -57,15 +57,17 @@ namespace gulagDatabaseMerger
             var connectionString = args[0];
             var rippleReplayPath = args[1];
             var oyasumiReplayPath = args[2];
+            var oConnectionString = args[3];
             var rippleRelaxReplayPath = string.Empty;
             
-            if (args.Length == 4)
-                rippleRelaxReplayPath = args[3];
-            
-            var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
+            if (args.Length == 5)
+                rippleRelaxReplayPath = args[4];
+
+            var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(oConnectionString);
+            /*
                 $"server=localhost;database={Config.Properties.Database};" +
                 $"user={Config.Properties.Username};password={Config.Properties.Password};");
-				
+			*/	
             var oContext = new OyasumiDbContext(builder.Options);
             var rContext = new GulagDbContext(new DbContextOptionsBuilder<GulagDbContext>().UseMySql(connectionString).Options);
    
