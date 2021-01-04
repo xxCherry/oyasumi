@@ -157,13 +157,26 @@ namespace gulagDatabaseMerger
             {
                 if (oContext.Beatmaps.Any(x => x.BeatmapMd5 == beatmap.Checksum))
                     continue;
-                
-                var oBeatmap = await BeatmapManager.Get(beatmap.Checksum,"", 0);
-                if (oBeatmap.Item1 == RankedStatus.NotSubmitted || oBeatmap.Item1 == RankedStatus.NeedUpdate)
-                    continue;
 
-                oBeatmap.Item2.Status = beatmap.Status;
-                var dbMap = oBeatmap.Item2.ToDb();
+                var dbMap = new DbBeatmap
+                {
+                    BeatmapMd5 = beatmap.Checksum,
+                    BeatmapId = beatmap.Id,
+                    BeatmapSetId = beatmap.SetId,
+                    Artist = beatmap.Artist,
+                    Title = beatmap.Title,
+                    Creator = beatmap.Creator,
+                    DifficultyName = beatmap.Version,
+                    PlayCount = beatmap.PlayCount,
+                    PassCount = beatmap.PassCount,
+                    Frozen = beatmap.Frozen,
+                    BPM = beatmap.BPM,
+                    ApproachRate = beatmap.AR,
+                    CircleSize = beatmap.CS,
+                    HPDrainRate = beatmap.HP,
+                    OverallDifficulty = beatmap.OD,
+                    Stars = beatmap.SR
+                };
 
                 await oContext.Beatmaps.AddAsync(dbMap);
                 await oContext.SaveChangesAsync();
@@ -226,8 +239,6 @@ namespace gulagDatabaseMerger
 
                 await oContext.Scores.AddAsync(convertedScore);
             }
-
-
 
             if (rippleRelaxReplayPath != string.Empty)
             {

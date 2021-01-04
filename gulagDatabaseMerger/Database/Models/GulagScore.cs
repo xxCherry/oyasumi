@@ -22,7 +22,7 @@ namespace gulagDatabaseMerger.Database.Models
         [Required] [Column("ngeki")] public int CountGeki { get; set; }
         [Required] [Column("nkatu")] public int CountKatu { get; set; }
         [Required] [Column("nmiss")] public int CountMiss { get; set; }
-        [Required] [Column("play_type")] public string Time { get; set; } 
+        [Required] [Column("play_time")] public string Time { get; set; } 
         [Required] [Column("mode")] public int PlayMode { get; set; }
         [Required] [Column("acc")] public double Accuracy { get; set; }
         [Required] [Column("pp")] public float Performance { get; set; }
