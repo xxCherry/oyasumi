@@ -61,6 +61,10 @@ namespace gulagDatabaseMerger
             var rippleReplayPath = args[4];
             var oyasumiReplayPath = args[5];
             var rippleRelaxReplayPath = string.Empty;
+
+            Config.Properties.Database = odbName;
+            Config.Properties.Username = dbuser;
+            Config.Properties.Password = pass;
             
             if (args.Length == 5)
                 rippleRelaxReplayPath = args[6];
