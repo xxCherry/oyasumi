@@ -17,7 +17,7 @@ namespace oyasumi.Managers
 {
     public static class ChannelManager
     {
-        public static ConcurrentDictionary<string, Channel> Channels = new ConcurrentDictionary<string, Channel>();
+        public static ConcurrentDictionary<string, Channel> Channels = new ();
 
         public static async Task JoinChannel(this Presence pr, string channelName)
         {

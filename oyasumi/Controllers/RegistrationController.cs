@@ -41,8 +41,10 @@ namespace oyasumi.Controllers
 
             if (!Regex.IsMatch(username, @"^[\w \[\]-]{2,15}$"))
                 errors["username"].Add("Must be 2 - 15 characters in length.");
+            
             if (username.Contains(" ") && username.Contains("_"))
                 errors["username"].Add("May contain '_' and ' ', but not both.");
+                
             if (await _context.Users.AnyAsync(x => x.Username == username))
                 errors["username"].Add("Username already taken by another player..");
 
