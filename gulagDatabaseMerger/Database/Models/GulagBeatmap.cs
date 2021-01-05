@@ -29,21 +29,5 @@ namespace gulagDatabaseMerger.Database.Models
         [Required] [Column("od")] public float OD { get; set; }
         [Required] [Column("hp")] public float HP { get; set; }
         [Required] [Column("diff")] public float SR { get; set; }
-
-
-
-        /*               
-         * last_update         
-         * total_length |
-         * mode |
-         * bpm  | +
-         * cs   | +
-         * ar   | +
-         * od   | +
-         * hp   | +
-         * diff  | +
-
-         */
-
     }
 }
