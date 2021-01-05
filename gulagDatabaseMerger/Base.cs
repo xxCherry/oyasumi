@@ -17,13 +17,14 @@ using oyasumi.Utilities;
 using gulagDatabaseMerger.Database;
 using gulagDatabaseMerger.Enums;
 using static System.Int32;
+using System.Net;
 
 namespace gulagDatabaseMerger
 {
     internal static class Base
     {
         private static Dictionary<int, int> _rippleIdToOyasumi = new();
-        
+
         private static Privileges Convert(GulagPrivileges p)
         {
             var converted = (Privileges)0;
@@ -40,7 +41,7 @@ namespace gulagDatabaseMerger
 
             return converted;
         }
-        
+
         private static CompletedStatus Convert(int completed) =>
             completed switch
             {
@@ -57,10 +58,13 @@ namespace gulagDatabaseMerger
             var rdbName = args[0];
             var dbuser = args[1];
             var pass = args[2];
-            var rippleReplayPath = args[3];
-            var oyasumiReplayPath = args[4];
+            var gulagData = args[3];
+            var oyasumiDir = args[4];
             var rippleRelaxReplayPath = string.Empty;
-            
+
+            Directory.SetCurrentDirectory(oyasumiDir);
+            var oyasumiData = Path.Combine(oyasumiDir, "data");
+
             if (args.Length == 4)
                 rippleRelaxReplayPath = args[5];
 
@@ -71,7 +75,6 @@ namespace gulagDatabaseMerger
             var rContext = new GulagDbContext(new DbContextOptionsBuilder<GulagDbContext>().UseMySql(
                 $"server=localhost;database={rdbName};" +
                 $"user={dbuser};password={pass};").Options);
-   
             Console.WriteLine("Users merging...");
             var rUsers = await rContext.Users.AsNoTracking().ToListAsync();
             var stats = await rContext.Stats.AsNoTracking().ToListAsync();
@@ -151,6 +154,9 @@ namespace gulagDatabaseMerger
             Console.WriteLine("Users merged...");
 #if MERGE_BEATMAPS
             Console.WriteLine("Time for beatmaps...");
+            var bmPathGulag = Path.Combine(gulagData, "osu");
+            var bmPathOyasumi = Path.Combine(oyasumiData, "beatmaps");
+            var wc = new WebClient();
             var rBeatmaps = rContext.Beatmaps.AsNoTracking();
             
             foreach (var beatmap in rBeatmaps)
@@ -180,6 +186,17 @@ namespace gulagDatabaseMerger
 
                 await oContext.Beatmaps.AddAsync(dbMap);
                 await oContext.SaveChangesAsync();
+
+                var bpg = Path.Combine(bmPathGulag, $"{beatmap.Id}.osu");
+                var bpo = Path.Combine(bmPathOyasumi, $"{beatmap.Checksum}.osu");
+
+                if (!File.Exists(bpo))
+                {
+                    if (File.Exists(bpg))
+                        File.Copy(bpg, bpo);
+                    else
+                        wc.DownloadFile($"https://osu.ppy.sh/osu/{beatmap.Id}", bpo);
+                }
             } 
             Console.WriteLine("Beatmaps merged!");
 #endif
@@ -190,7 +207,7 @@ namespace gulagDatabaseMerger
             {
                 if (!_rippleIdToOyasumi.TryGetValue(score.UserId, out var newUserId))
                 {
-                    Console.WriteLine("User not found, skipping...");
+                    Console.WriteLine($"User {score.UserId} not found, skipping...");
                     continue;
                 }
 
@@ -199,7 +216,6 @@ namespace gulagDatabaseMerger
                 if (completed == CompletedStatus.Failed)
                     continue;
 
-                var timeParsed = TryParse(score.Time, out var time);
                 var convertedScore = new DbScore
                 {
                     FileChecksum = score.BeatmapChecksum,
@@ -213,27 +229,26 @@ namespace gulagDatabaseMerger
                     Accuracy = score.Accuracy,
                     TotalScore = score.Score,
                     MaxCombo = score.MaxCombo,
-                    Date = timeParsed ? Time.UnixTimestampFromDateTime(time) : DateTime.Now.AddDays(-10),
+                    Date = score.Time,
                     Mods = (Mods)score.Mods,
                     PlayMode = (PlayMode)score.PlayMode,
                     Completed = completed
                 };
                 convertedScore.Relaxing = (convertedScore.Mods & Mods.Relax) != 0;
                 convertedScore.PerformancePoints = await Calculator.CalculatePerformancePoints(convertedScore);
-
-                var scoreReplayPath = Path.Combine(rippleReplayPath, $"{score.Id}.osr");
+                var scoreReplayPath = Path.Combine(gulagData, "osr", $"{score.Id}.osr");
 
                 if (File.Exists(scoreReplayPath))
                 {
                     await using var osr = File.OpenRead(scoreReplayPath);
                     await using var ms = new MemoryStream();
                     await osr.CopyToAsync(ms);
-                    
+
                     convertedScore.ReplayChecksum = Crypto.ComputeHash(ms.ToArray());
 
-                    var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
-                    
-                    if (!File.Exists(oyasumiScoreReplayPath)) 
+                    var oyasumiScoreReplayPath = Path.Combine(oyasumiData, "osr", $"{convertedScore.ReplayChecksum}.osr");
+
+                    if (!File.Exists(oyasumiScoreReplayPath))
                         File.Copy(scoreReplayPath, oyasumiScoreReplayPath);
                 }
 
@@ -248,7 +263,7 @@ namespace gulagDatabaseMerger
                 {
                     if (!_rippleIdToOyasumi.TryGetValue(score.UserId, out var newUserId))
                     {
-                        Console.WriteLine("User not found, skipping...");
+                        Console.WriteLine($"User {score.UserId} not found, skipping...");
                         continue;
                     }
 
@@ -256,7 +271,6 @@ namespace gulagDatabaseMerger
                     if (completed == CompletedStatus.Failed)
                         continue;
 
-                    var timeParsed = TryParse(score.Time, out var time);
                     var convertedScore = new DbScore
                     {
                         FileChecksum = score.BeatmapChecksum,
@@ -270,16 +284,16 @@ namespace gulagDatabaseMerger
                         Accuracy = score.Accuracy,
                         TotalScore = score.Score,
                         MaxCombo = score.MaxCombo,
-                        Date = timeParsed ? Time.UnixTimestampFromDateTime(time) : DateTime.Now.AddDays(-10),
-                        Mods = (Mods) score.Mods,
-                        PlayMode = (PlayMode) score.PlayMode,
+                        Date = score.Time,
+                        Mods = (Mods)score.Mods,
+                        PlayMode = (PlayMode)score.PlayMode,
                         Completed = Convert(score.Completed)
                     };
 
                     convertedScore.Relaxing = (convertedScore.Mods & Mods.Relax) != 0;
                     convertedScore.PerformancePoints = await Calculator.CalculatePerformancePoints(convertedScore);
 
-                    var scoreReplayPath = Path.Combine(rippleRelaxReplayPath, $"replay_{score.Id}.osr");
+                    var scoreReplayPath = Path.Combine(rippleRelaxReplayPath, $"{score.Id}.osr");
 
                     if (File.Exists(scoreReplayPath))
                     {
@@ -289,7 +303,7 @@ namespace gulagDatabaseMerger
 
                         convertedScore.ReplayChecksum = Crypto.ComputeHash(ms.ToArray());
 
-                        var oyasumiScoreReplayPath = Path.Combine(oyasumiReplayPath, $"{convertedScore.ReplayChecksum}.osr");
+                        var oyasumiScoreReplayPath = Path.Combine(oyasumiData, "osr", $"{convertedScore.ReplayChecksum}.osr");
 
                         if (!File.Exists(oyasumiScoreReplayPath))
                             File.Copy(scoreReplayPath, oyasumiScoreReplayPath);
@@ -299,12 +313,12 @@ namespace gulagDatabaseMerger
                 }
             }
 
-            await oContext.SaveChangesAsync(); 
+            await oContext.SaveChangesAsync();
 
             Console.WriteLine("Scores merged...");
 #endif
 
-            Thread.Sleep(3000);
+                    Thread.Sleep(3000);
         }
     }
 }
