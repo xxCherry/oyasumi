@@ -5,8 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Org.BouncyCastle.Math.EC;
+using osu.Game.IO.Legacy;
 using oyasumi.Database;
 using oyasumi.Enums;
+using oyasumi.Extensions;
 using oyasumi.IO;
 using oyasumi.Layouts;
 using oyasumi.Managers;
@@ -27,6 +29,16 @@ namespace oyasumi.Events
             if (match is null)
                 return;
 
+            
+            if (match.BeatmapChecksum != newMatch.BeatmapChecksum ||
+                match.PlayMode != newMatch.PlayMode               ||
+                match.Type != newMatch.Type                       ||
+                match.ScoringType != newMatch.ScoringType         ||
+                match.TeamType != newMatch.TeamType)
+            {
+                match.Unready(SlotStatus.Ready);
+            }
+            
             match.Beatmap = newMatch.Beatmap;
             match.BeatmapChecksum = newMatch.BeatmapChecksum;
             match.BeatmapId = newMatch.BeatmapId;
@@ -37,7 +49,7 @@ namespace oyasumi.Events
             {
                 if (match.TeamType == MatchTeamTypes.TagTeamVs || match.TeamType == MatchTeamTypes.TeamVs)
                 {
-                    int i = 0;
+                    var i = 0;
                     foreach (var slot in match.Slots)
                     {
                         if (slot.Team == SlotTeams.Neutral)
@@ -77,22 +89,15 @@ namespace oyasumi.Events
                     foreach (var slot in match.Slots)
                     {
                         if (slot.Presence is not null && slot.Presence.Id == match.Host.Id)
+                        {
                             match.ActiveMods = slot.Mods | (match.ActiveMods & Mods.SpeedAltering);
                             break;
+                        }
                     }
                 }
             }
 
             match.FreeMods = newMatch.FreeMods;
-
-            if (match.BeatmapChecksum != newMatch.BeatmapChecksum ||
-                match.PlayMode != newMatch.PlayMode               ||
-                match.Type != newMatch.Type                       ||
-                match.ScoringType != newMatch.ScoringType         ||
-                match.TeamType != newMatch.TeamType)
-            {
-                match.UnreadyEveryone();
-            }
 
             foreach (var presence in match.Presences)
                 await presence.MatchUpdate(match);

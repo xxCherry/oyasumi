@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using osu.Game.IO.Legacy;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
@@ -36,8 +37,7 @@ namespace oyasumi.Events
 
             match.Host = newHost.Presence;
             await match.Host.MatchTransferHost();
-
-
+            
             foreach (var presence in match.Presences)
                 await presence.MatchUpdate(match);
         }

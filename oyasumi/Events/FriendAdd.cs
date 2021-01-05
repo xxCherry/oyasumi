@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using osu.Game.IO.Legacy;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -34,7 +35,7 @@ namespace oyasumi.Events
             if (exists is not null)
                 return;
 
-            context.Friends.Add(new Friend
+            context.Friends.Add(new ()
             {
                 Friend1 = pr.Id,
                 Friend2 = id

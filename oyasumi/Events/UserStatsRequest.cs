@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using osu.Game.IO.Legacy;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;
@@ -24,8 +25,7 @@ namespace oyasumi.Events
             int length = reader.ReadInt16();
             for (var i = 0; i < length; i++) 
                 presenceIds.Add(reader.ReadInt32());
-
-            await pr.UserStats();
+            
             foreach (var prId in presenceIds)
             {
                 if (prId == pr.Id)

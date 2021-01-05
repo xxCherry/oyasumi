@@ -17,7 +17,7 @@ namespace oyasumi.Events
         [Packet(PacketType.ClientLobbyJoin)]
         public static async Task Handle(Packet p, Presence pr)
         {
-            foreach (var match in MatchManager.Matches.Values)
+            foreach (var (_, match) in MatchManager.Matches)
             {
                 if (match.PasswordRequired)
                     match.GamePassword = " "; 

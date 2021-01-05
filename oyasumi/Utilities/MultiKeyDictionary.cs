@@ -42,6 +42,7 @@ namespace oyasumi.Utilities
         }
     }
 
+    // TODO: Implement IDictionary
     public class TwoKeyDictionary<P, S, V>
     {
         private readonly ConcurrentDictionary<P, V> _primaryDictionary = new();
@@ -72,7 +73,7 @@ namespace oyasumi.Utilities
 
             _gateDictionary.TryAdd(primary, secondary);
         }
-
+        
         public void Remove(P primary)
         {
             if (primary is null)

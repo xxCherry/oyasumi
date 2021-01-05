@@ -16,7 +16,22 @@ namespace oyasumi.Objects
         public Mods Mods = Mods.None;
         public Presence Presence;
         public bool Skipped;
-        public bool Loaded;
+
+        public void CopyFrom(Slot source)
+        {
+            Mods = source.Mods;
+            Presence = source.Presence;
+            Status = source.Status;
+            Team = source.Team;
+        }
+         
+        public void Clear()
+        {
+            Mods = Mods.None;
+            Presence = null;
+            Status = SlotStatus.Open;
+            Team = SlotTeams.Neutral;
+        }
     }
 
     public class Match
@@ -26,7 +41,7 @@ namespace oyasumi.Objects
 
         public string GameName;
         public int Id { get; set; }
-        public Slot[] Slots = new Slot[MAX_PLAYERS];
+        public readonly Slot[] Slots = new Slot[MAX_PLAYERS];
         public Beatmap Beatmap;
         public string BeatmapChecksum;
         public int BeatmapId = -1;
@@ -38,7 +53,7 @@ namespace oyasumi.Objects
         public int NeedLoad;
 
         public Channel Channel;
-        public List<Presence> Presences = new List<Presence>();
+        public readonly List<Presence> Presences = new ();
 
         public MatchTypes Type;
         public PlayMode PlayMode;
@@ -47,27 +62,17 @@ namespace oyasumi.Objects
         public MultiSpecialModes SpecialModes;
 
         public string GamePassword;
-        public bool SendPassword;
 
         public bool FreeMods;
 
         public Match()
         {
             for (var i = 0; i < MAX_PLAYERS; i++)
-                Slots[i] = new Slot();
+                Slots[i] = new ();
         }
 
-        public Slot FreeSlot
-        {
-            get 
-            {
-                foreach (var slot in Slots)
-                    if (slot.Status == SlotStatus.Open)
-                        return slot;
-                return null;
-            }
-        }
-
+        public Slot FreeSlot => Slots.FirstOrDefault(slot => slot.Status == SlotStatus.Open);
+        
         public void Unready(SlotStatus status)
         {
             foreach (var slot in Slots)
@@ -75,34 +80,25 @@ namespace oyasumi.Objects
                     slot.Status = SlotStatus.NotReady;
         }
 
-        public void UnreadyEveryone()
-        {
-            foreach (var slot in Slots)
-                if (slot.Status == SlotStatus.Ready)  // if player ready
-                    slot.Status = SlotStatus.NotReady; // then unready him
-        }
-
-        public void Start()
+        public async Task Start()
         {
             var hasBeatmapPrs = new List<Presence>();
 
             foreach (var slot in Slots)
             {
-                if ((slot.Status & SlotStatus.HasPlayer) > 0)
+                if ((slot.Status & SlotStatus.HasPlayer) != 0 && slot.Status != SlotStatus.NoMap)
                 {
-                    if (slot.Status != SlotStatus.NoMap)
-                    {
-                        slot.Status = SlotStatus.Playing;
-                        ++NeedLoad;
-                        hasBeatmapPrs.Add(slot.Presence);
-                    }
+                    slot.Status = SlotStatus.Playing;
+                    
+                    ++NeedLoad;
+                    hasBeatmapPrs.Add(slot.Presence);
                 }
             }
 
             InProgress = true;
 
             foreach (var presence in hasBeatmapPrs)
-                presence.MatchStart(this);
+                await presence.MatchStart(this);
         }
     }
 }

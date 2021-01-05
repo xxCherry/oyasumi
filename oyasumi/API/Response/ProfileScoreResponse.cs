@@ -12,6 +12,9 @@ namespace oyasumi.API.Response
         [JsonProperty("50_count")] public int Count50 { get; set; }
         [JsonProperty("100_count")] public int Count100 { get; set; }
         [JsonProperty("300_count")] public int Count300 { get; set; }
+        [JsonProperty("gekis_count")] public int CountGeki { get; set; }
+        [JsonProperty("katus_count")] public int CountKatu { get; set; }
+        [JsonProperty("miss_count")] public int CountMiss { get; set; }
         [JsonProperty("max_combo")] public int Combo { get; set; }
         [JsonProperty("accuracy")] public double Accuracy { get; set; }
         [JsonProperty("timestamp")] public int Timestamp { get; set; }

@@ -34,7 +34,7 @@ namespace oyasumi.Events
 
             foreach (var presence in match.Presences)
             {
-                presence.PacketEnqueue(new Packet
+                presence.PacketEnqueue(new()
                 {
                     Type = PacketType.ServerMultiMatchFinished
                 });
