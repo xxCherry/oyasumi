@@ -17,7 +17,7 @@ namespace oyasumi.Extensions
 
             var username = await reader.ReadLineAsync();
             var password = await reader.ReadLineAsync();
-            var data = (await reader.ReadLineAsync()).Split("|");
+            var data = (await reader.ReadLineAsync())?.Split("|");
             
 
             return (username, password, data[0], int.Parse(data[1]));

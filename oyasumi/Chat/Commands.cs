@@ -38,6 +38,7 @@ namespace oyasumi.Chat
                 $"{Math.Round(pr.LastScore.Accuracy * 100, 2)}%, " +
                 $"{Math.Round(pr.LastScore.PerformancePoints, 2)}pp");
         }
+        
         [Command("map", "Set the specified status to last /np'ed map", true, Privileges.ManageBeatmaps, 2)]
         public static async Task MapRanking(Presence pr, string channel, string message, string[] args)
         {
