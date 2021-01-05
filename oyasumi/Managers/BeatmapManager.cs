@@ -24,6 +24,22 @@ namespace oyasumi.Managers
     {
         // Beatmap local cache
         public static MultiKeyDictionary<int, string, string, Beatmap> Beatmaps = new ();
+
+        private const string BEATMAP_INSERT_SQL =
+            "INSERT INTO Beatmaps " +
+            "(" +
+                "BeatmapId, FileName, BeatmapSetId, Status, Frozen, " +
+                "PlayCount, PassCount, Artist, Title, DifficultyName, " +
+                "Creator, BPM, CircleSize, OverallDifficulty, ApproachRate, " +
+                "HPDrainRate, Stars" +
+            ") " +
+            "VALUES " +
+            "(" +
+                "@BeatmapId, '@FileName', @BeatmapSetId, @Status, @Frozen, " +
+                "@PlayCount, @PassCount, '@Artist', '@Title', '@DifficultyName', " +
+                "'@Creator', @BPM, @CircleSize, @OverallDifficulty, @ApproachRate, " +
+                "@HPDrainRate, @Stars" +
+            ")";
         
         /// <summary>
         ///  Getting beatmap by fastest method available
@@ -48,6 +64,17 @@ namespace oyasumi.Managers
             await using (var db = MySqlProvider.GetDbConnection())
                 dbBeatmap = await db.QueryFirstOrDefaultAsync<DbBeatmap>($"SELECT * From Beatmaps WHERE BeatmapMd5 = '{checksum}'");
 
+            if (fileName.Length > 0)
+            {
+                await using (var db = MySqlProvider.GetDbConnection())
+                {
+                    dbBeatmap = await db.QueryFirstOrDefaultAsync<DbBeatmap>(
+                        $"SELECT * From Beatmaps WHERE FileName = '{fileName}'");
+
+                    return (RankedStatus.Approved, dbBeatmap.FromDb(leaderboard, mode));
+                }
+            }
+
             // if beatmap exists in db we'll add it to local cache
             if (dbBeatmap is not null)
             {
@@ -59,20 +86,17 @@ namespace oyasumi.Managers
 
             beatmap = await Beatmap.Get(checksum, fileName, leaderboard, mode); // try fetch beatmap from osu!api
 
+            // if beatmap is not submitted, not found or mirror is down
             if (beatmap.Id == -1)
             {
-                await using (var db = MySqlProvider.GetDbConnection()) 
-                    dbBeatmap = (await db.QueryAsync<DbBeatmap>($"SELECT * FROM Beatmaps WHERE FileName = @FileName", new { FileName = fileName})).FirstOrDefault();
-
-                if (dbBeatmap is not null)
-                    return (RankedStatus.NeedUpdate, null);
-
                 using var client = new HttpClient();
 
                 var result = await client.GetAsync($"{Config.Properties.BeatmapMirror}/api/s/{setId}");
                 
+                // try check by beatmap set id
                 if (result.IsSuccessStatusCode)
                 {
+                    // if this set exists, lets add the whole set to database and say client that they need update the map
                     var beatmaps = Beatmap.GetBeatmapSet(setId, fileName, true, mode);
                     await foreach (var b in beatmaps)
                     {
@@ -80,22 +104,7 @@ namespace oyasumi.Managers
                         {
                             dbBeatmap = await db.QueryFirstOrDefaultAsync<DbBeatmap>($"SELECT * From Beatmaps WHERE BeatmapMd5 = '{b.FileChecksum}'");
                             if (dbBeatmap is null)
-                            {
-                                await db.ExecuteAsync("INSERT INTO Beatmaps " +
-                                                      "(" +
-                                                        "BeatmapId, FileName, BeatmapSetId, Status, Frozen, " +
-                                                        "PlayCount, PassCount, Artist, Title, DifficultyName, " +
-                                                        "Creator, BPM, CircleSize, OverallDifficulty, ApproachRate, " +
-                                                        "HPDrainRate, Stars" +
-                                                      ") " +
-                                                      "VALUES " +
-                                                      "(" +
-                                                        "@BeatmapId, '@FileName', @BeatmapSetId, @Status, @Frozen, " +
-                                                        "@PlayCount, @PassCount, '@Artist', '@Title', '@DifficultyName', " +
-                                                        "'@Creator', @BPM, @CircleSize, @OverallDifficulty, @ApproachRate, " +
-                                                        "@HPDrainRate, @Stars" +
-                                                      ")", b.ToDb());
-                            }
+                                await db.ExecuteAsync(BEATMAP_INSERT_SQL, b.ToDb());
                         }
                         Beatmaps.Add(b.Id, b.FileChecksum, b.BeatmapOsuName, b);
                     }
@@ -108,23 +117,9 @@ namespace oyasumi.Managers
             
             // if beatmap exists in api we'll add it to local cache and db
             Beatmaps.Add(beatmap.Id, beatmap.FileChecksum, beatmap.BeatmapOsuName, beatmap);
+            
             await using (var db = MySqlProvider.GetDbConnection())
-            {
-                await db.ExecuteAsync("INSERT INTO Beatmaps " +
-                                      "(" +
-                                        "BeatmapId, FileName, BeatmapSetId, Status, Frozen, " +
-                                        "PlayCount, PassCount, Artist, Title, DifficultyName, " +
-                                        "Creator, BPM, CircleSize, OverallDifficulty, ApproachRate, " +
-                                        "HPDrainRate, Stars" +
-                                      ") " +
-                                      "VALUES " +
-                                      "(" +
-                                        "@BeatmapId, '@FileName', @BeatmapSetId, @Status, @Frozen, " +
-                                        "@PlayCount, @PassCount, '@Artist', '@Title', '@DifficultyName', " +
-                                        "'@Creator', @BPM, @CircleSize, @OverallDifficulty, @ApproachRate, " +
-                                        "@HPDrainRate, @Stars" +
-                                      ")", beatmap.ToDb());
-            }
+                await db.ExecuteAsync(BEATMAP_INSERT_SQL, beatmap.ToDb());
 
             return (RankedStatus.Approved, beatmap);
         }
