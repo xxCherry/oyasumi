@@ -79,9 +79,9 @@ namespace oyasumi.Controllers
                     foreach (var childBeatmap in beatmap.ChildrenBeatmaps)
                         difficulties.Add(
                             $"[{Math.Round(childBeatmap.DifficultyRating, 2).ToString().Replace(',', '.')}⭐] {childBeatmap.DiffName} " +
-                            $"CS: {childBeatmap.CS.ToString().Replace(',', '.')} " +
-                            $"OD: {childBeatmap.OD.ToString().Replace(',', '.')} " +
-                            $"AR: {childBeatmap.AR.ToString().Replace(',', '.')} " +
+                            $"CS: {childBeatmap.CS.ToString().Replace(',', '.')}|" +
+                            $"OD: {childBeatmap.OD.ToString().Replace(',', '.')}| " +
+                            $"AR: {childBeatmap.AR.ToString().Replace(',', '.')}|" +
                             $"HP: {childBeatmap.HP.ToString().Replace(',', '.')}" +
                             $"@{childBeatmap.Mode}"); // any string can be used before '@'
                 }
@@ -91,7 +91,7 @@ namespace oyasumi.Controllers
                     $"|0|0|0|0|0|{string.Join(",", difficulties)}");
             }
 
-            var mapCount = beatmaps.Count.ToString() + "\n";
+            var mapCount = beatmaps.Count + "\n";
 
             if (beatmaps.Count > 100)
                 mapCount = "101\n";
@@ -124,8 +124,9 @@ namespace oyasumi.Controllers
             if (beatmap is null)
                 return Ok("no");
 
+            // 0 after 10.0 (rating) is last updated
             return Ok(
-                $"{beatmap.BeatmapSetId}.osz|{beatmap.Artist}|{beatmap.Title}|{beatmap.Creator}|{beatmap.Status}|10.0|0|{beatmap.BeatmapSetId}" + // 0 after 10.0 (ranking) is last updated
+                $"{beatmap.BeatmapSetId}.osz|{beatmap.Artist}|{beatmap.Title}|{beatmap.Creator}|{beatmap.Status}|10.0|0|{beatmap.BeatmapSetId}" +
                 $"|0|0|0|0|0");
         }
 
@@ -449,7 +450,7 @@ namespace oyasumi.Controllers
             await presence.GetOrUpdateUserStats(_context, lbMode, false);
             await presence.UserStats();
 
-            var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, fileName, setId);
+            var (status, beatmap) = await BeatmapManager.Get(beatmapChecksum, "", setId);
 
             switch (status)
             {
@@ -479,7 +480,7 @@ namespace oyasumi.Controllers
         [HttpGet("maps/{fileName}")]
         public async Task<IActionResult> DownloadOsu(string fileName)
         {
-            var beatmap = BeatmapManager.Beatmaps[fileName, 0];
+            var beatmap = (await BeatmapManager.Get("no", fileName)).Item2;
             if (beatmap is not null)
             {
                 var file = System.IO.File.OpenRead( $"./data/beatmaps/{await Calculator.GetBeatmap(beatmap.FileChecksum)}.osu");
