@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using osu.Game.IO.Legacy;
 using oyasumi.Enums;
+using oyasumi.Extensions;
 using oyasumi.IO;
 using oyasumi.Managers;
 using oyasumi.Objects;
@@ -97,6 +99,20 @@ namespace oyasumi.Layouts
             return pWriter.ToBytes();
         }
         
+        public static async Task<byte[]> AlreadyLoggedInError()
+        {
+            var notificationBytes = await NotificationAsync("This user is already on the server.");
+            var wrongCredsBytes = await LoginReplyAsync(LoginReplies.WrongCredentials);
+            
+            var pWriter = new PacketWriter();
+
+            await pWriter.Write(notificationBytes);
+            await pWriter.Write(wrongCredsBytes);
+
+            return pWriter.ToBytes();
+        }
+
+        
         public static async Task Notification(this Presence p, string notification)
         {
             var packet = new Packet
@@ -125,7 +141,7 @@ namespace oyasumi.Layouts
             writer.Write(p.Username);
             writer.Write((byte)(p.Timezone + 24));
             writer.Write(p.CountryCode);
-            writer.Write((int)p.BanchoPermissions);
+            writer.Write((byte)p.BanchoPermissions);
             writer.Write(p.Longitude);
             writer.Write(p.Latitude);
             writer.Write(p.Rank);
@@ -163,7 +179,7 @@ namespace oyasumi.Layouts
             writer.Write(other.Username);
             writer.Write((byte)(other.Timezone + 24));
             writer.Write(other.CountryCode);
-            writer.Write((int) BanchoPermissions.Peppy);
+            writer.Write((byte)p.BanchoPermissions);
             writer.Write(other.Longitude);
             writer.Write(other.Latitude);
             writer.Write(other.Rank);
@@ -232,19 +248,21 @@ namespace oyasumi.Layouts
             await using var writer = new SerializationWriter(new MemoryStream());
             
             writer.Write(p.Id);
+            
             writer.Write((byte)p.Status.Status);
             writer.Write(p.Status.StatusText);
             writer.Write(p.Status.BeatmapChecksum);
             writer.Write((uint)p.Status.CurrentMods);
             writer.Write((byte)p.Status.CurrentPlayMode);
             writer.Write(p.Status.BeatmapId);
+            
             writer.Write(p.RankedScore);
             writer.Write((float)p.Accuracy);
             writer.Write(p.PlayCount);
             writer.Write(p.TotalScore);
             writer.Write(p.Rank);
             writer.Write(p.Performance);
-            
+
             packet.Data = ((MemoryStream)writer.BaseStream).ToArray();
             
             p.PacketEnqueue(packet);

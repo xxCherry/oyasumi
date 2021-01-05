@@ -50,6 +50,12 @@ namespace oyasumi.Controllers
 			Response.Headers["cho-token"] = "no-token";
 			return File(await BanchoPacketLayouts.BannedError(), "application/octet-stream");
 		} 
+		
+		public async Task<FileContentResult> AlreadyLoggedInError()
+		{
+			Response.Headers["cho-token"] = "no-token";
+			return File(await BanchoPacketLayouts.AlreadyLoggedInError(), "application/octet-stream");
+		}
 
 		[Route("/")]
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
@@ -62,7 +68,7 @@ namespace oyasumi.Controllers
 
 			if (string.IsNullOrEmpty(token))
 			{
-				var (username, password, timezone) = await Request.Body.ParseLoginDataAsync();
+				var (username, password, osuVersion, timezone) = await Request.Body.ParseLoginDataAsync();
 
 				var dbUser = Base.UserCache[username];
 
@@ -118,17 +124,23 @@ namespace oyasumi.Controllers
 				
 				if (dbUser.Banned())
 					return await BannedError();
+				
+				var tourney = osuVersion.Contains("tourney");
+
+				if (PresenceManager.GetPresenceByName(dbUser.Username) is not null && !tourney)
+				{
+					Console.WriteLine($"{dbUser.Username} already logged in");
+					return await AlreadyLoggedInError();
+				} 
 
 				var presence = new Presence(dbUser, timezone);
-
-				PresenceManager.Add(presence);
-
-				await presence.GetOrUpdateUserStats(_context, LeaderboardMode.Vanilla, false);
 
 				await presence.ProtocolVersion(19);
 				await presence.LoginReply(presence.Id);
 
 				await presence.Notification("Welcome to oyasumi.");
+
+				presence.Tourney = tourney;
 
 				var banchoPermissions = BanchoPermissions.Supporter;
 				
@@ -139,20 +151,14 @@ namespace oyasumi.Controllers
 
 				// TODO: add new privileges for it
 				if (presence.Username == "Cherry")
-					banchoPermissions |= BanchoPermissions.Peppy;
+					banchoPermissions |= BanchoPermissions.Peppy | BanchoPermissions.Tournament;
 
 				presence.BanchoPermissions = banchoPermissions;
 				
-				await presence.UserPresence();
-				await presence.UserStats();
+				await presence.GetOrUpdateUserStats(null, LeaderboardMode.Vanilla, false);
+				
 				await presence.UserPermissions(banchoPermissions);
-
-				await presence.UserPresenceSingle(presence.Id);
-
-				Base.FriendCache.TryGetValue(presence.Id, out var friends);
-
-				await presence.FriendList(friends?.ToArray());
-
+				
 				// Default channel
 				await presence.ChatChannelListingComplete(0);
 			    await presence.JoinChannel("#osu");
@@ -161,12 +167,25 @@ namespace oyasumi.Controllers
 				// TODO: user count
 				foreach (var chan in ChannelManager.Channels.Values)
 					await presence.ChatChannelAvailable(chan.Name, chan.Description, (short)chan.UserCount);
+				
+				await presence.UserPresence();
+				await presence.UserStats();
 
 				foreach (var pr in PresenceManager.Presences.Values) // go for each presence
 				{
+					if (pr == presence)
+						continue;
+					
 					await pr.UserPresence(presence); // send us to users
 					await presence.UserPresence(pr); // send users to us
 				}
+				
+				Base.FriendCache.TryGetValue(presence.Id, out var friends);
+
+				await presence.FriendList(friends?.ToArray());
+				
+				await presence.UserPresenceSingle(presence.Id);
+				PresenceManager.Add(presence);
 				
 				var bytes = await presence.WritePackets();
 
@@ -176,7 +195,7 @@ namespace oyasumi.Controllers
 				await presence.Notification("Login took: " + stopwatch.Elapsed.TotalMilliseconds + "ms");
 
 				stopwatch.Stop();
-
+				
 				return File(bytes, "application/octet-stream");
 			}
 			else
@@ -221,6 +240,9 @@ namespace oyasumi.Controllers
 						pItem.IsDbContextRequired
 							? new object[] {packet, presence, _context}
 							: new object[] {packet, presence});
+#if PACKET_DEBUG
+					Console.WriteLine($"[{presence.Username} SENT] {packet.Type} with length {packet.Data.Length}");
+#endif
 				}
 
 				var bytes = await presence.WritePackets();

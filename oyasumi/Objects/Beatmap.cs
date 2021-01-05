@@ -217,7 +217,7 @@ namespace oyasumi.Objects
 
         public async Task UpdateLeaderboard(LeaderboardMode lbMode, PlayMode mode)
         {
-            var scores = await Score.GetRawScores(FileChecksum, mode, lbMode);
+            var scores = await Score.GetRawScores(FileChecksum, mode, Status, lbMode);
 
             var leaderboard = LeaderboardCache[lbMode][mode];
             leaderboard.Clear(); // Clear the cache
@@ -225,13 +225,13 @@ namespace oyasumi.Objects
             foreach (var score in scores)
                 leaderboard.TryAdd(score.UserId, score);
 
-            LeaderboardFormatted[lbMode][mode] = Score.FormatScores(scores, mode);
+            LeaderboardFormatted[lbMode][mode] = Score.FormatScores(scores, Status, mode);
         }
 
         public async Task InitializeLeaderboard(PlayMode mode)
         {
-            var vanillaScores = Score.GetRawScores(FileChecksum, mode, LeaderboardMode.Vanilla).Result;
-            var relaxScores = Score.GetRawScores(FileChecksum, mode, LeaderboardMode.Relax).Result;
+            var vanillaScores = Score.GetRawScores(FileChecksum, mode, Status, LeaderboardMode.Vanilla).Result;
+            var relaxScores = Score.GetRawScores(FileChecksum, mode, Status, LeaderboardMode.Relax).Result;
 
             for (var i = 0; i < 3; i++)
             {
@@ -250,13 +250,13 @@ namespace oyasumi.Objects
             foreach (var score in relaxScores)
                 LeaderboardCache[LeaderboardMode.Relax][mode].TryAdd(score.UserId, score);
 
-            LeaderboardFormatted[LeaderboardMode.Vanilla][mode] = Score.FormatScores(vanillaScores, mode);
-            LeaderboardFormatted[LeaderboardMode.Relax][mode] = Score.FormatScores(relaxScores, mode);
+            LeaderboardFormatted[LeaderboardMode.Vanilla][mode] = Score.FormatScores(vanillaScores, Status, mode);
+            LeaderboardFormatted[LeaderboardMode.Relax][mode] = Score.FormatScores(relaxScores, Status, mode);
         }
 
         public string ToString(PlayMode mode, LeaderboardMode lbMode)
         {
-            return $"{(int)Status}|false|{Id}|{SetId}|{LeaderboardFormatted[lbMode][mode].Count}\n" +
+            return $"{(int)Status}|false|{Id}|{SetId}|{(Status == RankedStatus.LatestPending ? 0 : LeaderboardFormatted[lbMode][mode].Count)}\n" +
                    $"{OnlineOffset}\n" +
                    $"{BeatmapName}\n" +
                    $"{Rating}";

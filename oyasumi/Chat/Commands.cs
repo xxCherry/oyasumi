@@ -85,6 +85,68 @@ namespace oyasumi.Chat
                                                          $"[https://osu.ppy.sh/b/{beatmap.Id} {beatmap.BeatmapName}]");
         }
 
+        [Command("fds", "Removes duplicated scores", true, Privileges.ManageUsers, 0)]
+        public static async Task FixDuplicateScores(Presence pr, string channel, string message, string[] args)
+        {
+            await ChannelManager.BotMessage(pr, channel, "Start cleaning duplicate scores...");
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                var scoreHashes = new List<string>();
+                var scores = await db.QueryAsync<DbScore>("SELECT * FROM Scores");
+                await ChannelManager.BotMessage(pr, channel, $"Scores to check: {scores.Count()}");
+                foreach (var score in scores)
+                {
+                    var scoreHash = Crypto.ComputeHash($"sum:{score.Count50 + score.Count100 + score.Count300}c300" +
+                                    $"{score.Count300}c100{score.Count100}c50{score.Count50}cgeki{score.CountGeki}ckatu" +
+                                    $"{score.CountKatu}cmiss{score.CountMiss}beatmap{score.FileChecksum}accuracy{score.Accuracy}");
+
+                    if (scoreHashes.Contains(scoreHash))
+                    {
+                        await db.ExecuteAsync($"DELETE FROM Scores WHERE Id = {score.Id}");
+                    }
+                    else
+                        scoreHashes.Add(scoreHash);
+                }
+            }
+            await ChannelManager.BotMessage(pr, channel, "Done!");
+        }
+
+        [Command("repp", "Recalculate performance points for scores", true, Privileges.ManageUsers, 0)]
+        public static async Task RecalculatePerformance(Presence pr, string channel, string message, string[] args)
+        {
+            await ChannelManager.BotMessage(pr, channel, "Start recalculating performance points...");
+            
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                var scores = await db.QueryAsync<DbScore>("SELECT * FROM Scores");
+                await ChannelManager.BotMessage(pr, channel, $"Scores to re-calculate: {scores.Count()}");
+                foreach (var score in scores)
+                {
+                    try
+                    {
+                        var beatmap = (await BeatmapManager.Get(score.FileChecksum));
+                        if (beatmap.Item1 is RankedStatus.NotSubmitted or RankedStatus.NeedUpdate)
+                            continue;
+
+                        double pp = 0;
+                        if (beatmap.Item2.Status == RankedStatus.Loved)
+                            pp = 0;
+                        else
+                            pp = await Calculator.CalculatePerformancePoints(score);
+                        await db.ExecuteAsync($"UPDATE Scores SET PerformancePoints = @PP WHERE Id = {score.Id}", new
+                        {
+                            PP = pp
+                        });
+                    }
+                    catch
+                    {
+                        // ignored
+                    }
+                }
+            }
+            await ChannelManager.BotMessage(pr, channel, "Done!");
+        }
+
         [Command("uban", "Un/ban specified player", true, Privileges.ManageUsers, 1, true, onArgsPushed: "UBan_OnArgsPushed")]
         public static async Task UBan(Presence pr, string channel, string message, string[] args)
         {
@@ -96,9 +158,7 @@ namespace oyasumi.Chat
                 user.Privileges &= ~Privileges.Normal;
 
                 await using (var db = MySqlProvider.GetDbConnection())
-                {
                     await db.ExecuteAsync($"UPDATE Users SET Privileges = {(int)user.Privileges} WHERE Id = {user.Id}");
-                }
 
                 var target = PresenceManager.GetPresenceById(user.Id);
 

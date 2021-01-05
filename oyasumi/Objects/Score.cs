@@ -10,6 +10,7 @@ using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Extensions;
+using oyasumi.Managers;
 using oyasumi.Utilities;
 
 namespace oyasumi.Objects
@@ -45,45 +46,67 @@ namespace oyasumi.Objects
         public int Rank { get; set; }
         public CompletedStatus Completed { get; set; }
 
-        public static async Task<Score[]> GetRawScores(string beatmapMd5, PlayMode mode,
+        public static async Task<Score[]> GetRawScores(string beatmapMd5, PlayMode mode, RankedStatus status,
             LeaderboardMode lbMode)
         {
             IEnumerable<DbScore> scores = null;
             await using (var db = MySqlProvider.GetDbConnection())
             {
-                scores = await db.QueryAsync<DbScore>($"SELECT * FROM Scores " +
+                scores = await db.QueryAsync<DbScore>($"SELECT *, Scores.Id AS Id FROM Scores " +
                                                       $"JOIN Users ON Users.Id = Scores.UserId " +
-                                                      $"WHERE Users.Privileges & {(int)Privileges.Normal} > 0 " +
+                                                      $"WHERE Users.Privileges & {(int) Privileges.Normal} > 0 " +
                                                       $"AND FileChecksum = '{beatmapMd5}' " +
-                                                      $"AND Completed = {(int)CompletedStatus.Best} " +
-                                                      $"AND PlayMode = {(int)mode} " +
+                                                      $"AND Completed = {(int) CompletedStatus.Best} " +
+                                                      $"AND PlayMode = {(int) mode} " +
                                                       $"AND Relaxing = {lbMode == LeaderboardMode.Relax} " +
-                                                      $"ORDER BY {(lbMode == LeaderboardMode.Relax ? "PerformancePoints" : "TotalScore")} " +
+                                                      $"ORDER BY {(lbMode == LeaderboardMode.Relax ? "PerformancePoints" : "TotalScore")} DESC " +
                                                       $"LIMIT 50");
             }
-            var dbScores = scores as DbScore[] ?? scores.ToArray();
             
-            return dbScores.Select(score => FromDb(score, dbScores)).ToArray();
+            
+
+            var dbScores = scores as DbScore[] ?? scores.ToArray();
+
+            return dbScores.Select(score => FromDb(score, status, dbScores)).ToArray();
         }
 
-        public static List<string> FormatScores(IEnumerable<Score> scores, PlayMode mode) => scores.Select(score => score.ToString()).ToList();
-
-        public int CalculateLeaderboardRank(IReadOnlyList<DbScore> scores)
+        public static List<string> FormatScores(IEnumerable<Score> scores, RankedStatus status, PlayMode mode) => scores.Select(score => score.ToString(status)).ToList();
+        
+        public void CalculateLeaderboardRank(IReadOnlyList<Score> scores, RankedStatus status)
         {
-            for (var i = 0; i < scores.Count; i++)
-                if (scores[i].UserId == User.Id)
-                    return i + 1;
-            return 0;
+            var orderedScores = scores.OrderByDescending
+            (
+                x => x.Relaxing && status != RankedStatus.Loved ? x.PerformancePoints : x.TotalScore
+            ).ToArray();
+
+            for (var i = 0; i < orderedScores.Length; i++)
+            {
+                if (orderedScores[i].UserId == UserId)
+                {
+                    Rank = i + 1;
+                    break;
+                }
+            }
         }
         
-        public void CalculateLeaderboardRank(IReadOnlyList<Score> scores)
+        public void CalculateLeaderboardRank(IReadOnlyList<DbScore> scores, RankedStatus status)
         {
-            for (var i = 0; i < scores.Count; i++)
-                if (scores[i].UserId == User.Id)
+            var orderedScores = scores.OrderByDescending
+            (
+                x => x.Relaxing && status != RankedStatus.Loved ? x.PerformancePoints : x.TotalScore
+            ).ToArray();
+
+            for (var i = 0; i < orderedScores.Length; i++)
+            {
+                if (orderedScores[i].UserId == UserId)
+                {
                     Rank = i + 1;
+                    break;
+                }
+            }
         }
 
-        public static Score FromDb(DbScore dbScore, DbScore[] scores = null)
+        public static Score FromDb(DbScore dbScore, RankedStatus status, DbScore[] scores = null)
         {
             var score = new Score
             {
@@ -105,8 +128,9 @@ namespace oyasumi.Objects
                 Perfect = dbScore.Perfect,
                 Mods = dbScore.Mods
             };
+            
             score.Relaxing = (score.Mods & Mods.Relax) != 0;
-            score.Rank = score.CalculateLeaderboardRank(scores);
+            score.CalculateLeaderboardRank(scores, status);
 
             return score;
         }
@@ -140,8 +164,8 @@ namespace oyasumi.Objects
             };
         }
 
-        public override string ToString() =>
-             $"{ScoreId}|{User.Username}|{(Relaxing ? (int)PerformancePoints : TotalScore)}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
+        public string ToString(RankedStatus status) =>
+             $"{ScoreId}|{User.Username}|{(Relaxing && status != RankedStatus.Loved ? (int)PerformancePoints : TotalScore)}|{MaxCombo}|{Count50}|{Count100}|{Count300}|{CountMiss}|{CountKatu}" +
              $"|{CountGeki}|{Perfect}|{(int)Mods}|{User.Id}|{Rank}|{Date.ToUnixTimestamp()}|{(string.IsNullOrEmpty(ReplayChecksum) ? "0" : "1")}";
     }
 }

@@ -5,14 +5,6 @@ using System.Linq;
 
 namespace oyasumi.Objects
 {
-    /* Presence filter format>
-*  It's simple, for example:
-*  CurrentMatch is not null
-*  they're splitted by | 
-*  CurrentMatch is not null | Spectators is not null | Accuracy greater 0
-*  It's equivalent to CurrentMatch is not null or Spectators is not null or Accuracy greater 0.0
-*  So if one of the checks passed we're executing command
-*/
     public class Filter
     {
         private string _filter;
@@ -45,7 +37,7 @@ namespace oyasumi.Objects
         /// <returns></returns>
         public bool IsMatch()
         {
-            bool noOther = _filter.IndexOf('|') == -1;
+            var noOther = !_filter.Contains('|');
 
             var expressions =  noOther ? new [] { _filter } : _filter.Split("|");
 

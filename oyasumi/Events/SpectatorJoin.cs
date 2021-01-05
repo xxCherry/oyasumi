@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
+using osu.Game.IO.Legacy;
 using oyasumi.Enums;
 using oyasumi.IO;
 using oyasumi.Layouts;

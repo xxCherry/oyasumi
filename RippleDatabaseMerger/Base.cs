@@ -1,12 +1,15 @@
 ﻿#define MERGE_BEATMAPS
 #define MERGE_SCORES
+//#define FIX_REPLAYS
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using oyasumi.Database;
 using oyasumi.Database.Models;
@@ -16,14 +19,14 @@ using oyasumi.Objects;
 using oyasumi.Utilities;
 using RippleDatabaseMerger.Database;
 using RippleDatabaseMerger.Enums;
-using static System.Int32;
 
 namespace RippleDatabaseMerger
 {
-    internal static class Base
+    internal class Base
     {
         private static Dictionary<int, int> _rippleIdToOyasumi = new();
-        
+        private static ConcurrentDictionary<string, string> _replayHashByScoreHash = new();
+
         private static Privileges Convert(RipplePrivileges p)
         {
             var converted = (Privileges)0;
@@ -54,17 +57,18 @@ namespace RippleDatabaseMerger
             var rippleReplayPath = args[1];
             var oyasumiReplayPath = args[2];
             var rippleRelaxReplayPath = string.Empty;
-            
+
             if (args.Length == 4)
                 rippleRelaxReplayPath = args[3];
-            
+
             var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
                 $"server=localhost;database={Config.Properties.Database};" +
                 $"user={Config.Properties.Username};password={Config.Properties.Password};");
-				
+
             var oContext = new OyasumiDbContext(builder.Options);
-            var rContext = new RippleDbContext(new DbContextOptionsBuilder<RippleDbContext>().UseMySql(connectionString).Options);
-   
+            var rContext =
+                new RippleDbContext(new DbContextOptionsBuilder<RippleDbContext>().UseMySql(connectionString).Options);
+#if !FIX_REPLAYS
             Console.WriteLine("Users merging...");
             var rUsers = await rContext.Users.AsNoTracking().ToListAsync();
             var stats = await rContext.Stats.AsNoTracking().ToListAsync();
@@ -181,7 +185,7 @@ namespace RippleDatabaseMerger
 
                 if (completed == CompletedStatus.Failed)
                     continue;
-                var timeParsed = TryParse(score.Time, out var time);
+                var timeParsed = int.TryParse(score.Time, out var time);
                 var convertedScore = new DbScore
                 {
                     FileChecksum = score.BeatmapChecksum,
@@ -240,7 +244,7 @@ namespace RippleDatabaseMerger
                     if (completed == CompletedStatus.Failed)
                         continue;
 
-                    var timeParsed = TryParse(score.Time, out var time);
+                    var timeParsed = int.TryParse(score.Time, out var time);
                     var convertedScore = new DbScore
                     {
                         FileChecksum = score.BeatmapChecksum,
@@ -287,8 +291,88 @@ namespace RippleDatabaseMerger
 
             Console.WriteLine("Scores merged...");
 #endif
+#endif
+#if FIX_REPLAYS
+            
+            foreach (var file in Directory.EnumerateFiles(oyasumiReplayPath))
+            {
+                await using (var stream = File.OpenRead(file))
+                {
+                    try
+                    {
+                        GenerateScoreHash(stream, Path.GetFileName(file.Replace(".osr", "")));
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
 
+
+            var dirInfo = new DirectoryInfo(oyasumiReplayPath);
+            var files = dirInfo.GetFiles().OrderBy(f => f.LastWriteTime).ToList();
+
+            
+            var id = 0;
+
+            bool validate(DateTime t1, DateTime t2)
+            {
+                return t1.Year == t2.Year && t1.Month == t2.Month && t1.Day == t2.Day && t1.Hour == t2.Hour &&
+                       t1.Minute == t2.Minute && t1.Second >= t2.Second && t1.Second <= 60;
+            }
+
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                var scores = await db.QueryAsync("SELECT * FROM Scores");
+
+                foreach (var score in scores)
+                {
+                    await db.ExecuteAsync($"UPDATE Scores SET Id = {++id} WHERE Id = {score.Id}");
+                }
+            }
+
+            var scores2 = oContext.Scores.AsNoTracking();
+            await using (var db = MySqlProvider.GetDbConnection())
+            {
+                foreach (var score in scores2)
+                {
+                    try
+                    {
+                        await db.ExecuteAsync(
+                            $"UPDATE Scores SET ReplayChecksum = NULL WHERE Id = {score.Id}");
+                        if (score.ReplayChecksum is null)
+                        {
+                            var file = files.FirstOrDefault(x => validate(x.LastWriteTime, score.Date));
+                            if (file is not null)
+                                await db.ExecuteAsync(
+                                    $"UPDATE Scores SET ReplayChecksum = '{file.Name.Split('.')[0]}' WHERE Id = {score.Id}");
+                        }
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+
+
+            await oContext.SaveChangesAsync();
+#endif
             Thread.Sleep(3000);
+        }
+        
+        public static void GenerateScoreHash(Stream replayFile, string replayMd5)
+        {
+
+            /*var str = $"{replay.Count300 + replay.Count100}{replay.BeatmapMD5Hash}{replay.CountMiss}{replay.CountGeki}{replay.CountKatu}{replay.ReplayTimestamp}{replay.Mods}";
+            var scoreChecksum = Crypto.ComputeHash(str);
+            
+            _replayHashByScoreHash.TryAdd(scoreChecksum, replayMd5); */
+        }
+        
+        public static IEnumerable<string> EnumerateFilesParallel(string path)
+        {
+            return Directory.EnumerateFiles(path).AsParallel();
         }
     }
 }
