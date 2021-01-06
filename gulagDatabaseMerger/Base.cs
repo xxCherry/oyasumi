@@ -111,10 +111,10 @@ namespace gulagDatabaseMerger
                         RankedScoreCtb = vanillaStats.rscore_vn_catch,
                         RankedScoreMania = vanillaStats.rscore_vn_mania,
 
-                        AccuracyOsu = vanillaStats.acc_vn_std,
-                        AccuracyTaiko = vanillaStats.acc_vn_taiko,
-                        AccuracyCtb = vanillaStats.acc_vn_catch,
-                        AccuracyMania = vanillaStats.acc_vn_mania,
+                        AccuracyOsu = vanillaStats.acc_vn_std / 100,
+                        AccuracyTaiko = vanillaStats.acc_vn_taiko / 100,
+                        AccuracyCtb = vanillaStats.acc_vn_catch / 100,
+                        AccuracyMania = vanillaStats.acc_vn_mania / 100,
 
                         PlaycountOsu = vanillaStats.plays_vn_std,
                         PlaycountTaiko = vanillaStats.plays_vn_taiko,
@@ -134,10 +134,10 @@ namespace gulagDatabaseMerger
                         RankedScoreCtb = vanillaStats.rscore_rx_catch,
                         RankedScoreMania = vanillaStats.rscore_vn_mania,
 
-                        AccuracyOsu = vanillaStats.acc_rx_std,
-                        AccuracyTaiko = vanillaStats.acc_rx_taiko,
-                        AccuracyCtb = vanillaStats.acc_rx_catch,
-                        AccuracyMania = vanillaStats.acc_vn_mania,
+                        AccuracyOsu = vanillaStats.acc_rx_std / 100,
+                        AccuracyTaiko = vanillaStats.acc_rx_taiko / 100,
+                        AccuracyCtb = vanillaStats.acc_rx_catch / 100,
+                        AccuracyMania = vanillaStats.acc_vn_mania / 100,
 
                         PlaycountOsu = vanillaStats.plays_rx_std,
                         PlaycountTaiko = vanillaStats.plays_rx_taiko,
