@@ -161,42 +161,47 @@ namespace gulagDatabaseMerger
             
             foreach (var beatmap in rBeatmaps)
             {
-                if (oContext.Beatmaps.Any(x => x.BeatmapMd5 == beatmap.Checksum))
-                    continue;
-
-                var dbMap = new DbBeatmap
+                try
                 {
-                    BeatmapMd5 = beatmap.Checksum,
-                    BeatmapId = beatmap.Id,
-                    BeatmapSetId = beatmap.SetId,
-                    Artist = beatmap.Artist,
-                    Title = beatmap.Title,
-                    Creator = beatmap.Creator,
-                    DifficultyName = beatmap.Version,
-                    PlayCount = beatmap.PlayCount,
-                    PassCount = beatmap.PassCount,
-                    Frozen = beatmap.Frozen,
-                    BPM = beatmap.BPM,
-                    ApproachRate = beatmap.AR,
-                    CircleSize = beatmap.CS,
-                    HPDrainRate = beatmap.HP,
-                    OverallDifficulty = beatmap.OD,
-                    Stars = beatmap.SR
-                };
+                    if (oContext.Beatmaps.Any(x => x.BeatmapMd5 == beatmap.Checksum))
+                        continue;
 
-                await oContext.Beatmaps.AddAsync(dbMap);
-                await oContext.SaveChangesAsync();
+                    var dbMap = new DbBeatmap
+                    {
+                        BeatmapMd5 = beatmap.Checksum,
+                        BeatmapId = beatmap.Id,
+                        BeatmapSetId = beatmap.SetId,
+                        Artist = beatmap.Artist,
+                        Title = beatmap.Title,
+                        Creator = beatmap.Creator,
+                        DifficultyName = beatmap.Version,
+                        PlayCount = beatmap.PlayCount,
+                        PassCount = beatmap.PassCount,
+                        Frozen = beatmap.Frozen,
+                        BPM = beatmap.BPM,
+                        ApproachRate = beatmap.AR,
+                        CircleSize = beatmap.CS,
+                        HPDrainRate = beatmap.HP,
+                        OverallDifficulty = beatmap.OD,
+                        Stars = beatmap.SR,
+                        Status = beatmap.Status
+                    };
 
-                var bpg = Path.Combine(bmPathGulag, $"{beatmap.Id}.osu");
-                var bpo = Path.Combine(bmPathOyasumi, $"{beatmap.Checksum}.osu");
+                    await oContext.Beatmaps.AddAsync(dbMap);
+                    await oContext.SaveChangesAsync();
 
-                if (!File.Exists(bpo))
-                {
-                    if (File.Exists(bpg))
-                        File.Copy(bpg, bpo);
-                    else
-                        wc.DownloadFile($"https://osu.ppy.sh/osu/{beatmap.Id}", bpo);
+                    var bpg = Path.Combine(bmPathGulag, $"{beatmap.Id}.osu");
+                    var bpo = Path.Combine(bmPathOyasumi, $"{beatmap.Checksum}.osu");
+
+                    if (!File.Exists(bpo))
+                    {
+                        if (File.Exists(bpg))
+                            File.Copy(bpg, bpo);
+                        else
+                            wc.DownloadFile($"https://osu.ppy.sh/osu/{beatmap.Id}", bpo);
+                    }
                 }
+                catch { }
             } 
             Console.WriteLine("Beatmaps merged!");
 #endif
@@ -226,7 +231,7 @@ namespace gulagDatabaseMerger
                     CountGeki = score.CountGeki,
                     CountKatu = score.CountKatu,
                     CountMiss = score.CountMiss,
-                    Accuracy = score.Accuracy,
+                    Accuracy = score.Accuracy / 100,
                     TotalScore = score.Score,
                     MaxCombo = score.MaxCombo,
                     Date = score.Time,
@@ -281,7 +286,7 @@ namespace gulagDatabaseMerger
                         CountGeki = score.CountGeki,
                         CountKatu = score.CountKatu,
                         CountMiss = score.CountMiss,
-                        Accuracy = score.Accuracy,
+                        Accuracy = score.Accuracy / 100,
                         TotalScore = score.Score,
                         MaxCombo = score.MaxCombo,
                         Date = score.Time,
