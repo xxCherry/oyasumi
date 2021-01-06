@@ -42,6 +42,26 @@ namespace oyasumi.Controllers
             // return Ok("https://osu.ppy.sh");
         }
 
+        [Route("check-updates.php")]
+        public async Task<IActionResult> CheckUpdates()
+        {
+            if(Request.Headers.ContainsKey("oyasumi-checker"))
+                return NotFound("turn off switcher on server to use this feature");
+
+            using var client = new HttpClient();
+
+            client.DefaultRequestHeaders.Add("oyasumi-checker", "");
+
+            var reqResult = await client.GetAsync("https://osu.ppy.sh/web" + Request.QueryString.Value);
+
+            if (!reqResult.IsSuccessStatusCode)
+                return NotFound();
+
+            var content = reqResult.Content.ReadAsStringAsync();
+
+            return Ok(content);
+        }
+
         [HttpGet("osu-search.php")]
         public async Task<IActionResult> DirectSearch
         (
