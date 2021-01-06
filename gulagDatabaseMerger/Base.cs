@@ -181,7 +181,8 @@ namespace gulagDatabaseMerger
                     CircleSize = beatmap.CS,
                     HPDrainRate = beatmap.HP,
                     OverallDifficulty = beatmap.OD,
-                    Stars = beatmap.SR
+                    Stars = beatmap.SR,
+                    Status = beatmap.Status
                 };
 
                 await oContext.Beatmaps.AddAsync(dbMap);
@@ -226,7 +227,7 @@ namespace gulagDatabaseMerger
                     CountGeki = score.CountGeki,
                     CountKatu = score.CountKatu,
                     CountMiss = score.CountMiss,
-                    Accuracy = score.Accuracy,
+                    Accuracy = score.Accuracy / 100,
                     TotalScore = score.Score,
                     MaxCombo = score.MaxCombo,
                     Date = score.Time,
@@ -281,7 +282,7 @@ namespace gulagDatabaseMerger
                         CountGeki = score.CountGeki,
                         CountKatu = score.CountKatu,
                         CountMiss = score.CountMiss,
-                        Accuracy = score.Accuracy,
+                        Accuracy = score.Accuracy / 100,
                         TotalScore = score.Score,
                         MaxCombo = score.MaxCombo,
                         Date = score.Time,
