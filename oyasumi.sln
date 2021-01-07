@@ -17,7 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "osu.Game.Rulesets.Mania", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RippleDatabaseMerger", "RippleDatabaseMerger\RippleDatabaseMerger.csproj", "{A5B0DAE2-376A-40DE-96C7-0DE9510B2C5D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "gulagDatabaseMerger", "gulagDatabaseMerger\gulagDatabaseMerger.csproj", "{DC445D11-F9FE-46C1-8F25-3661E286D40F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GulagDatabaseMerger", "GulagDatabaseMerger\GulagDatabaseMerger.csproj", "{DC445D11-F9FE-46C1-8F25-3661E286D40F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
