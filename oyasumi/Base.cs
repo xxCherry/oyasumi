@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
@@ -52,7 +53,7 @@ namespace oyasumi
 	public class Base
 	{
 		public static Type[] Types;
-
+			
 		public static readonly ConcurrentDictionary<PacketType, MethodInfo> MethodCache = new();
 		public static readonly ConcurrentDictionary<int, List<int>> FriendCache = new();
 		public static readonly ConcurrentDictionary<PacketType, PacketItem> PacketImplCache = new();
@@ -74,7 +75,6 @@ namespace oyasumi
 		public static void Main(string[] args)
 		{
 			Types = Assembly.GetEntryAssembly().GetTypes();
-
 			CreateHostBuilder(args).Build().Run();
 		}
 

@@ -47,7 +47,9 @@ namespace oyasumi.Managers
         /// <param name="checksum">MD5 checksum of beatmap</param>
         /// <param name="fileName">Name of osu beatmap file</param>
         /// <param name="setId">Beatmap set id</param>
-        /// <param name="context">Database instance</param>
+        /// <param name="leaderboard">Leaderboard</param>
+        /// <param name="mode">GameMode</param>
+        /// <param name="lbMode">Leaderboard by mod</param>
         public static async Task<(RankedStatus, Beatmap)> Get
         (
             string checksum, string fileName = "", int setId = 0,
@@ -71,7 +73,10 @@ namespace oyasumi.Managers
                     dbBeatmap = await db.QueryFirstOrDefaultAsync<DbBeatmap>(
                         $"SELECT * From Beatmaps WHERE FileName = '{fileName}'");
 
-                    return (RankedStatus.Approved, dbBeatmap.FromDb(leaderboard, mode));
+                    return dbBeatmap is null ? 
+                        (RankedStatus.Approved, null) // TODO: get beatamp by .osu file somehow
+                        : 
+                        (RankedStatus.Approved, dbBeatmap.FromDb(leaderboard, mode));
                 }
             }
 
