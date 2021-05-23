@@ -1,3 +1,6 @@
+# DEPRECATED
+# Well, i don't have motivation to continue this project due to non-maintainable code base. Currently i slowly working on better solution than this (really very slowly).
+
 # oyasumi - the osu! server implementation
 
 ##### Features
