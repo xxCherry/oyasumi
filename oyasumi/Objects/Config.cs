@@ -9,6 +9,8 @@ namespace oyasumi.Objects
         public string Username { get; set; }
         public string Password { get; set; }
         public string BeatmapMirror { get; set; }
+        public string OsuApiUrl { get; set; }
+        public string OsuApiKey { get; set; }
         public string RecaptchaPrivate { get; set; }
     }
 
@@ -24,7 +26,8 @@ namespace oyasumi.Objects
                     {
                         Database = "oyasumi",
                         Username = "root",
-                        Password = ""
+                        Password = "",
+                        OsuApiUrl = "https://old.ppy.sh"
                     }));
                 } 
                 return JsonConvert.DeserializeObject<ConfigScheme>(File.ReadAllText(@"config.json"));

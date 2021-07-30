@@ -1,14 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore.Internal;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 
 namespace oyasumi.Objects
 {
+    // Don't recommend to look thru this
     public class Filter
     {
-        private string _filter;
-        private object _presence;
+        private readonly string _filter;
+        private readonly object _presence;
 
         public Filter(string filter, object pr)
         {
@@ -16,30 +14,29 @@ namespace oyasumi.Objects
             _presence = pr;
         }
 
-        /// <summary> Presence filter format
+        /// <summary>Presence filter format
         /// 
         /// <para> It's simple, for example: </para>
         /// <para> CurrentMatch is not null </para>
         /// 
-        /// <para> They're splitted by | </para>
+        /// <para> They're can be splitted by | </para>
         /// <para> CurrentMatch is not null | Spectators is not null | Accuracy greater 0.0 </para>
         /// <para>It's equivalent to CurrentMatch is not null or Spectators is not null or Accuracy greater 0.0 </para>
         /// 
-        /// <para> First string is always field of Presence </para>
+        /// <para> First string is always field of Presence</para>
         /// 
         /// <para> 
         /// Number types:
         /// Integer: 1, 2, 3 etc.
-        /// Double: 1.5, 1.6, 1.9, etc.
+        /// Double: 1.5, 1.6, 1.9 etc.
         /// Float: 1.6f, 1.4f, 1.8f etc.
         /// </para>
         /// </summary>
-        /// <returns></returns>
         public bool IsMatch()
         {
             var noOther = !_filter.Contains('|');
 
-            var expressions =  noOther ? new [] { _filter } : _filter.Split("|");
+            var expressions = noOther ? new [] { _filter } : _filter.Split("|");
 
             foreach (var expr in expressions)
             {
@@ -58,15 +55,12 @@ namespace oyasumi.Objects
                             if (i + 2 > tokens.Length)
                                 throw new("No value to compare.");
                             next = tokens[i + 2];
+                            
                             if (next == "null")
-                            {
                                 return typeof(Presence).GetField(field).GetValue(_presence) is not null;
-                            }
                         }
                         if (next == "null")
-                        {
                             return typeof(Presence).GetField(field).GetValue(_presence) is null;
-                        }
 
                         if (next == "greater")
                         {
@@ -84,15 +78,11 @@ namespace oyasumi.Objects
                                 }
 
                                 if (double.TryParse(next, out var d))
-                                {
                                     return d > (double)typeof(Presence).GetField(field).GetValue(_presence);
-                                }
                             }
 
                             if (int.TryParse(next, out var num))
-                            {
                                 return num > (int)typeof(Presence).GetField(field).GetValue(_presence);
-                            }
                         }
 
                         if (next == "less")
@@ -105,21 +95,15 @@ namespace oyasumi.Objects
                                 if (next.LastOrDefault() == 'f')
                                 {
                                     if (float.TryParse(next, out var f))
-                                    {
                                         return f < (float)typeof(Presence).GetField(field).GetValue(_presence);
-                                    }
                                 }
 
                                 if (double.TryParse(next, out var d))
-                                {
                                     return d < (double)typeof(Presence).GetField(field).GetValue(_presence);
-                                }
                             }
 
                             if (int.TryParse(next, out var num))
-                            {
                                 return num < (int)typeof(Presence).GetField(field).GetValue(_presence);
-                            }
                         }
                     }
                     if (token == string.Empty)

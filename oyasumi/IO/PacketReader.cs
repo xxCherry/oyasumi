@@ -11,13 +11,13 @@ using oyasumi.Objects;
 
 namespace oyasumi.IO
 {
-	public class PacketReader
+	public static class PacketReader
 	{
-		private static readonly ConcurrentDictionary<PacketType, Packet> _packetCache = new ConcurrentDictionary<PacketType, Packet>();
+		private static readonly ConcurrentDictionary<PacketType, Packet> _packetCache = new ();
 		public static IEnumerable<Packet> Parse(MemoryStream data)
 		{
 			using var reader = new SerializationReader(data);
-			
+
 			while (data.Position != data.Length)
 				yield return Read(reader);
 		}

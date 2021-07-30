@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-	  <LangVersion>preview</LangVersion>
+	 <PublishWithAspNetCoreTargetManifest>false</PublishWithAspNetCoreTargetManifest>
+	<LangVersion>preview</LangVersion>
     <TargetFramework>net5.0</TargetFramework>
     <Platforms>AnyCPU;x86</Platforms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -17,6 +18,11 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.0" />
+    <PackageReference Include="ConfigureAwait.Fody" Version="3.3.1" />
+    <PackageReference Include="Costura.Fody" Version="5.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="FastExpressionCompiler" Version="2.0.0" />
     <PackageReference Include="Microsoft.Build.Framework" Version="16.8.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.9" />
@@ -27,7 +33,10 @@
     <PackageReference Include="NIdenticon" Version="1.4.0" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.2.3" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.8.8" />
-    <PackageReference Include="ppy.osu.Framework" Version="2020.1105.0" />
+    <PackageReference Include="ppy.osu.Framework" Version="2020.1228.0" />
+    <PackageReference Include="Serilog" Version="2.10.0" />
+    <PackageReference Include="Serilog.Sinks.Discord" Version="1.1.1" />
+    <PackageReference Include="Standart.Hash.xxHash" Version="3.1.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.3.0" />
     <PackageReference Include="System.Interactive.Async" Version="4.1.1" />
   </ItemGroup>

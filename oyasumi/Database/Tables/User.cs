@@ -1,26 +1,18 @@
 ﻿using oyasumi.Enums;
+using oyasumi.Database.Attributes;
 using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace oyasumi.Database.Models
 {
     [Table("Users")]
     public class User
     {
-        [Key]
-        [Required]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
+        public string Username { get; set; }
         public Privileges Privileges { get; set; }
         public DateTimeOffset JoinDate { get; set; } = DateTime.UtcNow;
-        [Required]
-        [Column(TypeName="varchar(36)")]
-        public string Username { get; set; }
         public string UsernameAka { get; set; }
-        [Required]
         public string Password { get; set; }
-        [Column(TypeName="varchar(60)")]
         public string Email { get; set; }
         public string UsernameSafe { get; set; }
         public string Country { get; set; }

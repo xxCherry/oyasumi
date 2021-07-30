@@ -8,7 +8,6 @@ using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using Microsoft.EntityFrameworkCore;
 using oyasumi.API.Request;
 using oyasumi.API.Response;
 using oyasumi.API.Utilities;
@@ -26,11 +25,6 @@ namespace oyasumi.API.Controllers
     [RequestFormLimits(ValueLengthLimit = 1024 * 1024 * 8, ValueCountLimit = 1024 * 1024 * 8)]
     public class UsersController : Controller
     {
-        private readonly OyasumiDbContext _context;
-
-        public UsersController(OyasumiDbContext context) =>
-            _context = context;
-
         [HttpGet("profile/info")]
         public IActionResult UserProfile
         (
@@ -45,7 +39,7 @@ namespace oyasumi.API.Controllers
                 true => Base.UserStatsCache[LeaderboardMode.Relax][userId]
             };
 
-            var user = Base.UserCache[userId];
+            var user = DbContext.Users[userId];
 
             return Content(JsonConvert.SerializeObject(new ProfileResponse
             {
@@ -72,8 +66,9 @@ namespace oyasumi.API.Controllers
             [FromQuery(Name = "r")] bool isRelax
         )
         {
+            // TODO: port it
             IEnumerable<ProfileScoreResponse> scores = null;
-            await using (var db = MySqlProvider.GetDbConnection())
+            /*await using (var db = MySqlProvider.GetDbConnection())
             {
                 scores = (await db
                         .QueryAsync<DbScore>($"SELECT * FROM Scores " +
@@ -82,7 +77,8 @@ namespace oyasumi.API.Controllers
                                              $"AND PlayMode = {(int) mode} " +
                                              $"AND Completed = {(int)CompletedStatus.Best} " +
                                              $"ORDER BY PerformancePoints DESC " +
-                                             $"LIMIT {limit}"))
+                                             $"LIMIT {limit}")
+                        )
                         .Select(x => new ProfileScoreResponse()
                         {
                             Id = x.Id,
@@ -100,7 +96,7 @@ namespace oyasumi.API.Controllers
                             Timestamp = x.Date.ToUnixTimestamp(),
                             Rank = Calculator.CalculateRank(x)
                         });
-            }
+            }*/
 
             Response.ContentType = "application/json";
             return Content(JsonConvert.SerializeObject(scores));
@@ -118,27 +114,6 @@ namespace oyasumi.API.Controllers
                 return StatusCode(400); */
 
             var passwordMd5 = Crypto.ComputeHash(info.Password);
-
-            if (user.Password.Length == 0)
-            {
-                var ripplePassword = await _context.RipplePasswords
-                    .AsAsyncEnumerable()
-                    .FirstOrDefaultAsync(x => x.UserId == user.Id);
-
-                // in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
-                // we need to merge it to bcrypt
-                if (!Crypto.VerifySCryptPassword(ripplePassword.Password, info.Password, ripplePassword.Salt))
-                    return NetUtils.Error("Wrong password.");
-
-                var passwordBcrypt = Crypto.GenerateHash(passwordMd5);
-
-                user.Password = passwordBcrypt;
-
-                if (user is not null)
-                    user.Password = passwordBcrypt;
-
-                await _context.SaveChangesAsync();
-            }
 
             if (!Base.PasswordCache.TryGetValue(passwordMd5, out _))
             {
@@ -158,8 +133,9 @@ namespace oyasumi.API.Controllers
                     UserToken = Guid.NewGuid().ToString()
                 };
 
-                await _context.Tokens.AddAsync(token);
-                await _context.SaveChangesAsync();
+                //await DbContext.Tokens.Add(token);
+
+                Base.TokenCache.Add(user.Username, user.Id, token);
             }
 
             var kvp = new Dictionary<string, string>
@@ -187,11 +163,13 @@ namespace oyasumi.API.Controllers
                 ["password"] = new()
             };
 
+            var users = DbContext.Users.Values;
+
             if (!Regex.IsMatch(username, @"^[\w \[\]-]{2,15}$"))
                 errors["username"].Add("Must be 2 - 15 characters in length.");
             if (username.Contains(" ") && username.Contains("_"))
                 errors["username"].Add("May contain '_' and ' ', but not both.");
-            if (await _context.Users.AsAsyncEnumerable().AnyAsync(x => x.Username == username))
+            if (users.Any(x => x.Username == username))
                 errors["username"].Add("Username already taken by another player..");
 
             if (!Regex.IsMatch(email,
@@ -199,7 +177,7 @@ namespace oyasumi.API.Controllers
                 RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)))
                 errors["email"].Add("Invalid email syntax.");
 
-            if (await _context.Users.AsAsyncEnumerable().AnyAsync(x => x.Email == email))
+            if (users.Any(x => x.Email == email))
                 errors["email"].Add("Email already taken by another player.");
 
             var passwordLength = plainPassword.Length;
@@ -221,6 +199,7 @@ namespace oyasumi.API.Controllers
 
             var user = new User
             {
+                Id = DbContext.Users.Count + 1,
                 Username = username,
                 UsernameSafe = username.ToSafe(),
                 Password = passwordBcrypt,
@@ -231,25 +210,24 @@ namespace oyasumi.API.Controllers
             var vanillaStats = new VanillaStats();
             var relaxStats = new RelaxStats();
 
-            await _context.Users.AddAsync(user);
-            await _context.VanillaStats.AddAsync(vanillaStats);
-            await _context.RelaxStats.AddAsync(relaxStats);
+            DbContext.Users.Add(user.Id, user.Username, user);
 
-            await _context.SaveChangesAsync();
+            DbContext.VanillaStats.TryAdd(user.Id, vanillaStats);
+            DbContext.RelaxStats.TryAdd(user.Id, relaxStats);
 
             var token = new Token
             {
                 UserId = user.Id,
                 UserToken = Guid.NewGuid().ToString()
             };
-            
-            await _context.Tokens.AddAsync(token);
-            await _context.SaveChangesAsync();
+
+            //await DbContext.Tokens.AddAsync(token);
 
             Base.TokenCache.Add(user.Username, user.Id, token);
             Base.UserCache.Add(user.Username, user.Id, user);
+
             Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanillaStats);
-            Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, relaxStats);
+            Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(user.Id, relaxStats);
             return Ok("Account created!");
         }
 
@@ -287,15 +265,37 @@ namespace oyasumi.API.Controllers
         }
 
         [HttpGet("me")]
-        public IActionResult Me()
+        public async Task<IActionResult> Me()
         {
             var tokenStr = Request.Headers["Authorization"];
-            
+
             if (!Misc.VerifyToken(tokenStr))
                 return StatusCode(400);
 
             var token = Base.TokenCache[tokenStr];
-            var user = Base.UserCache[token.UserId];
+
+            if (token is not null)
+                Base.TokenCache.Add(token.UserToken, token.UserId, token);
+            else
+                return NotFound();
+
+            var user = DbContext.Users[token.UserId];
+
+            if (user is not null)
+            {
+                Base.UserCache.Add(user.Username, user.Id, user);
+
+                var vanilla = DbContext.VanillaStats[token.UserId];
+                var relax = DbContext.RelaxStats[token.UserId];
+
+                Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(user.Id, vanilla);
+                Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(user.Id, relax);
+            }
+            else
+            {
+                return NotFound();
+            }
+
 
             var response = new MeResponse
             {
@@ -320,19 +320,18 @@ namespace oyasumi.API.Controllers
             var token = Base.TokenCache[tokenStr];
             var user = Base.UserCache[token.UserId];
 
-            var exists = await _context.Friends.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Friend2 == userId);
+            var exists = DbContext.Friends.FirstOrDefault(x => x.Friend2 == userId);
 
             if (exists is not null)
                 return NetUtils.Error("User already added");
 
-            await _context.Friends.AddAsync(new Friend
+            DbContext.Friends.Add(new Friend
             {
                 Friend1 = user.Id,
                 Friend2 = userId
             });
 
             Base.FriendCache[user.Id].Add(userId);
-            await _context.SaveChangesAsync();
 
             return NetUtils.Content("Friend added");
         }
@@ -356,7 +355,7 @@ namespace oyasumi.API.Controllers
             if (!isForbidden)
                 return NetUtils.StatusCode("Forbidden userpage content", 400);
 
-            var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == token.UserId);
+            var user = DbContext.Users[token.UserId];
             user.UserpageContent = info.Content;
 
             return Ok();
@@ -371,12 +370,11 @@ namespace oyasumi.API.Controllers
 
             var token = Base.TokenCache[tokenStr];
             var cachedUser = Base.UserCache[token.UserId];
-            var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == token.UserId);
+            var user = DbContext.Users[token.UserId];
 
             cachedUser.PreferNightcore = info.PreferNightcore;
             user.PreferNightcore = info.PreferNightcore;
 
-            await _context.SaveChangesAsync();
             return Ok();
         }
 
@@ -397,7 +395,7 @@ namespace oyasumi.API.Controllers
                     return NetUtils.StatusCode("Invalid old password", 400);
             }
 
-            var user = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == cachedToken.UserId);
+            var user = DbContext.Users[cachedToken.UserId];
             var newPasswordBcrypt = Crypto.GenerateHash(Crypto.ComputeHash(info.NewPassword));
 
             user.Password = newPasswordBcrypt;
@@ -413,10 +411,9 @@ namespace oyasumi.API.Controllers
             };
             Base.TokenCache[tokenStr] = token;
 
-            var dbToken = await _context.Tokens.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UserId == token.Id);
+            var dbToken = new Token(); // TODO: update token
             dbToken = token;
 
-            await _context.SaveChangesAsync();
             return Ok();
         }
 
@@ -427,8 +424,8 @@ namespace oyasumi.API.Controllers
             if (!Misc.VerifyToken(token))
                 return StatusCode(400);
             
-            var dbToken = await _context.Tokens.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.UserToken== token);
-            
+            var dbToken = new Token(); // TODO: get token
+
             var avatar = Request.Form.Files.GetFile("File");
             if (avatar is null)
                 return NetUtils.Error("File is invalid.");

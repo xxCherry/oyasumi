@@ -30,7 +30,8 @@ namespace oyasumi.Events
             if (target is null)
                 return;
 
-            await target.MatchInvite(pr, $"Come join to my game: [osump://{match.Id}/{match.GamePassword} {match.GameName}]");
+            await target.MatchInvite(pr, $"Come join to my game: [osump://{match.Id}/{match.GamePassword} {match.GameName}]")
+                ;
         }
     }
 }

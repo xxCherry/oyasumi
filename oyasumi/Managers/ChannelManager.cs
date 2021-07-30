@@ -6,7 +6,6 @@ using oyasumi.Objects;
 using oyasumi.Layouts;
 using System.Threading.Tasks;
 using oyasumi.Attributes;
-using oyasumi.Enums;
 using oyasumi.Utilities;
 using System.Threading;
 using oyasumi.Chat.Objects;
@@ -15,9 +14,12 @@ using static oyasumi.Chat.CommandEvents;
 
 namespace oyasumi.Managers
 {
+    // TODO: fix user count
     public static class ChannelManager
     {
-        public static ConcurrentDictionary<string, Channel> Channels = new ();
+        private static ConcurrentDictionary<string, OnArgsPushed> _commandsEventCache = new();
+
+        public static ConcurrentDictionary<string, Channel> Channels = new();
 
         public static async Task JoinChannel(this Presence pr, string channelName)
         {
@@ -47,23 +49,27 @@ namespace oyasumi.Managers
             channel.Presences.TryRemove(pr.Id, out _);
 
             if (force)
+            {
                 await pr.RevokeChannel(channel.Name);
+            }
         }
 
         public static async Task BotMessage(Presence reciever, string channel, string message)
         {
-            var isPublic = channel.StartsWith("#");
+            var isPublic = channel.StartsWith("#", StringComparison.Ordinal);
             await SendMessage("oyasumi", message, isPublic ? channel : reciever.Username, int.MaxValue, isPublic);
         }
-        
+
         public static async Task SendMessage(string sender, string message, string rawTarget, int id, bool isPublic) // Mostly used for dummy presences
         {
             if (!isPublic)
             {
                 var target = PresenceManager.GetPresenceByName(rawTarget);
-                
+
                 if (target is not null)
+                {
                     await target.ChatMessage(sender, message, rawTarget, id);
+                }
             }
             else
             {
@@ -73,7 +79,9 @@ namespace oyasumi.Managers
                 foreach (var pr in channel.Presences.Values)
                 {
                     if (pr.Id != id)
+                    {
                         await pr.ChatMessage(sender, message, rawTarget, id);
+                    }
                 }
             }
         }
@@ -88,12 +96,16 @@ namespace oyasumi.Managers
                 {
                     var command = GetOrAddCommand(message);
 
-                    if ((sender.Privileges & command.Privileges) > 0)
+                    if ((sender.Privileges & command.Privileges) != 0)
+                    {
                         await ExecuteCommand(sender, command, null, rawTarget, message);
+                    }
                 }
 
                 if (target is not null)
+                {
                     await target.ChatMessage(sender, message, rawTarget);
+                }
             }
             else
             {
@@ -110,27 +122,51 @@ namespace oyasumi.Managers
                 {
                     var command = GetOrAddCommand(message);
 
-                    if ((sender.Privileges & command.Privileges) > 0)
+                    if ((sender.Privileges & command.Privileges) != 0)
                     {
                         if (command.IsPublic)
                             await ExecuteCommand(sender, command, channel, rawTarget, message);
                     }
                 }
-                
+
                 foreach (var pr in channel.Presences.Values)
                 {
                     if (pr != sender)
                         await pr.ChatMessage(sender, message, channel.Name);
                 }
+                // await SpecialChatMessage(sender, message, channel);
             }
 
             if (!message.StartsWith("!"))
+            {
                 await CheckScheduledCommands(sender, rawTarget, message);
+            }
 
-            if (message.StartsWith('\x1' + @"ACTION is listening to"))
+            Console.WriteLine(message);
+
+            if (message.StartsWith('\x1' + "ACTION is"))
             {
                 var idPart = message.Split("/b/")[1];
                 sender.LastNp = BeatmapManager.Beatmaps[int.Parse(idPart[..idPart.IndexOf(' ')])];
+            }
+        }
+
+        // Experimental stuff with messages
+        private static async Task SpecialChatMessage(Presence sender, string message, Channel channel)
+        {
+            var dummyId = new Random().Next(int.MinValue, int.MaxValue); // TODO: replace with something better
+            sender.SubPresences.Push(dummyId);
+
+            // tell client to delete his own messages
+            await sender.UserSilence(sender.Id);
+
+            if (!message.StartsWith("!"))
+            {
+                foreach (var pr in channel.Presences.Values)
+                {
+                    await pr.UserPresenceSingle(dummyId); // add our dummy presence to client's cache
+                    await pr.ChatMessage(sender.Username, message, channel.Name, dummyId);
+                }
             }
         }
 
@@ -158,15 +194,21 @@ namespace oyasumi.Managers
                 // Run scheduled commands in separate thread
                 // Because if we don't, the current thread will be
                 // frozen for a while
-                new Thread(() =>
+
+                await Task.Factory.StartNew(() =>
                 {
-                    var action = typeof(CommandEvents).GetMethod(command.OnArgsPushed).CreateDelegate(typeof(OnArgsPushed));
+                    if (!_commandsEventCache.TryGetValue(command.Name, out var action))
+                    {
+                        action = typeof(CommandEvents).GetMethod(command.OnArgsPushed)?.CreateDelegate<OnArgsPushed>(typeof(OnArgsPushed));
+                        _commandsEventCache.TryAdd(command.Name, action);
+                    }
+
                     sender.CommandQueue.Enqueue(new ScheduledCommand
                     {
                         Name = command.Name,
                         ArgsRequired = command.RequiredArgs,
                         Args = new string[command.RequiredArgs],
-                        OnArgsPushed = (OnArgsPushed)action
+                        OnArgsPushed = action
                     });
 
                     // Wait until user messages
@@ -179,16 +221,22 @@ namespace oyasumi.Managers
                         return;
 
                     command.Executor.Execute(null, new object[] { sender, rawTarget, message, cmdArgs });
-                }).Start();
+                });
             }
             else
             {
-                if (command.RequiredArgs > -1 && isMatch && cmdArgs.Length == command.RequiredArgs || command.RequiredArgs == -1)
+                if ((command.RequiredArgs > -1 && isMatch && cmdArgs.Length == command.RequiredArgs) || command.RequiredArgs == -1)
+                {
                     command.Executor.Execute(null, new object[] { sender, rawTarget, message, cmdArgs });
+                }
                 else if (cmdArgs.Length > command.RequiredArgs)
+                {
                     await BotMessage(sender, isPublic ? channel.Name : rawTarget, $"Too many arguments for !{cmdString}");
+                }
                 else if (cmdArgs.Length < command.RequiredArgs)
+                {
                     await BotMessage(sender, isPublic ? channel.Name : rawTarget, $"Too few arguments for !{cmdString}");
+                }
             }
         }
 
@@ -205,7 +253,7 @@ namespace oyasumi.Managers
                         command.Args[currentIndex] = message;
                         command.NoErrors = await command.OnArgsPushed(sender, rawTarget, currentIndex, message);
 
-                        // If OnArgsPushed event returned false that means something went wrong, force break execution..
+                        // If OnArgsPushed event returned false that means something went wrong, force break execution
                         if (!command.NoErrors)
                         {
                             if (sender.CommandQueue.TryDequeue(out command))
@@ -213,9 +261,9 @@ namespace oyasumi.Managers
 
                             return;
                         }
+
                         command.ArgsRequired--;
                     }
-
 
                     if (command.ArgsRequired == 0)
                     {
@@ -252,6 +300,7 @@ namespace oyasumi.Managers
 
                 Base.CommandCache.TryAdd(cmdString, command);
             }
+
             return command;
         }
     }

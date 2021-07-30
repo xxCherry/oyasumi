@@ -16,46 +16,41 @@ using System.Threading.Tasks;
 namespace oyasumi.Controllers
 {
     [Route("/users")]
-    public class RegistrationController : Controller
+    public class RegistrationController : OyasumiController
     {
-        private readonly OyasumiDbContext _context;
-
-        public RegistrationController(OyasumiDbContext context)
-        {
-            _context = context;
-        }
-
         [HttpPost]
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
             var username = (string)Request.Form["user[username]"];
             var email = (string)Request.Form["user[user_email]"];
             var plainPassword = (string)Request.Form["user[password]"]; // plain text
 
-            var errors = new Dictionary<string, List<string>>() 
-            { 
+            var errors = new Dictionary<string, List<string>>()
+            {
                 ["username"] = new (),
                 ["user_email"] = new(),
                 ["password"] = new()
             };
 
+            var users = DbContext.Users.Values;
+
             if (!Regex.IsMatch(username, @"^[\w \[\]-]{2,15}$"))
                 errors["username"].Add("Must be 2 - 15 characters in length.");
-            
+
             if (username.Contains(" ") && username.Contains("_"))
                 errors["username"].Add("May contain '_' and ' ', but not both.");
-                
-            if (await _context.Users.AnyAsync(x => x.Username == username))
+
+            if (users.Any(x => x.Username == username))
                 errors["username"].Add("Username already taken by another player..");
 
             if (!Regex.IsMatch(email,
-                    @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-                    RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250))) 
-                errors["user_email"].Add("Invalid email syntax.");
-            
-            if (await _context.Users.AnyAsync(x => x.Email == email))
-                errors["user_email"].Add("Email already taken by another player.");
-            
+                @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+                RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)))
+                errors["email"].Add("Invalid email syntax.");
+
+            if (users.Any(x => x.Email == email))
+                errors["email"].Add("Email already taken by another player.");
+
             var passwordLength = plainPassword.Length;
             if (!(passwordLength >= 8 && passwordLength <= 32))
                 errors["password"].Add("Must be 8-32 characters in length.");
@@ -63,6 +58,7 @@ namespace oyasumi.Controllers
             var uniqueCharsCount = plainPassword.Distinct().Count();
             if (uniqueCharsCount <= 3)
                 errors["password"].Add("Must have more than 3 unique characters.");
+
 
             if (errors["username"].Count > 0 || errors["user_email"].Count > 0 || errors["password"].Count > 0)
             {
@@ -83,6 +79,7 @@ namespace oyasumi.Controllers
 
             var user = new User
             {
+                Id = DbContext.Users.Count + 1,
                 Username = username,
                 UsernameSafe = username.ToSafe(),
                 Password = passwordBcrypt,
@@ -90,23 +87,26 @@ namespace oyasumi.Controllers
                 Privileges = Privileges.Normal
             };
 
-            var vanillaStats = new VanillaStats();
-            var relaxStats = new RelaxStats();
+            var vanillaStats = new VanillaStats()
+            {
+                Id = user.Id
+            };
 
-            await _context.Users.AddAsync(user);
-            await _context.VanillaStats.AddAsync(vanillaStats);
-            await _context.RelaxStats.AddAsync(relaxStats);
+            var relaxStats = new RelaxStats()
+            {
+                Id = user.Id
+            };
 
-            await _context.SaveChangesAsync();
-            
+            DbContext.Users.Add(user.Id, user.Username, user);
+
+            DbContext.VanillaStats.TryAdd(user.Id, vanillaStats);
+            DbContext.RelaxStats.TryAdd(user.Id, relaxStats);
+
             var token = new Token
             {
                 UserId = user.Id,
                 UserToken = Guid.NewGuid().ToString()
             };
-
-            await _context.Tokens.AddAsync(token);
-            await _context.SaveChangesAsync();
 
             return Ok("<>");
         }

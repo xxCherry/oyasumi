@@ -36,10 +36,8 @@ namespace oyasumi.Events
                 _ => LeaderboardMode.Vanilla,
             };
 
-            // We just want to update our stats from cache, so we don't
-            // use context here
-            await pr.GetOrUpdateUserStats(null, lbMode, false); 
-            
+            pr.GetOrUpdateUserStats(lbMode, false);
+
             await pr.UserStats();
         }
     }

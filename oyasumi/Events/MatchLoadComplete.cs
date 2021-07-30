@@ -25,7 +25,7 @@ namespace oyasumi.Events
             if (--match.NeedLoad == 0)
             {
                 foreach (var presence in match.Presences)
-                    await presence.AllPlayersLoaded();
+                    presence.AllPlayersLoaded();
             }
         }
     }

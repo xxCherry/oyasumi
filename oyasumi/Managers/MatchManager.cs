@@ -61,7 +61,8 @@ namespace oyasumi.Managers
             slot?.Clear();
 
             match.Presences.Remove(pr);
-            await pr.LeaveChannel($"multi_{pr.CurrentMatch.Id}", true);
+            await pr.LeaveChannel($"multi_{pr.CurrentMatch.Id}", true)
+                ;
 
             if (match.Presences.Count == 0)
             {

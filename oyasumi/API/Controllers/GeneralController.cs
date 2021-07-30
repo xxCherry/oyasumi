@@ -15,15 +15,10 @@ namespace oyasumi.API.Controllers
     [Route("/api/")]
     public class GeneralController : Controller
     {
-        private readonly OyasumiDbContext _context;
-
-        public GeneralController(OyasumiDbContext context) =>
-            _context = context;
-
         [HttpGet("/stats/users")]
         public IActionResult Stats()
         {
-            var registered = Base.UserCache.Values.ToList().Count;
+            var registered = DbContext.Users.Values.Length;
             var online = PresenceManager.Presences.Values.ToList().Count;
 
             return Content(JsonConvert.SerializeObject(new ServerStatsResponse

@@ -668,7 +668,7 @@ namespace oyasumi.Enums
 
         /// <summary>
         /// Send the client a spooky message.
-        /// Unused.
+        /// Unused in newer osu! versions.
         /// <para>Data: <see cref="BanchoString"/></para>
         /// </summary>
         ServerRtx,

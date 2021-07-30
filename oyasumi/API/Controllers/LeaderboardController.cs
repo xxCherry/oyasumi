@@ -18,13 +18,8 @@ namespace oyasumi.API.Controllers
     [Route("/api/")]
     public class LeaderboardController : Controller
     {
-        private readonly OyasumiDbContext _context;
-
-        public LeaderboardController(OyasumiDbContext context) =>
-            _context = context;
-
         [HttpGet("leaderboard")]
-        public async Task<IActionResult> Leaderboard(
+        public IActionResult Leaderboard(
             [FromQuery(Name = "mode")] PlayMode mode,
             [FromQuery(Name = "l")] int limit,
             [FromQuery(Name = "p")] int page,
@@ -36,18 +31,18 @@ namespace oyasumi.API.Controllers
                 false => Base.UserStatsCache[LeaderboardMode.Vanilla].Values,
                 true => Base.UserStatsCache[LeaderboardMode.Relax].Values
             };
-            
+
             Response.ContentType = "application/json";
             return Content(JsonConvert.SerializeObject(stats
-                .Where(x => x.Performance(mode) > 0 & !Base.UserCache[x.Id].Banned())
+                .Where(x => x.Performance(mode) > 0 && !DbContext.Users[x.Id].Banned())
                 .OrderByDescending(x => x.Performance(mode))
                 .Skip(page <= 1 ? 0 : (page - 1) * limit)
                 .Take(limit)
                 .Select(x => new LeaderboardResponse
                 {
                     Id = x.Id,
-                    Username = Base.UserCache[x.Id].Username,
-                    Country = Base.UserCache[x.Id].Country,
+                    Username = DbContext.Users[x.Id].Username,
+                    Country = DbContext.Users[x.Id].Country,
                     Accuracy = x.Accuracy(mode),
                     Performance = x.Performance(mode),
                     Playcount = x.Playcount(mode)

@@ -21,7 +21,8 @@ namespace oyasumi.Events
                 await pr.LeaveChannel($"spect_{pr.Spectating.Id}", true);
 
                 if (pr.Spectators.Count == 0)
-                    await pr.Spectating.LeaveChannel($"spect_{pr.Spectating.Id}", true);
+                    await pr.Spectating.LeaveChannel($"spect_{pr.Spectating.Id}", true)
+                        ;
 
                 pr.Spectating = null;
             }

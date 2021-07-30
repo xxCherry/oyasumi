@@ -12,6 +12,7 @@ using oyasumi.Enums;
 using oyasumi.Extensions;
 using oyasumi.Managers;
 using oyasumi.Utilities;
+using DbContext = oyasumi.Database.DbContext;
 
 namespace oyasumi.Objects
 {
@@ -46,31 +47,39 @@ namespace oyasumi.Objects
         public int Rank { get; set; }
         public CompletedStatus Completed { get; set; }
 
-        public static async Task<Score[]> GetRawScores(string beatmapMd5, PlayMode mode, RankedStatus status,
+        private static Comparison<DbScore> _scoreComparison = new((s1, s2) => s2.TotalScore.CompareTo(s1.TotalScore));
+        private static Comparison<DbScore> _ppComparison = new ((s1, s2) => s2.PerformancePoints.CompareTo(s1.PerformancePoints));
+
+        public static Score[] GetRawScores(string beatmapMd5, PlayMode mode, RankedStatus status,
             LeaderboardMode lbMode)
         {
-            IEnumerable<DbScore> scores = null;
-            await using (var db = MySqlProvider.GetDbConnection())
-            {
-                scores = await db.QueryAsync<DbScore>($"SELECT *, Scores.Id AS Id FROM Scores " +
-                                                      $"JOIN Users ON Users.Id = Scores.UserId " +
-                                                      $"WHERE Users.Privileges & {(int) Privileges.Normal} > 0 " +
-                                                      $"AND FileChecksum = '{beatmapMd5}' " +
-                                                      $"AND Completed = {(int) CompletedStatus.Best} " +
-                                                      $"AND PlayMode = {(int) mode} " +
-                                                      $"AND Relaxing = {lbMode == LeaderboardMode.Relax} " +
-                                                      $"ORDER BY {(lbMode == LeaderboardMode.Relax ? "PerformancePoints" : "TotalScore")} DESC " +
-                                                      $"LIMIT 50");
-            }
-            
-            
+            var scores = DbContext.Scores
+                .Where(x => x.FileChecksum == beatmapMd5
+                            && x.Completed == CompletedStatus.Best
+                            && x.PlayMode == mode
+                            && x.Relaxing == (lbMode == LeaderboardMode.Relax))
+                .Take(50)
+                .Join(DbContext.Users.Values, 
+                    s => s.UserId,
+                    u => u.Id, (score, user) => new
+                    {
+                        User = user,
+                        Score = score
+                    })
+                .Where(x => !x.User.Banned())
+                .Select(x => x.Score)
+                .ToArray();
 
-            var dbScores = scores as DbScore[] ?? scores.ToArray();
+            if (status == RankedStatus.Loved || lbMode == LeaderboardMode.Vanilla)
+                Array.Sort(scores, _scoreComparison);
+            else
+                Array.Sort(scores, _ppComparison);
 
-            return dbScores.Select(score => FromDb(score, status, dbScores)).ToArray();
+            return scores.Select(score => FromDb(score, status, scores)).ToArray();
         }
 
-        public static List<string> FormatScores(IEnumerable<Score> scores, RankedStatus status, PlayMode mode) => scores.Select(score => score.ToString(status)).ToList();
+        public static List<string> FormatScores(IEnumerable<Score> scores, RankedStatus status)
+            => scores.Select(score => score.ToString(status)).ToList();
         
         public void CalculateLeaderboardRank(IReadOnlyList<Score> scores, RankedStatus status)
         {

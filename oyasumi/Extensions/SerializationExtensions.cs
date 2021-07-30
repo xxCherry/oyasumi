@@ -26,7 +26,7 @@ namespace oyasumi.Extensions
             match.BeatmapId = reader.ReadInt32();
             match.BeatmapChecksum = reader.ReadString();
 
-            match.Beatmap = (await BeatmapManager.Get(match.BeatmapChecksum)).Item2;
+            match.Beatmap = await BeatmapManager.Get(match.BeatmapChecksum);
 
             foreach (var slot in match.Slots)
                 slot.Status = (SlotStatus)reader.ReadByte();
@@ -62,7 +62,7 @@ namespace oyasumi.Extensions
             writer.Write((uint)match.ActiveMods);
             writer.Write(match.GameName);
             writer.Write(match.GamePassword);
-            writer.Write(match.Beatmap.BeatmapName);
+            writer.Write(match.Beatmap.Name);
             writer.Write(match.BeatmapId);
             writer.Write(match.BeatmapChecksum);
 
@@ -74,7 +74,9 @@ namespace oyasumi.Extensions
 
             for (var i = 0; i < Match.MAX_PLAYERS; i++)
                 if ((match.Slots[i].Status & SlotStatus.HasPlayer) > 0)
+                {
                     writer.Write(match.Slots[i].Presence.Id);
+                }
 
             writer.Write(match.Host.Id);
 

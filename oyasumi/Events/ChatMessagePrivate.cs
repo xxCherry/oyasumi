@@ -26,7 +26,8 @@ namespace oyasumi.Events
             var message = reader.ReadString();
             var target = reader.ReadString();
 
-            await ChannelManager.SendMessage(pr, message, target, false);
+            await ChannelManager.SendMessage(pr, message, target, false)
+                    ;
         }
     }
 }

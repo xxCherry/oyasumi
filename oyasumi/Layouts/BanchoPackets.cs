@@ -13,25 +13,8 @@ using oyasumi.Objects;
 namespace oyasumi.Layouts
 {
     // TODO: probably i should rename this
-    public static class BanchoPacketLayouts
+    public static class BanchoPackets
     {
-        public static async Task ProtocolVersion(this Presence p, int version, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerBanchoVersion
-            };
-
-            writer.Write(version);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
         public static async Task ProtocolVersion(this Presence p, int version)
         {
             var packet = new Packet
@@ -47,33 +30,11 @@ namespace oyasumi.Layouts
             p.PacketEnqueue(packet);
         }
 
-        public static async Task LoginReply(this Presence p, LoginReplies reply, SerializationWriter writer)
-        {
-            await p.LoginReply((int) reply, writer);
-        }
-
         public static async Task LoginReply(this Presence p, LoginReplies reply)
         {
             await p.LoginReply((int) reply);
         }
-
-        public static async Task LoginReply(this Presence p, int reply, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerLoginReply
-            };
-
-            writer.Write(reply);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
+        
         public static async Task LoginReply(this Presence p, int reply)
         {
             var packet = new Packet
@@ -82,7 +43,7 @@ namespace oyasumi.Layouts
             };
 
             await using var writer = new SerializationWriter(new MemoryStream());
-            writer.Write((int) reply);
+            writer.Write(reply);
 
             packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
 
@@ -151,23 +112,6 @@ namespace oyasumi.Layouts
             return pWriter.ToBytes();
         }
 
-        public static async Task Notification(this Presence p, string notification, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerNotification
-            };
-
-            writer.Write(notification);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
         public static async Task Notification(this Presence p, string notification)
         {
             var packet = new Packet
@@ -179,30 +123,6 @@ namespace oyasumi.Layouts
             writer.Write(notification);
 
             packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            p.PacketEnqueue(packet);
-        }
-
-        public static async Task UserPresence(this Presence p, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerUserPresence
-            };
-
-            writer.Write(p.Id);
-            writer.Write(p.Username);
-            writer.Write((byte) (p.Timezone + 24));
-            writer.Write(p.CountryCode);
-            writer.Write((byte) p.BanchoPermissions);
-            writer.Write(p.Longitude);
-            writer.Write(p.Latitude);
-            writer.Write(p.Rank);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
 
             p.PacketEnqueue(packet);
         }
@@ -264,30 +184,6 @@ namespace oyasumi.Layouts
             writer.Write(other.Rank);
 
             packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            p.PacketEnqueue(packet);
-        }
-
-        public static async Task UserPresence(this Presence p, Presence other, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerUserPresence
-            };
-
-            writer.Write(other.Id);
-            writer.Write(other.Username);
-            writer.Write((byte) (other.Timezone + 24));
-            writer.Write(other.CountryCode);
-            writer.Write((byte) p.BanchoPermissions);
-            writer.Write(other.Longitude);
-            writer.Write(other.Latitude);
-            writer.Write(other.Rank);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
 
             p.PacketEnqueue(packet);
         }
@@ -373,55 +269,6 @@ namespace oyasumi.Layouts
             p.PacketEnqueue(packet);
         }
 
-        public static async Task UserStats(this Presence p, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerUserData
-            };
-
-            writer.Write(p.Id);
-
-            writer.Write((byte) p.Status.Status);
-            writer.Write(p.Status.StatusText);
-            writer.Write(p.Status.BeatmapChecksum);
-            writer.Write((uint) p.Status.CurrentMods);
-            writer.Write((byte) p.Status.CurrentPlayMode);
-            writer.Write(p.Status.BeatmapId);
-
-            writer.Write(p.RankedScore);
-            writer.Write((float) p.Accuracy);
-            writer.Write(p.PlayCount);
-            writer.Write(p.TotalScore);
-            writer.Write(p.Rank);
-            writer.Write(p.Performance);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
-
-        public static async Task UserPermissions(this Presence p, BanchoPermissions perms, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerUserPermissions
-            };
-
-            writer.Write((int) perms);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
         public static async Task UserPermissions(this Presence p, BanchoPermissions perms)
         {
             var packet = new Packet
@@ -434,27 +281,6 @@ namespace oyasumi.Layouts
 
             packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
 
-            p.PacketEnqueue(packet);
-        }
-
-        public static async Task FriendList(this Presence p, int[] friendIds, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerFriendsList
-            };
-
-            friendIds ??= Array.Empty<int>();
-
-            writer.Write((short) friendIds.Length);
-
-            foreach (var t in friendIds)
-                writer.Write(t);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
             p.PacketEnqueue(packet);
         }
 
@@ -477,24 +303,7 @@ namespace oyasumi.Layouts
             packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
             p.PacketEnqueue(packet);
         }
-
-        public static async Task UserPresenceSingle(this Presence p, int userId, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerUserPresenceSingle
-            };
-
-            writer.Write(userId);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
+        
         public static async Task UserPresenceSingle(this Presence p, int userId)
         {
             var packet = new Packet
@@ -506,23 +315,6 @@ namespace oyasumi.Layouts
             writer.Write(userId);
 
             packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            p.PacketEnqueue(packet);
-        }
-
-        public static async Task ChatChannelListingComplete(this Presence p, int i, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerChatChannelListingComplete
-            };
-
-            writer.Write(i);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
 
             p.PacketEnqueue(packet);
         }
@@ -542,24 +334,6 @@ namespace oyasumi.Layouts
             p.PacketEnqueue(packet);
         }
 
-
-        public static async Task ChatChannelJoinSuccess(this Presence p, string channel, SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerChatChannelJoinSuccess
-            };
-
-            writer.Write(channel);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
         public static async Task ChatChannelJoinSuccess(this Presence p, string channel)
         {
             var packet = new Packet
@@ -574,27 +348,7 @@ namespace oyasumi.Layouts
 
             p.PacketEnqueue(packet);
         }
-
-        public static async Task ChatChannelAvailable(this Presence p, string name, string topic, short userCount,
-            SerializationWriter writer)
-        {
-            var packet = new Packet
-            {
-                Type = PacketType.ServerChatChannelAvailable
-            };
-
-            writer.Write(name);
-            writer.Write(topic);
-            writer.Write(userCount);
-
-            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
-
-            writer.BaseStream.SetLength(0);
-            writer.BaseStream.Position = 0;
-
-            p.PacketEnqueue(packet);
-        }
-
+        
         public static async Task ChatChannelAvailable(this Presence p, string name, string topic, short userCount)
         {
             var packet = new Packet
@@ -788,7 +542,7 @@ namespace oyasumi.Layouts
             p.PacketEnqueue(packet);
         }
 
-        public static async Task MatchTransferHost(this Presence p)
+        public static void MatchTransferHost(this Presence p)
         {
             var packet = new Packet
             {
@@ -798,7 +552,7 @@ namespace oyasumi.Layouts
             p.PacketEnqueue(packet);
         }
 
-        public static async Task AllPlayersLoaded(this Presence p)
+        public static void AllPlayersLoaded(this Presence p)
         {
             var packet = new Packet
             {
@@ -837,6 +591,22 @@ namespace oyasumi.Layouts
             await using var writer = new SerializationWriter(new MemoryStream());
 
             writer.Write(channel);
+
+            packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
+
+            p.PacketEnqueue(packet);
+        }
+        
+        public static async Task UserSilence(this Presence p, int duration)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.ServerUserSilenced
+            };
+
+            await using var writer = new SerializationWriter(new MemoryStream());
+
+            writer.Write(duration);
 
             packet.Data = ((MemoryStream) writer.BaseStream).ToArray();
 

@@ -8,21 +8,24 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using oyasumi.Database;
 using oyasumi.Enums;
+using oyasumi.Extensions;
 using oyasumi.Managers;
 using oyasumi.Objects;
 using oyasumi.Utilities;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.Discord;
 
 namespace oyasumi
 {
 	public class Startup
 	{
-		private const int PING_TIMEOUT = 120000;
 		public Startup(IConfiguration configuration) =>
 			Configuration = configuration;
 
@@ -31,8 +34,6 @@ namespace oyasumi
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
 		{
-			services.AddDbContextPool<OyasumiDbContext>(optionsBuilder => optionsBuilder.UseMySql(
-				$"server=localhost;database={Config.Properties.Database};user={Config.Properties.Username};password={Config.Properties.Password};"));
 			services.AddControllersWithViews();
 
 			services.Configure<FormOptions>(x =>
@@ -48,12 +49,18 @@ namespace oyasumi
 		}
 
 		// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-		public void Configure(IApplicationBuilder app, IWebHostEnvironment env, OyasumiDbContext context)
+		public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
 		{
+			DbContext.Load();
+			AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+			{
+				DbContext.Save();
+			};
+
 			if (env.IsDevelopment())
 			{
 				app.UseDeveloperExceptionPage();
-			}	
+			}
 			else
 			{
 				app.UseExceptionHandler("/Home/Error");
@@ -70,23 +77,21 @@ namespace oyasumi
 			if (!Directory.Exists("./data/osr/"))
 				Directory.CreateDirectory("./data/osr/");
 
-			// User cache, speed up inital login by 15x
-			var users = context.Users.AsNoTracking().AsEnumerable();
+			var vanillaStats = DbContext.VanillaStats;
+			var relaxStats = DbContext.RelaxStats;
 
-			var vanillaStats = context.VanillaStats.AsNoTracking().AsEnumerable();
-			var relaxStats = context.RelaxStats.AsNoTracking().AsEnumerable();
-
-			var friends = context.Friends.AsNoTracking().AsEnumerable();
-			var tokens = context.Tokens.AsNoTracking().AsEnumerable();
-
-			foreach (var u in users)
-				Base.UserCache.Add(u.Username, u.Id, u);
+			var friends = DbContext.Friends;
+			//var tokens = DbContext.Tokens;
 
 			foreach (var v in vanillaStats)
-				Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(v.Id, v);
+			{
+				Base.UserStatsCache[LeaderboardMode.Vanilla].TryAdd(v.Key, v.Value);
+			}
 
 			foreach (var r in relaxStats)
-				Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(r.Id, r);
+			{
+				Base.UserStatsCache[LeaderboardMode.Relax].TryAdd(r.Key, r.Value);
+			}
 
 			foreach (var f in friends)
 				Base.FriendCache.TryAdd(f.Friend1, new());
@@ -94,32 +99,30 @@ namespace oyasumi
 			foreach (var f in friends)
 				Base.FriendCache[f.Friend1].Add(f.Friend2);
 
-			foreach (var t in tokens)
-				Base.TokenCache.Add(t.UserToken, t.UserId, t);
+			/*foreach (var t in tokens)
+				Base.TokenCache.Add(t.UserToken, t.UserId, t);*/
 
-			ChannelManager.Channels.TryAdd("#osu", new Channel("#osu", "Default osu! channel", 1, true));
+			ChannelManager.Channels.TryAdd("#osu", new ("#osu", "Default osu! channel", 1, true));
 
-			foreach (var chan in context.Channels)
-				ChannelManager.Channels.TryAdd(chan.Name, new Channel(chan.Name, chan.Topic, 1, chan.Public));
+			foreach (var chan in DbContext.Channels)
+				ChannelManager.Channels.TryAdd(chan.Name, new (chan.Name, chan.Topic, 1, chan.Public));
 
-			var bot = new Presence(int.MaxValue, "oyasumi", 0, 0f, 0, 0, 0, 0);
+			var bot = new Presence(int.MaxValue, "oyasumi", 0, 0f, 0, 0, 0, 0)
+			{
+				Status =
+				{
+					Status = ActionStatuses.Watching, 
+					StatusText = "for sneaky gamers"
+				}
+			};
 
-			bot.Status.Status = ActionStatuses.Watching;
-			bot.Status.StatusText = "for sneaky gamers";
 
 			PresenceManager.Add(bot);
-			//new OyasumiDbContext().Migrate();
-
-			
+			// TODO: remove this lol
+			// TODO: Replace by something better than Thread()
 			// Disconnect inactive users and other stuff
-			new Thread(() =>
+			/*new Thread(() =>
 			{
-				var builder = new DbContextOptionsBuilder<OyasumiDbContext>().UseMySql(
-				    $"server=localhost;database={Config.Properties.Database};" +
-					$"user={Config.Properties.Username};password={Config.Properties.Password};");
-
-				var _context = OyasumiDbContext.Create();
-				
 				while (true)
 				{
 					if (Base.BeatmapDbStatusUpdate.Any())
@@ -128,25 +131,27 @@ namespace oyasumi
 						{
 							if (item.IsSet)
 							{
+								var result = item;
 								var beatmaps = _context.Beatmaps
 									.AsEnumerable()
-									.Where(x => item.Beatmap.SetId == x.BeatmapSetId);
+									.Where(x => result.Beatmap.SetId == x.BeatmapSetId);
 
 								foreach (var b in beatmaps)
 									b.Status = item.Beatmap.Status;
 							}
 							else
 							{
+								var result = item;
 								_context.Beatmaps
-									.FirstOrDefault(x => x.BeatmapId == item.Beatmap.Id)
+									.FirstOrDefault(x => x.BeatmapId == result.Beatmap.Id)
 									.Status = item.Beatmap.Status;
 							}
 						}
 
 						_context.SaveChanges();
 					}
-					
-					if (Base.UserDbUpdate.Any())
+
+					if (Base.UserDbUpdate.Count > 0)
 					{
 						while (Base.UserDbUpdate.TryDequeue(out var u))
 						{
@@ -156,27 +161,27 @@ namespace oyasumi
 
 						_context.SaveChanges();
 					}
-					
+
 					var currentTime = Time.CurrentUnixTimestamp;
 					var presences = PresenceManager.Presences.Values;
-					
+
 					if (!presences.Any()) continue;
-					
+
 					foreach (var pr in presences)
 					{
 						if (pr.Username == "oyasumi") continue;
-						if (currentTime - pr.LastPing <= 500 || pr.LastPing == 0)
+						if (currentTime - pr.LastPing < 60 || pr.LastPing == 0)
 							continue;
 
-						PresenceManager.Remove(pr).Wait();
-						
+						PresenceManager.Remove(pr);
+
 						Console.WriteLine($"Remove {pr.Username}");
 					}
 					Thread.Sleep(30);
 				}
 			}).Start();
-
-			app.UseHttpsRedirection();
+			*/
+			//app.UseHttpsRedirection();
 
 			app.UseRouting();
 
@@ -184,9 +189,7 @@ namespace oyasumi
 
 			app.UseEndpoints(endpoints =>
 			{
-				endpoints.MapControllerRoute(
-					name: "default",
-					pattern: "{controller=Home}/{action=Index}/{id?}");
+				endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 			});
 		}
 	}

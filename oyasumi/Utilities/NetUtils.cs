@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace oyasumi.Utilities
 {
-    public class NetUtils
+    public static class NetUtils
     {
         public static ContentResult Content(string message, int code = 200)
         {
@@ -56,7 +57,7 @@ namespace oyasumi.Utilities
             return result;
         }
         
-        public static async Task<(string countryCode, float latitude, float longitude)> FetchGeoLocation(string ip)
+        public static async Task<(string CountryCode, float Latitude, float Longitude)> FetchGeoLocation(string ip)
         {
             using var httpClient = new HttpClient();
             var data = (dynamic)JsonConvert.DeserializeObject(await httpClient.GetStringAsync("http://ip-api.com/json/" + ip));

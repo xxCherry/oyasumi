@@ -8,17 +8,42 @@ using oyasumi.IO;
 using oyasumi.Layouts;
 using oyasumi.Utilities;
 using System.Linq;
-using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using oyasumi.Interfaces;
 using oyasumi.Chat.Objects;
 using System.Threading;
+using oyasumi.Extensions;
 using oyasumi.Managers;
+using Dapper;
 
 namespace oyasumi.Objects
 {
 	public class Presence
 	{
+		private readonly ConcurrentQueue<Packet> _packetQueue = new();
+		private static readonly List<string> _countryCodes = new()
+		{
+			"XX","AP","EU","AD","AE","AF","AG","AI","AL","AM","AN","AO","AQ","AR",
+			"AS","AT","AU","AW","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ",
+			"BM","BN","BO","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF",
+			"CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CX","CY","CZ",
+			"DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI",
+			"FJ","FK","FM","FO","FR","FX","GA","GB","GD","GE","GF","GH","GI","GL",
+			"GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR",
+			"HT","HU","ID","IE","IL","IN","IO","IQ","IR","IS","IT","JM","JO","JP",
+			"KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC",
+			"LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","MG","MH","MK",
+			"ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY",
+			"MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM",
+			"PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY",
+			"QA","RE","RO","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ",
+			"SK","SL","SM","SN","SO","SR","ST","SV","SY","SZ","TC","TD","TF","TG",
+			"TH","TJ","TK","TM","TN","TO","TL","TR","TT","TV","TW","TZ","UA","UG",
+			"UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE",
+			"YT","RS","ZA","ZM","ME","ZW","A1","A2","O1","AX","GG","IM","JE","BL",
+			"MF"
+		};
+
 		public readonly string Token;
 		public readonly string Username;
 
@@ -37,16 +62,13 @@ namespace oyasumi.Objects
 		public Privileges Privileges;
 
 		public bool Tourney;
-
-		// --- User Presence
+		
 		public byte Timezone;
 		public float Longitude;
 		public float Latitude;
 		public byte CountryCode = 1;
-		// --- > Shared
+		
 		public int Rank;
-		// --- User Stats
-
 		public class ActionStatus
 		{
 			public ActionStatuses Status { get; set; }
@@ -63,7 +85,6 @@ namespace oyasumi.Objects
 		public int PlayCount;
 		public long TotalScore;
 		public short Performance;
-		// --
 
 		public int LastPing;
 		public Score LastScore;
@@ -71,35 +92,15 @@ namespace oyasumi.Objects
 
 		public BanchoPermissions BanchoPermissions;
 		
-        private readonly ConcurrentQueue<Packet> _packetQueue = new ();
 		public readonly ConcurrentQueue<ScheduledCommand> CommandQueue = new ();
-		public readonly ConcurrentDictionary<string, ScheduledCommand> ProcessedCommands = new();
 		
+		// Sub presences are queue of ids that used for message edits (deletes probably) 
+		// Because we need edit only latest messages, we're using stack.
+		public readonly ConcurrentStack<int> SubPresences = new ();
+		
+		public readonly ConcurrentDictionary<string, ScheduledCommand> ProcessedCommands = new();
 
-		private static readonly List<string> _countryCodes = new List<string>
-		{
-					"XX","AP","EU","AD","AE","AF","AG","AI","AL","AM","AN","AO","AQ","AR",
-					"AS","AT","AU","AW","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ",
-					"BM","BN","BO","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF",
-					"CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CX","CY","CZ",
-					"DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI",
-					"FJ","FK","FM","FO","FR","FX","GA","GB","GD","GE","GF","GH","GI","GL",
-					"GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR",
-					"HT","HU","ID","IE","IL","IN","IO","IQ","IR","IS","IT","JM","JO","JP",
-					"KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC",
-					"LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","MG","MH","MK",
-					"ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY",
-					"MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM",
-					"PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY",
-					"QA","RE","RO","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ",
-					"SK","SL","SM","SN","SO","SR","ST","SV","SY","SZ","TC","TD","TF","TG",
-					"TH","TJ","TK","TM","TN","TO","TL","TR","TT","TV","TW","TZ","UA","UG",
-					"UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE",
-					"YT","RS","ZA","ZM","ME","ZW","A1","A2","O1","AX","GG","IM","JE","BL",
-					"MF"
-		};
-
-		public Presence(User user, int timezone)
+		public Presence(User user, int timezone, float longitude, float latitude)
 		{
 			Id = user.Id;
 			Username = user.Username;
@@ -117,6 +118,8 @@ namespace oyasumi.Objects
 
 			Timezone = (byte)(timezone + 24);
 			CountryCode = (byte)_countryCodes.IndexOf(user.Country);
+			Longitude = longitude;
+			Latitude = latitude;
 
 			User = user;
 		}
@@ -127,7 +130,7 @@ namespace oyasumi.Objects
 			Username = username;
 			Token = Guid.NewGuid().ToString();
 			Privileges = Privileges.Normal | Privileges.Verified;
-			Status = new ActionStatus
+			Status = new ()
 			{
 				Status = ActionStatuses.Idle,
 				StatusText = "",
@@ -145,21 +148,30 @@ namespace oyasumi.Objects
 			Rank = rank;
 		}
 
-		public async Task GetOrUpdateUserStats(OyasumiDbContext context, LeaderboardMode lbMode, bool update)
+		public void GetOrUpdateUserStats(LeaderboardMode lbMode, bool update, IStats updatedStats = null)
 		{
 			var exists = Base.UserStatsCache[lbMode].TryGetValue(User.Id, out var cachedStats);
 
 			IStats stats = null;
 
-			if (!update && exists) 
-				stats = cachedStats; 
-			else
+			if (!update && exists)
+            {
+                stats = cachedStats;
+            }
+            else
 			{
-				stats = lbMode switch
+				if (updatedStats is not null)
 				{
-					LeaderboardMode.Vanilla => await context.VanillaStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == User.Id),
-					LeaderboardMode.Relax => await context.RelaxStats.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Id == User.Id)
-				};
+					stats = updatedStats;
+				}
+				else
+				{
+					stats = lbMode switch
+					{
+						LeaderboardMode.Vanilla => DbContext.VanillaStats[User.Id],
+						LeaderboardMode.Relax => DbContext.RelaxStats[User.Id]
+					};
+				}
 
 				if (!exists)
 					Base.UserStatsCache[lbMode].TryAdd(User.Id, stats);
@@ -241,7 +253,6 @@ namespace oyasumi.Objects
 						stats.RankedScoreOsu += score;
 					else
 						stats.TotalScoreOsu += score;
-
 					break;
 
 				case PlayMode.Taiko:
@@ -249,7 +260,6 @@ namespace oyasumi.Objects
 						stats.RankedScoreTaiko += score;
 					else
 						stats.TotalScoreTaiko += score;
-
 					break;
 
 				case PlayMode.CatchTheBeat:
@@ -257,7 +267,6 @@ namespace oyasumi.Objects
 						stats.RankedScoreCtb += score;
 					else
 						stats.TotalScoreCtb += score;
-
 					break;
 
 				case PlayMode.OsuMania:
@@ -265,7 +274,6 @@ namespace oyasumi.Objects
 						stats.RankedScoreMania += score;
 					else
 						stats.TotalScoreMania += score;
-
 					break;
 			}
 		}
@@ -293,21 +301,19 @@ namespace oyasumi.Objects
         }
 
 
-        // taken from Sora https://github.com/Chimu-moe/Sora/blob/7bba59c8000b440f7f81d2a487a5109590e37068/src/Sora/Database/Models/DBLeaderboard.cs#L200
-        public async Task<double> UpdateAccuracy(OyasumiDbContext context, IStats stats, PlayMode mode, LeaderboardMode lbMode)
+		// taken from Sora https://github.com/Chimu-moe/Sora/blob/7bba59c8000b440f7f81d2a487a5109590e37068/src/Sora/Database/Models/DBLeaderboard.cs#L200
+		public double UpdateAccuracy(IStats stats, PlayMode mode, LeaderboardMode lbMode)
 		{
 			var totalAcc = 0d;
 			var divideTotal = 0d;
 			var i = 0;
 
-			var scores = (await context
-				.Scores.AsNoTracking()
-				.ToListAsync())
-				.Where(s => s.PlayMode == mode)
-				.Where(s => s.UserId == Id)
-				.Where(s => s.Relaxing == (lbMode == LeaderboardMode.Relax))
-				.Take(500)
-				.OrderByDescending(s => s.PerformancePoints);
+			var scores = DbContext.Scores
+						.Where(s => s.PlayMode == mode
+							&& s.UserId == Id
+							&& s.Relaxing == (lbMode == LeaderboardMode.Relax))
+						.Take(500)
+						.OrderByDescending(s => s.PerformancePoints);
 
 			foreach (var s in scores)
 			{
@@ -324,7 +330,7 @@ namespace oyasumi.Objects
 			Accuracy = (float)acc; // Keep accuracy up to date;
 
 			switch (mode)
-            {
+			{
 				case PlayMode.Osu:
 					stats.AccuracyOsu = (float)Accuracy;
 					break;
@@ -339,11 +345,10 @@ namespace oyasumi.Objects
 					break;
 			}
 
-
 			return acc;
 		}
 
-		public async Task<int> UpdateRank(OyasumiDbContext context, IStats stats, PlayMode mode, LeaderboardMode lbMode)
+		public async Task<int> UpdateRank(IStats stats, PlayMode mode, LeaderboardMode lbMode)
         {
 			var oldRank = mode switch
 			{
@@ -354,13 +359,13 @@ namespace oyasumi.Objects
 				_ => 0
 			};
 
-			IAsyncEnumerable<IStats> usersStats = lbMode switch
+			IEnumerable<IStats> usersStats = lbMode switch
 			{
-				LeaderboardMode.Vanilla => context.VanillaStats.AsAsyncEnumerable(),
-				LeaderboardMode.Relax => context.RelaxStats.AsAsyncEnumerable()
+				LeaderboardMode.Vanilla => DbContext.VanillaStats.Values.Where(x => x.IsPublic),
+				LeaderboardMode.Relax => DbContext.RelaxStats.Values.Where(x => x.IsPublic)
 			};
 
-			var newRank = await CalculateRank(context, stats, usersStats, mode, lbMode);
+			var newRank = CalculateRank(stats, usersStats, mode);
 
 			if (newRank != oldRank)
 			{
@@ -372,20 +377,24 @@ namespace oyasumi.Objects
 				 *			snipedRank = newRank + (i + 1);
 				 */
 
+				var range = Math.Abs(oldRank - newRank);
 
-				// value is always positive i guess
-				var range = oldRank - newRank;
+				await ChannelManager.BotMessage(this, Username, "Range: " + range);
+				await ChannelManager.BotMessage(this, Username, "Old rank: " + oldRank);
+				await ChannelManager.BotMessage(this, Username, "New rank: " + newRank);
+
+				Rank = newRank;
 
 				for (var i = 0; i < range; i++)
-                {
-					var snipedStats = await usersStats.FirstOrDefaultAsync(x => mode switch
-                    {
-                        PlayMode.Osu => x.RankOsu,
-                        PlayMode.Taiko => x.RankTaiko,
-                        PlayMode.CatchTheBeat => x.RankCtb,
-                        PlayMode.OsuMania => x.RankMania,
-                        _ => throw new NotImplementedException()
-                    } == newRank + i);
+				{
+					var snipedStats = usersStats.FirstOrDefault(x => mode switch
+					{
+						PlayMode.Osu => x.RankOsu,
+						PlayMode.Taiko => x.RankTaiko,
+						PlayMode.CatchTheBeat => x.RankCtb,
+						PlayMode.OsuMania => x.RankMania,
+						_ => throw new NotImplementedException()
+					} == newRank + i);
 
 					if (snipedStats is not null)
 					{
@@ -404,64 +413,59 @@ namespace oyasumi.Objects
 								snipedStats.RankMania = newRank + i + 1;
 								break;
 						}
-						
+
 						if (Base.UserStatsCache[lbMode].TryGetValue(snipedStats.Id, out var cachedStats))
-							Base.UserStatsCache[lbMode].TryUpdate(snipedStats.Id, snipedStats, cachedStats);
+							Base.UserStatsCache[lbMode][snipedStats.Id] = snipedStats;
 
 						var pr = PresenceManager.GetPresenceById(snipedStats.Id);
-						
+
 						if (pr is not null)
 							pr.Rank = newRank + i + 1;
 					}
-                }
-				
+				}
+
 				switch (mode)
 				{
 					case PlayMode.Osu:
-						stats.RankOsu = newRank;
+						Base.UserStatsCache[lbMode][stats.Id].RankOsu = newRank;
 						break;
 					case PlayMode.CatchTheBeat:
-						stats.RankCtb = newRank;
+						Base.UserStatsCache[lbMode][stats.Id].RankCtb = newRank;
 						break;
 					case PlayMode.Taiko:
-						stats.RankTaiko = newRank;
+						Base.UserStatsCache[lbMode][stats.Id].RankTaiko = newRank;
 						break;
 					case PlayMode.OsuMania:
-						stats.RankMania = newRank;
+						Base.UserStatsCache[lbMode][stats.Id].RankMania = newRank;
 						break;
 				}
-				await context.SaveChangesAsync();
 			}
+
 			return newRank;
 		}
 
-		public async Task<int> CalculateRank(OyasumiDbContext context, IStats stats, IAsyncEnumerable<IStats> usersStats, PlayMode mode, LeaderboardMode lbMode)
+		private static int CalculateRank(IStats stats, IEnumerable<IStats> usersStats, PlayMode mode)
         {
-			var newRank = mode switch 
+			return mode switch
 			{
-				PlayMode.Osu => stats.PerformanceOsu > 0 ? await usersStats.CountAsync(x => x.PerformanceOsu > stats.PerformanceOsu) : -1,
-				PlayMode.Taiko => stats.PerformanceTaiko > 0 ? await usersStats.CountAsync(x => x.PerformanceTaiko > stats.PerformanceTaiko) : -1,
-				PlayMode.CatchTheBeat => stats.PerformanceCtb > 0 ? await usersStats.CountAsync(x => x.PerformanceCtb > stats.PerformanceCtb) : -1,
-				PlayMode.OsuMania => stats.PerformanceMania > 0 ? await usersStats.CountAsync(x => x.PerformanceMania > stats.PerformanceMania) : -1,
+				PlayMode.Osu => stats.PerformanceOsu > 0 ? usersStats.Count(x => x.PerformanceOsu > stats.PerformanceOsu) : -1,
+				PlayMode.Taiko => stats.PerformanceTaiko > 0 ? usersStats.Count(x => x.PerformanceTaiko > stats.PerformanceTaiko) : -1,
+				PlayMode.CatchTheBeat => stats.PerformanceCtb > 0 ? usersStats.Count(x => x.PerformanceCtb > stats.PerformanceCtb) : -1,
+				PlayMode.OsuMania => stats.PerformanceMania > 0 ? usersStats.Count(x => x.PerformanceMania > stats.PerformanceMania) : -1,
 				_ => -1
 			} + 1;
-
-			return newRank;
         }
 
-		public async Task<double> UpdatePerformance(OyasumiDbContext context, IStats stats, PlayMode mode, LeaderboardMode lbMode)
+		public double UpdatePerformance(IStats stats, PlayMode mode, LeaderboardMode lbMode)
 		{
-			var scores = await context
+			var scores = DbContext
 						.Scores
-						.AsAsyncEnumerable()
 						.Where(x => x.PlayMode == mode && x.Completed == CompletedStatus.Best && x.UserId == Id && x.Relaxing == (lbMode == LeaderboardMode.Relax))
 						.OrderByDescending(x => x.PerformancePoints)
-						.Take(500)
-						.ToListAsync();
+						.Take(500);
 
 			var totalPerformance = scores
-				.Select((t, i) => 
-					Math.Round(Math.Round(t.PerformancePoints) * Math.Pow(0.95, i)))
+				.Select((t, i) => Math.Round(Math.Round(t.PerformancePoints) * Math.Pow(0.95, i)))
 				.Sum();
 
 			if (totalPerformance > short.MaxValue)
@@ -502,7 +506,6 @@ namespace oyasumi.Objects
 			return false;
 		}
 
-		public async Task Apply(OyasumiDbContext context) => await context.SaveChangesAsync();
 		public void PacketEnqueue(Packet p) => _packetQueue.Enqueue(p);
 
 		public async Task<byte[]> WritePackets()

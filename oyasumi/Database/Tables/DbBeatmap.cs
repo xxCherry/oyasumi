@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using oyasumi.Database.Attributes;
 using oyasumi.Enums;
 
 namespace oyasumi.Database.Models
@@ -7,12 +6,9 @@ namespace oyasumi.Database.Models
     [Table("Beatmaps")]
     public class DbBeatmap
     {
-        [Key]
-        [Required]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
-        [Column(TypeName = "varchar(32)")] public string BeatmapMd5 { get; set; }
         public int BeatmapId { get; set; }
+        public string BeatmapMd5 { get; set; }
+        public int Id { get; set; }
         public string FileName { get; set; }
         public int BeatmapSetId { get; set; }
         public RankedStatus Status { get; set; }

@@ -3,7 +3,7 @@ using oyasumi.Objects;
 
 namespace oyasumi.Controllers
 {
-    public class DirectController : Controller
+    public class DirectController : OyasumiController
     {
         [HttpGet]
         [Route("/d/{id}")]

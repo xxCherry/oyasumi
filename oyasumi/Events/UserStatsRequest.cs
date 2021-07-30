@@ -16,7 +16,7 @@ namespace oyasumi.Events
     {
         [Packet(PacketType.ClientUserStatsRequest)]
         public static async Task Handle(Packet p, Presence pr)
-        {    
+        {  
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
 

@@ -57,5 +57,8 @@ namespace oyasumi.Objects
                $"|ppAfter:{(_sBefore == null ? _pAfter.Performance : _sAfter.PerformancePoints)}" +
                (_achievements == null ? "" : "|achievements-new:" + _achievements) +
                $"|onlineScoreId:{_scoreId}";
+
+        public static string Build(Beatmap beatmap, Chart beatmapChart, Chart overallChart) 
+            => $"beatmapId:{beatmap.Id}|beatmapSetId:{beatmap.SetId}|beatmapPlaycount:0|beatmapPasscount:0|approvedDate:\n\n{beatmapChart}\n{overallChart}";
     }
 }

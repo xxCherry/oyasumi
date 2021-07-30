@@ -27,7 +27,7 @@ namespace oyasumi.Events
 
             var slotIndex = reader.ReadInt32();
 
-            if (match.InProgress || slotIndex > Match.MAX_PLAYERS || slotIndex < 0)
+            if (match.InProgress || slotIndex > Match.MAX_PLAYERS - 1 || slotIndex < 0)
                 return;
 
             var newHost = match.Slots[slotIndex];
@@ -36,8 +36,8 @@ namespace oyasumi.Events
                 return;
 
             match.Host = newHost.Presence;
-            await match.Host.MatchTransferHost();
-            
+            match.Host.MatchTransferHost();
+          
             foreach (var presence in match.Presences)
                 await presence.MatchUpdate(match);
         }

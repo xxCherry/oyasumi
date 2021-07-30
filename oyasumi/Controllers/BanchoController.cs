@@ -10,7 +10,6 @@ using System.Text;
 using System.Threading.Tasks;
 using FastExpressionCompiler;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using osu.Game.IO.Legacy;
 using oyasumi.Database;
@@ -25,39 +24,8 @@ using oyasumi.Utilities;
 
 namespace oyasumi.Controllers
 {
-	public class BanchoController : Controller
+	public class BanchoController : OyasumiController
 	{
-		private readonly OyasumiDbContext _context;
-
-		public BanchoController(OyasumiDbContext context) =>
-			_context = context;
-
-		public async Task<FileContentResult> WrongCredentials()
-		{
-			Response.Headers["cho-token"] = "no-token";
-			return File(await BanchoPacketLayouts.LoginReplyAsync(LoginReplies.WrongCredentials),
-				"application/octet-stream");
-		}
-
-		public async Task<FileContentResult> Notification(string message)
-		{
-			Response.Headers["cho-token"] = "no-token";
-			return File(await BanchoPacketLayouts.NotificationAsync(message),
-				"application/octet-stream");
-		}
-
-		public async Task<FileContentResult> BannedError()
-		{
-			Response.Headers["cho-token"] = "no-token";
-			return File(await BanchoPacketLayouts.BannedError(), "application/octet-stream");
-		}
-
-		public async Task<FileContentResult> AlreadyLoggedInError()
-		{
-			Response.Headers["cho-token"] = "no-token";
-			return File(await BanchoPacketLayouts.AlreadyLoggedInError(), "application/octet-stream");
-		}
-
 		[Route("/")]
 		public async Task<IActionResult> Index([FromHeader(Name = "osu-token")] string token)
 		{
@@ -67,83 +35,67 @@ namespace oyasumi.Controllers
 			var stopwatch = new Stopwatch();
 			stopwatch.Start();
 
-			byte[] bytes = null;
 			Presence presence = null;
-			
+			byte[] packetBytes = null;
+
+			// If 'osu-token' is not found in headers
+			// then it's most likely login request
 			if (string.IsNullOrEmpty(token))
 			{
 				var (username, password, osuVersion, timezone) = await Request.Body.ParseLoginDataAsync();
 
-				var dbUser = Base.UserCache[username];
+				var dbUser = DbContext.Users[username];
 
-				if (dbUser == default)
-				{
-					dbUser = await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Username == username);
+				if (dbUser is null)
+					return NoTokenBytes(await BanchoPackets.LoginReplyAsync(LoginReplies.WrongCredentials));
 
-					if (dbUser is null)
-						return await WrongCredentials();
+				Base.UserCache.Add(username, dbUser.Id, dbUser);
 
-					Base.UserCache.Add(username, dbUser.Id, dbUser);
-				}
-
+				// Bcrypt cache, since bcrypt is designed to be slow
+				// (for security reasons), we want cache it, to 
+				// speed up login times and reduce CPU loads.
 				if (!Base.PasswordCache.TryGetValue(password, out _))
 				{
-					if (dbUser.Password.Length == 0)
-					{
-						var ripplePassword = await _context.RipplePasswords
-							.AsAsyncEnumerable()
-							.FirstOrDefaultAsync(x => x.UserId == dbUser.Id);
-
-						// in case if we have ripple password (which is scrypt for Astellia (don't ask why)),
-						// we need to merge it to bcrypt
-						if (!Crypto.VerifySCryptPassword(ripplePassword.Password, password, ripplePassword.Salt, true))
-							return await WrongCredentials();
-
-						var passwordBcrypt = Crypto.GenerateHash(password);
-						var user = await _context.Users.AsAsyncEnumerable()
-							.FirstOrDefaultAsync(x => x.Username == username);
-
-						dbUser.Password = passwordBcrypt;
-						user.Password = passwordBcrypt;
-
-						await _context.SaveChangesAsync();
-					}
-
+					// If password is wrong, we send 'WrongCredentials' reply
 					if (!Crypto.VerifyPassword(password, dbUser.Password))
-						return await WrongCredentials();
+						return NoTokenBytes(await BanchoPackets.LoginReplyAsync(LoginReplies.WrongCredentials));
 
+					// If password is right, we cache it to not check another time
 					Base.PasswordCache.TryAdd(password, dbUser.Password);
 				}
 
 				var ip = Request.Headers["X-Real-IP"];
 
+				var geoData = await NetUtils.FetchGeoLocation(ip);
+
+				// If user country is not initialized
+				// then we need to do it there
 				if (dbUser.Country == "XX")
-				{
-					var user = await _context.Users.AsAsyncEnumerable()
-						.FirstOrDefaultAsync(x =>
-							x.Username == username); // cached user can't be used to update something
-					user.Country = (await NetUtils.FetchGeoLocation(ip)).countryCode;
-
-					dbUser.Country = user.Country;
-
-					await _context.SaveChangesAsync();
-				}
+					dbUser.Country = geoData.CountryCode;
 
 				if (dbUser.Banned())
-					return await BannedError();
+					return NoTokenBytes(await BanchoPackets.BannedError());
 
-				var tourney = osuVersion.Contains("tourney");
+				// Check for the 'tourney' word
+				// in osu! version so we can detect
+				// tourney client and use this in our
+				// next checks
+				var tourney = osuVersion.Contains("tourney", StringComparison.Ordinal);
 
+				// If presence already on the server
+				// and presence is not the tourney client
+				// tell client that tries to connect
+				// that we're already on the server
 				if (PresenceManager.GetPresenceByName(dbUser.Username) is not null && !tourney)
 				{
 					Console.WriteLine($"{dbUser.Username} already logged in");
-					return await AlreadyLoggedInError();
+					return NoTokenBytes(await BanchoPackets.AlreadyLoggedInError());
 				}
 
-				presence = new (dbUser, timezone);
-				
-				await presence.GetOrUpdateUserStats(_context, LeaderboardMode.Vanilla, false);
-				
+				presence = new(dbUser, timezone, geoData.Longitude, geoData.Latitude);
+
+				presence.GetOrUpdateUserStats(LeaderboardMode.Vanilla, false);
+
 				await presence.ProtocolVersion(19);
 				await presence.LoginReply(presence.Id);
 
@@ -156,10 +108,6 @@ namespace oyasumi.Controllers
 				if ((presence.Privileges & Privileges.ManageUsers) != 0)
 					banchoPermissions |= BanchoPermissions.Moderator;
 
-				// TODO: add new privileges for it
-				if (presence.Username == "Cherry")
-					banchoPermissions |= BanchoPermissions.Peppy | BanchoPermissions.Tournament;
-
 				presence.BanchoPermissions = banchoPermissions;
 
 				await presence.Notification("Welcome to oyasumi.");
@@ -171,9 +119,8 @@ namespace oyasumi.Controllers
 				await presence.JoinChannel("#osu");
 				await presence.ChatChannelAvailable("#osu", "Default osu! channel", 1);
 
-				// TODO: user count
 				foreach (var chan in ChannelManager.Channels.Values)
-					await presence.ChatChannelAvailable(chan.Name, chan.Description, (short) chan.UserCount);
+					await presence.ChatChannelAvailable(chan.Name, chan.Description, (short)chan.UserCount);
 
 				await presence.UserPresence();
 				await presence.UserStats();
@@ -189,9 +136,10 @@ namespace oyasumi.Controllers
 				await presence.FriendList(friends?.ToArray());
 
 				await presence.UserPresenceSingle(presence.Id);
+
 				PresenceManager.Add(presence);
 
-				bytes = await presence.WritePackets();
+				packetBytes = await presence.WritePackets();
 
 				Response.Headers["cho-token"] = presence.Token;
 				Response.Headers["cho-protocol"] = "19";
@@ -200,31 +148,48 @@ namespace oyasumi.Controllers
 
 				stopwatch.Stop();
 
-				return File(bytes, "application/octet-stream");
+				return Bytes(packetBytes);
 			}
 
-			presence = PresenceManager.GetPresenceByToken(Request.Headers["osu-token"]);
+			// If 'osu-token' is found in headers
+			// then most likely its packet request
+			// which means client sends packet(s)
+			// Let's check if their exist in
+			// our presence cache
+			presence = PresenceManager.GetPresenceByToken(token);
 
+			// If they're not, then send him
+			// 'BanchoRestart' packet so we
+			// can add him to the presence cache
 			if (presence is null)
-			{
-				Response.Headers["cho-token"] = "no-token";
-				return File(await BanchoPacketLayouts.BanchoRestart(0), "application/octet-stream");
-			}
+				return NoTokenBytes(await BanchoPackets.BanchoRestart(0));
 
+			// If he's in cache, then lets parse request body
+			// for the osu! packets, that client sent to us
 			await using var ms = new MemoryStream();
 			await Request.Body.CopyToAsync(ms);
 			ms.Position = 0;
 
 			var packets = PacketReader.Parse(ms);
 
+			// Go through all packets we parsed
 			foreach (var packet in packets)
 			{
+#if PACKET_DEBUG
+					Console.WriteLine($"[{presence.Username} SENT] {packet.Type} with length {packet.Data.Length}");
+#endif
+
+				// If packet implementation isn't in our cache
 				if (!Base.PacketImplCache.TryGetValue(packet.Type, out var pItem))
 				{
+					// Let's find method for that packet
+					// by attribute using reflection
 					var meth = Base.Types
 						.SelectMany(type => type.GetMethods())
 						.FirstOrDefault(m => m.GetCustomAttribute<PacketAttribute>()?.PacketType == packet.Type);
 
+					// if method not found skip this packet
+					// and try find implementation for another one.
 					if (meth is null)
 						continue; // no handler found for this packet, skipping...
 
@@ -234,23 +199,20 @@ namespace oyasumi.Controllers
 						IsDbContextRequired = meth.GetParameters().Length > 2
 					};
 
+					// Add packet implementation to our cache
 					Base.PacketImplCache.TryAdd(packet.Type, pItem);
 				}
 
+				// Update last time we got packet
 				presence.LastPing = Time.CurrentUnixTimestamp;
 
-				pItem.Executor.Execute(null,
-					pItem.IsDbContextRequired
-						? new object[] {packet, presence, _context}
-						: new object[] {packet, presence});
-#if PACKET_DEBUG
-					Console.WriteLine($"[{presence.Username} SENT] {packet.Type} with length {packet.Data.Length}");
-#endif
+				// Execute packet implementation
+				pItem.Executor.Execute(null, new object[] { packet, presence });
 			}
 
-			bytes = await presence.WritePackets();
+			packetBytes = await presence.WritePackets();
 
-			return File(bytes, "application/octet-stream");
+			return Bytes(packetBytes);
 		}
 	}
 }

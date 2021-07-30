@@ -32,7 +32,8 @@ namespace oyasumi.Events
             else if (target == "#multiplayer" && pr.CurrentMatch is not null)
                 target = $"multi_{pr.CurrentMatch.Id}";
                 
-            await ChannelManager.SendMessage(pr, message, target, true);
+            await ChannelManager.SendMessage(pr, message, target, true)
+                ;
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ namespace oyasumi.Interfaces
     public interface IStats
     {
         public int Id { get; set; }
+        public bool IsPublic { get; set; }
         public long TotalScoreOsu { get; set; }
         public long TotalScoreTaiko { get; set; }
         public long TotalScoreCtb { get; set; }

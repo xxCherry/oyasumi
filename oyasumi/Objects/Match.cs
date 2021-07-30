@@ -37,7 +37,7 @@ namespace oyasumi.Objects
     public class Match
     {
         public const int MAX_PLAYERS = 16; 
-        public bool PasswordRequired => GamePassword != null;
+        public bool PasswordRequired => GamePassword is not null;
 
         public string GameName;
         public int Id { get; set; }

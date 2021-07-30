@@ -8,14 +8,14 @@ using Devcorner.NIdenticon;
 namespace oyasumi.Controllers
 {
     [Route("/{id:int}")]
-    public class AvatarController : Controller
+    public class AvatarController : OyasumiController
     {
         public async Task<IActionResult> Index(int id)
         {
             if (System.IO.File.Exists($"./data/avatars/{id}.png"))
             {
                 var file = await System.IO.File.ReadAllBytesAsync($"./data/avatars/{id}.png");
-                return File(file, "image/png");
+                return Bytes(file);
             }
 
             var user = Base.UserCache[id];
@@ -30,7 +30,7 @@ namespace oyasumi.Controllers
             
             await System.IO.File.WriteAllBytesAsync($"./data/avatars/{id}.png", ms.ToArray());
 
-            return File(ms.ToArray(), "image/png");
+            return Bytes(ms.ToArray());
         }
     }
 }

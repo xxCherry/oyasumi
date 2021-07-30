@@ -31,10 +31,12 @@ namespace oyasumi.Events
 
                 ChannelManager.Channels.TryAdd(channel.RawName, channel);
 
-                await pr.Spectating.JoinChannel($"spect_{pr.Spectating.Id}");
+                await pr.Spectating.JoinChannel($"spect_{pr.Spectating.Id}")
+                    ;
             }
 
-            await pr.JoinChannel($"spect_{pr.Spectating.Id}");
+            await pr.JoinChannel($"spect_{pr.Spectating.Id}")
+                ;
 
             spectatingPresence.Spectators.Add(pr);
         }

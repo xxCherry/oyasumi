@@ -11,7 +11,7 @@ namespace oyasumi.Objects
 {
     public class Channel
     {
-        public ConcurrentDictionary<int, Presence> Presences = new ConcurrentDictionary<int, Presence>();
+        public ConcurrentDictionary<int, Presence> Presences = new ();
 
         public string Name => RawName.StartsWith("multi_") ? "#multiplayer" : RawName.StartsWith("spect_") ? "#spectator" : RawName;
         public string RawName;

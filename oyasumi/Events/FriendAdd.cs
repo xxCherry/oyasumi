@@ -18,7 +18,7 @@ namespace oyasumi.Events
     public class FriendAdd
     {
         [Packet(PacketType.ClientFriendsAdd)]
-        public static void Handle(Packet p, Presence pr, OyasumiDbContext context)
+        public static void Handle(Packet p, Presence pr)
         {
             var ms = new MemoryStream(p.Data);
             using var reader = new SerializationReader(ms);
@@ -30,20 +30,18 @@ namespace oyasumi.Events
             if (friend is null) 
                 return;
 
-            var exists = context.Friends.FirstOrDefault(x => x.Friend2 == id);
+            var exists = DbContext.Friends.FirstOrDefault(x => x.Friend2 == id);
 
             if (exists is not null)
                 return;
 
-            context.Friends.Add(new ()
+            DbContext.Friends.Add(new ()
             {
                 Friend1 = pr.Id,
                 Friend2 = id
             });
 
             Base.FriendCache[pr.Id].Add(friend.Id);
-
-            context.SaveChanges();
         }
     }
 }

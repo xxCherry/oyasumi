@@ -1,17 +1,13 @@
-﻿using oyasumi.Interfaces;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using oyasumi.Database.Attributes;
+using oyasumi.Interfaces;
 
 namespace oyasumi.Database.Models
 {
     [Table("VanillaStats")]
     public class VanillaStats : IStats
     {
-        [Key]
-        [Required]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-
+        public bool IsPublic { get; set; }
         public long TotalScoreOsu { get; set; } = 0;
         public long TotalScoreTaiko { get; set; } = 0;
         public long TotalScoreCtb { get; set; } = 0;
@@ -46,11 +42,9 @@ namespace oyasumi.Database.Models
     [Table("RelaxStats")]
     public class RelaxStats : IStats
     {
-        [Key]
-        [Required]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
+        public bool IsPublic { get; set; }
         public long TotalScoreOsu { get; set; } = 0;
         public long TotalScoreTaiko { get; set; } = 0;
         public long TotalScoreCtb { get; set; } = 0;

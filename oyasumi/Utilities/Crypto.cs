@@ -10,55 +10,6 @@ using scr = Org.BouncyCastle.Crypto.Generators.SCrypt;
 
 namespace oyasumi.Utilities
 {
-    /*public static class BCrypt
-    {
-        [DllImport(@"lib/BCrypt")]
-        public static extern string generate_hash(string password, int rounds = 10);
-
-        [DllImport(@"lib/BCrypt")]
-        public static extern bool validate_password(string password, string hash);
-    } */
-    public class SCrypt
-    {
-        public static string RandomString(int n)
-        {
-            var ret = new StringBuilder();
-            const string ascii = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
-
-            for (var i = 0; i < n; i++)
-                ret.Append(ascii[new Random().Next(0, ascii.Length)]);
-
-            return ret.ToString();
-        }
-
-        public static byte[] PseudoSecureBytes(int n)
-        {
-            var provider = new RNGCryptoServiceProvider();
-            var byteArray = new byte[n];
-            provider.GetBytes(byteArray);
-            return byteArray;
-        }
-
-        private static byte[] generate_salt() => PseudoSecureBytes(new Random().Next(90, 100));
-
-        public static (string password, byte[] salt) generate_hash(string password, int rounds = 20)
-        {
-            var pwBytes = Encoding.Default.GetBytes(password);
-            var saltBytes = generate_salt();
-            var pwHashBytes = scr.Generate(pwBytes, saltBytes, 262144 / 4, rounds, 1, 512);
-            return (Convert.ToBase64String(pwHashBytes), saltBytes);
-        }
-
-        public static bool validate_password(string password, string hash, byte[] salt, int rounds = 20)
-        {
-            var pwBytes = Encoding.Default.GetBytes(password);
-            var pwHashBytes = scr.Generate(pwBytes, salt, 262144 / 4, rounds, 1, 512);
-            var hashBytes = Convert.FromBase64String(hash);
-
-            return pwHashBytes.SequenceEqual(hashBytes);
-        }
-    }
-    
     public static class Crypto
     {
         public static string GenerateHash(string password) =>
@@ -67,12 +18,8 @@ namespace oyasumi.Utilities
         public static bool VerifyPassword(string plaintext, string hash) => 
             BCrypt.Net.BCrypt.Verify(plaintext, hash); // BCrypt.validate_password(plaintext, hash);
 
-        public static bool VerifySCryptPassword(string dbPassword, string rawPassword, byte[] salt, bool fromMd5 = false)
-        {
-            return SCrypt.validate_password(fromMd5 ? rawPassword : ComputeHash(rawPassword), dbPassword, salt);
-        }
-        
-        public static string ComputeHash(string str) => ComputeHash(Encoding.UTF8.GetBytes(str));
+        public static string ComputeHash(string str) 
+            => ComputeHash(Encoding.UTF8.GetBytes(str));
 
         public static string ComputeHash(byte[] buffer)
         {

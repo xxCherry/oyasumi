@@ -33,7 +33,7 @@ namespace oyasumi.Extensions
             var isRelax = (mods & Mods.Relax) > 0;
             var isAutopilot = (mods & Mods.Relax2) > 0;
 
-            var beatmap = await BeatmapManager.Get(split[0], "", 0, false);
+            var beatmap = await BeatmapManager.Get(split[0], setId: -1);
 
             var osuVersionUnformatted = split[17];
             var osuVersion = osuVersionUnformatted.Trim();
@@ -65,7 +65,7 @@ namespace oyasumi.Extensions
                 Passed = bool.Parse(split[14]),
                 PlayMode = (PlayMode)uint.Parse(split[15]),
                 Date = DateTime.UtcNow,
-                Beatmap = beatmap.Item2,
+                Beatmap = beatmap,
                 OsuVersion = int.Parse(osuVersion),
                 Flags = (BadFlags)flags
             };

@@ -26,7 +26,7 @@ namespace oyasumi.Events
             var reader = new SerializationReader(new MemoryStream(p.Data));
             var slotIndex = reader.ReadInt32();
 
-            if (match.InProgress || slotIndex > Match.MAX_PLAYERS || slotIndex < 0)
+            if (match.InProgress || slotIndex > Match.MAX_PLAYERS - 1 || slotIndex < 0)
                 return;
 
             var slot = match.Slots[slotIndex];

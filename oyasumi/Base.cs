@@ -1,26 +1,16 @@
-//#define NO_LOGGING
+#define NO_LOGGING
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Threading.Tasks;
-using JetBrains.Annotations;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using oyasumi.Database;
 using oyasumi.Database.Models;
 using oyasumi.Enums;
 using oyasumi.Interfaces;
-using oyasumi.Managers;
 using oyasumi.Objects;
 using oyasumi.Utilities;
 
@@ -63,9 +53,9 @@ namespace oyasumi
 			[LeaderboardMode.Relax] = new()
 		};
 		public static readonly ConcurrentDictionary<string, string> PasswordCache = new();
-		public static readonly TwoKeyDictionary<string, int, User> UserCache = new();
+		public static readonly MultiKeyDictionary<string, int, User> UserCache = new();
 		public static readonly ConcurrentDictionary<string, CommandItem> CommandCache = new();
-		public static readonly TwoKeyDictionary<string, int, Token> TokenCache = new();
+		public static readonly MultiKeyDictionary<string, int, Token> TokenCache = new();
 		
 		public static readonly ConcurrentQueue<BeatmapItem> BeatmapDbStatusUpdate = new();
 		public static readonly ConcurrentQueue<User> UserDbUpdate = new();

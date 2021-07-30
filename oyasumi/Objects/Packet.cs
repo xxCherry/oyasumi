@@ -1,4 +1,5 @@
 ﻿using oyasumi.Enums;
+using System.Runtime.InteropServices;
 
 namespace oyasumi.Objects
 {

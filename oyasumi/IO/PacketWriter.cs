@@ -37,11 +37,11 @@ namespace oyasumi.IO
 		public async Task Write(Packet packet)
 		{
 			await using var writer = new SerializationWriter(new MemoryStream());
-			
+
 			writer.Write((short) packet.Type);
 			writer.Write((byte) 0);
 			writer.Write(packet.Data);
-			
+
 			((MemoryStream)writer.BaseStream).WriteTo(_data);
 		}
 
